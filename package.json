@@ -1,0 +1,15 @@
+{
+  "name": "@rc5/workers-surface",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.7.0",
+  "scripts": {
+    "check": "node scripts/build.mjs && tsc -p tsconfig.json && node --test tests/smoke.test.mjs packages/dsh-base-cloudflare-worker-http/tests/request-origin.test.ts",
+    "build": "node scripts/build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "typescript": "6.0.3"
+  }
+}
