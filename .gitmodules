@@ -1,0 +1,3 @@
+[submodule "deepseek-harness-paper"]
+	path = .submodules/deepseek-harness-paper
+	url = https://github.com/cordiverse/paper.git
