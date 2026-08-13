@@ -1,0 +1,13 @@
+{
+  "name": "@rc5/workers-surface",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node scripts/build.mjs && tsc -p tsconfig.json && node --test tests/smoke.test.mjs",
+    "build": "node scripts/build.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2",
+    "typescript": "6.0.3"
+  }
+}

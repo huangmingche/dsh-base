@@ -1,0 +1,25 @@
+{
+  "name": "@dsh-base/cloudflare-worker-http",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./src/*": "./src/*"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*"
+  },
+  "dshBase": {
+    "worker": {
+      "id": "cloudflare:worker:http",
+      "origin": "custom",
+      "order": 10
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [],
+      "reason": "No official DSH package runs on Cloudflare Workers; this is the Worker platform seam."
+    }
+  }
+}

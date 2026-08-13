@@ -1,0 +1,9 @@
+{
+  "name": "@rc5/web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node ../../scripts/build.mjs",
+    "check": "node ../../scripts/build.mjs && tsc -p ../../tsconfig.json && node --test ../../tests/smoke.test.mjs"
+  }
+}
