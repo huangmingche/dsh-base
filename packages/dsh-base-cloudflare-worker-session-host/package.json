@@ -1,0 +1,29 @@
+{
+  "name": "@dsh-base/cloudflare-worker-session-host",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./src/*": "./src/*"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*"
+  },
+  "dshBase": {
+    "worker": {
+      "id": "cloudflare:worker:session-host",
+      "origin": "custom",
+      "order": 40
+    },
+    "reuse": {
+      "mode": "fork",
+      "forkOf": "@deepseek-ai/dsh-session-persistence-sqlite",
+      "upstreamCommit": "15148dbd9a1d1f1ef1a26e5749b32af0cd663935",
+      "upstreamRelease": "dsh-0.1.0-rc.6",
+      "license": "MIT",
+      "reason": "Durable Object SQL replaces node:sqlite; storage semantics are preserved verbatim."
+    }
+  },
+  "license": "MIT"
+}

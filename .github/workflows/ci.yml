@@ -17,6 +17,8 @@ jobs:
         with:
           node-version: 24.19.0
           cache: pnpm
+      - name: Check product release version
+        run: node scripts/check-release-version.mjs
       - run: pnpm install --frozen-lockfile
       - run: pnpm audit
       - run: pnpm check

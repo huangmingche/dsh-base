@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import test from "node:test";
 
-const expectedUpstream = "dsh-0.1.0-rc.5";
+const expectedUpstream = "dsh-0.1.0-rc.6";
 const worker = (await import("../dist/worker.js")).default;
 const passwordHash = createHash("sha256").update("correct horse battery").digest("hex");
 const configured = { AUTH_USERNAME: "owner", AUTH_PASSWORD_SHA256: passwordHash, AUTH_SECRET: "acceptance-secret-0123456789" };
