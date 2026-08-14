@@ -17,6 +17,21 @@ function envRecord(env: unknown): Record<string, unknown> {
   return typeof env === "object" && env !== null ? env as Record<string, unknown> : {};
 }
 
+/** The SESSION_HOST Durable Object namespace this Worker forwards to. */
+interface SessionHostBinding {
+  idFromName(name: string): unknown;
+  get(id: unknown): { fetch(request: Request): Promise<Response> };
+}
+
+function sessionHostBinding(env: Record<string, unknown>): SessionHostBinding | undefined {
+  const binding = env.SESSION_HOST;
+  if (typeof binding !== "object" || binding === null) return undefined;
+  const candidate = binding as Partial<SessionHostBinding>;
+  return typeof candidate.get === "function" && typeof candidate.idFromName === "function"
+    ? candidate as SessionHostBinding
+    : undefined;
+}
+
 function redirect(location: string, setCookie?: string): Response {
   const headers = new Headers({ location });
   if (setCookie !== undefined) headers.set("set-cookie", setCookie);
@@ -38,6 +53,22 @@ async function handle(request: Request, env: unknown): Promise<Response | undefi
   if (url.pathname === "/api/health") return json({ ok: true, upstream: "dsh-0.1.0-rc.5" });
   if (url.pathname === "/assets/app.css") return new Response(styles, { headers: CSS_HEADERS });
   if (url.pathname === "/assets/client.js") return new Response(clientScript, { headers: JS_HEADERS });
+
+  if (url.pathname === "/api/session-host") {
+    if (request.method !== "POST") return json({ error: { code: "method_not_allowed" } }, 405);
+    const input = await request.json().catch(() => undefined) as { sessionId?: unknown; method?: unknown; params?: unknown } | undefined;
+    if (input === undefined || typeof input.sessionId !== "string" || typeof input.method !== "string") {
+      return json({ error: { code: "bad_request", message: "sessionId and method are required" } }, 400);
+    }
+    const binding = sessionHostBinding(envRecord(env));
+    if (binding === undefined) return json({ error: { code: "session_host_not_configured" } }, 503);
+    const stub = binding.get(binding.idFromName(input.sessionId));
+    return stub.fetch(new Request("https://session-host/api/session-host", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ method: input.method, params: { sessionId: input.sessionId, ...(typeof input.params === "object" && input.params !== null ? input.params : {}) } }),
+    }));
+  }
 
   const config = authConfigFromEnv(envRecord(env));
   const username = await currentUser(request, config);

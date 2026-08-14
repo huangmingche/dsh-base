@@ -1,15 +1,18 @@
 # dsh-base
 
-DeepSeek Harness Base 的 Cloudflare Workers 最小面（上游 `dsh-0.1.0-rc.5`）。
+DeepSeek Harness Base 的 Cloudflare Workers 面（上游 `dsh-0.1.0-rc.6`）。
 
-本版本只包含 rc.5 当时能成立的 Workers 主干：Worker 入口、薄路由、静态资源、最小 cookie 认证。上游 rc.5 没有会话持久化包，也没有可在 Workers 上运行的 `host/webserver`，所以**会话宿主、模型接线和官方客户端 UI 留到下一个版本**；客户端入口目前只做会话状态回显与退出登录。
+本版本在 rc.5 的静态与认证面之上新增：**Durable Object 会话宿主**（`SessionHostObject`，单 DO 单会话，DO SQLite 持久化）、`/api/session-host` 方法面（create/append/list/state/page）与 rc.6 会话持久化后端的标记 fork（`dshBase.forkOf: @deepseek-ai/dsh-session-persistence-sqlite`，只替换 `node:sqlite` 边界）。
+
+**模型**：`prompt` 在配置 `DEEPSEEK_API_KEY` 时走官方 DeepSeek HTTP API 发一轮真实请求并把 turn 事件落库；未配置时明确返回 501 `model_not_configured`，provider 失败返回 502 并记下错误 turn，不伪造回答。本轮不含工具循环。
+
+**边界**：官方客户端 shell（`client-runtime`/`layout`/`conversation`）仍未接入；真实出词需在带 key 的部署上验证。
 
 ## 运行
 
 ```bash
 pnpm install
-pnpm check      # 构建客户端与 Worker、严格类型检查、9 条冒烟
-node scripts/serve.mjs   # 可选：本地起 Worker
+pnpm check      # 构建 + strict tsc + 18 条测试（表面 9 / 持久化语义 5 / DO 3 / Worker 转发 1）
 ```
 
-认证由部署环境变量提供：`AUTH_USERNAME`、`AUTH_PASSWORD_SHA256`、`AUTH_SECRET`。未配置时登录页保持可见但禁用，并给出原因。
+认证环境变量：`AUTH_USERNAME`、`AUTH_PASSWORD_SHA256`、`AUTH_SECRET`。
