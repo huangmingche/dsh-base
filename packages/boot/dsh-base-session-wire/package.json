@@ -1,0 +1,36 @@
+{
+  "name": "@dsh-base/session-wire",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./src/*": "./src/*"
+  },
+  "dshBase": {
+    "reuse": {
+      "mode": "seam",
+      "official": [
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-chat"
+      ],
+      "reason": "Pure shared Host/browser projection for the official Session journal and cursorless stream contracts. Both carriers use the same causal sequencer; actual pinned assembler and turn-process definitions validate approval/replay ordering in tests. No official source is copied.",
+      "sourceEntries": [
+        "@deepseek-ai/dsh-client-ui-conversation/src/client/conversation/assembler.ts",
+        "@deepseek-ai/dsh-client-ui-chat/src/client/conversation-nodes/turn-process.ts",
+        "@deepseek-ai/dsh-client-ui-chat/src/client/conversation-nodes/tool.ts"
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "gaps": [
+        "Legacy or imported history without terminal execution evidence remains explicitly unknown; no successful outcome or historical provider attribution is invented.",
+        "New step timing and requested/response model evidence are persisted from actual Think SDK hooks. Imported history lacking those records cannot recover precise historical step clocks.",
+        "Think execution remains distinct from the native DSH engine. The shared seam preserves official journal and stream contracts; native model/tool execution semantics are not claimed.",
+        "Host projection revisions are a separate durable sequence from the compatibility chat journal cursor. Snapshot/control clients compare projection watermarks only within the projection domain."
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@dsh-base/agent-presets": "workspace:*"
+  }
+}

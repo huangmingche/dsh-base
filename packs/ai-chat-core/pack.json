@@ -1,0 +1,79 @@
+{
+  "$schema": "../../scripts/composition/pack.schema.json",
+  "id": "ai-chat-core",
+  "planes": {
+    "client": [
+      {
+        "name": "@dsh-base/client-auth-login",
+        "id": "client:auth-login",
+        "origin": "custom",
+        "order": 5,
+        "documentRoutes": [
+          "/login"
+        ],
+        "module": "@dsh-base/client-auth-login"
+      },
+      {
+        "name": "@dsh-base/client-wire-bootstrap",
+        "id": "client:wire-bootstrap",
+        "origin": "custom",
+        "order": 30,
+        "disabled": true,
+        "unavailableReason": "Superseded by the unchanged official Gateway connection lifecycle inside the session adapter.",
+        "module": "@dsh-base/client-wire-bootstrap"
+      },
+      {
+        "name": "@dsh-base/client-session-adapter",
+        "id": "client:session-adapter",
+        "origin": "custom",
+        "order": 45,
+        "module": "@dsh-base/client-session-adapter"
+      },
+      {
+        "name": "@dsh-base/client-commands",
+        "id": "client:commands",
+        "origin": "custom",
+        "order": 50,
+        "replaces": "@deepseek-ai/dsh-client-ui-commands",
+        "module": "@dsh-base/client-commands"
+      },
+      {
+        "name": "@dsh-base/client-model-selection",
+        "id": "client:model-selection",
+        "origin": "custom",
+        "order": 51,
+        "replaces": "@deepseek-ai/dsh-client-ui-model-selection",
+        "module": "@dsh-base/client-model-selection"
+      },
+      {
+        "name": "@dsh-base/client-settings",
+        "id": "client:settings-sections",
+        "origin": "custom",
+        "order": 70,
+        "module": "@dsh-base/client-settings"
+      }
+    ],
+    "worker": [
+      "@dsh-base/cloudflare-worker-agents",
+      "@dsh-base/cloudflare-worker-auth",
+      "@dsh-base/cloudflare-worker-http",
+      "@dsh-base/cloudflare-worker-session-host",
+      "@dsh-base/cloudflare-worker-wire-rpc"
+    ],
+    "think": [
+      "@dsh-base/cloudflare-think-deepseek",
+      "@dsh-base/cloudflare-think-persona"
+    ]
+  },
+  "requires": [
+    "base"
+  ],
+  "config": {},
+  "toggleable": "none",
+  "uninstallImpact": "Removing the chat core removes Session creation and conversation; not individually toggleable.",
+  "reuse": {
+    "mode": "custom",
+    "official": [],
+    "reason": "Session, model and conversation core; always composed."
+  }
+}

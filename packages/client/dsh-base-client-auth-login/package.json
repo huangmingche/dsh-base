@@ -1,0 +1,48 @@
+{
+  "name": "@dsh-base/client-auth-login",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/client/index.tsx",
+    "./client": "./src/client/index.tsx"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-client-ui-primitives": "*",
+    "react": "*",
+    "react-dom": "*"
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:auth-login",
+      "origin": "custom",
+      "order": 5,
+      "documentRoutes": [
+        "/login"
+      ]
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-primitives",
+        "@deepseek-ai/dsh-client-ui-theme",
+        "@deepseek-ai/dsh-client-ui-layout"
+      ],
+      "reason": "The official DSH account UI is mounted for the signed-in Account surface. No official package provides a local-product sign-in screen; this plugin renders the product account form with the official DSH primitives and theme tokens, matching createbuddy's AccountLogin approach.",
+      "sourceEntries": [
+        "@deepseek-ai/dsh-client-ui-theme/src/client/styles.ts",
+        "@deepseek-ai/dsh-client-ui-theme/src/client/icon-sprite.ts",
+        "@deepseek-ai/dsh-client-ui-theme/src/theme-settings.ts",
+        "@deepseek-ai/dsh-client-ui-layout/src/client/theme-presenter.ts"
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db"
+    }
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": []
+    }
+  }
+}

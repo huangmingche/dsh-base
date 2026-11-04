@@ -1,0 +1,30 @@
+.row {
+  padding: 16px 0;
+  color: var(--dsw-alias-label-primary);
+  font-size: 14px;
+  line-height: 22px;
+  overflow-wrap: anywhere;
+}
+
+/* Build-injected upstream tag belongs to the same version line; it wraps at
+   spaces on narrow Settings panes instead of overflowing. */
+.upstream {
+  overflow-wrap: anywhere;
+}
+
+/* Official Settings external-link style contract (ui-settings-web-search). */
+.link {
+  color: var(--dsw-alias-link);
+  text-decoration: none;
+}
+
+@media (hover: hover) {
+  .link:hover {
+    text-decoration: underline;
+  }
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--dsw-focus-ring-color, var(--dsw-alias-state-business-primary));
+  outline-offset: 2px;
+}

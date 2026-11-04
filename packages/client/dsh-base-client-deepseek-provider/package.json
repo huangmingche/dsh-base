@@ -1,0 +1,68 @@
+{
+  "name": "@dsh-base/client-deepseek-provider",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/client/index.ts",
+    "./client": "./src/client/index.ts",
+    "./src/*": "./src/*",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-modules",
+        "@deepseek-ai/dsh-client-product-analytics",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ],
+      "platform": "web"
+    }
+  },
+  "dshBase": {
+    "forkOf": {
+      "package": "@deepseek-ai/dsh-client-ui-settings-models",
+      "path": "packages/client/ui-settings-models",
+      "commit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "license": "MIT"
+    },
+    "client": {
+      "id": "client:deepseek-provider",
+      "origin": "custom",
+      "order": 106,
+      "replaces": "@deepseek-ai/dsh-client-ui-settings-models"
+    },
+    "reuse": {
+      "mode": "fork",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-settings-models"
+      ],
+      "reason": "Complete marked fork of the pinned official Models settings package. DeepSeek provider UI/editor and configuration semantics stay official; the fork adds only a read-only provider row for the independent operator-managed Cloudflare AI Gateway provider, rendering its official provider-card instead of the unknown-namespace YAML editor.",
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "sourceEntries": [
+        "@deepseek-ai/dsh-client-ui-settings-models/src/client/ModelsSection.tsx",
+        "@deepseek-ai/dsh-client-ui-settings-models/src/client/ProviderEditor.tsx"
+      ],
+      "gaps": [
+        "The independent Gateway row is read-only by design; Gateway configuration is operator-managed. DeepSeek remains the official editable provider."
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-api-remotes": "*",
+    "@deepseek-ai/dsh-client-locale": "*",
+    "@deepseek-ai/dsh-client-modules": "*",
+    "@deepseek-ai/dsh-client-product-analytics": "*",
+    "@deepseek-ai/dsh-client-store": "*",
+    "@deepseek-ai/dsh-client-ui-primitives": "*",
+    "@deepseek-ai/dsh-client-ui-renderer": "*",
+    "@deepseek-ai/dsh-client-ui-settings": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*",
+    "@deepseek-ai/dsh-util-values": "*",
+    "react": "*"
+  }
+}

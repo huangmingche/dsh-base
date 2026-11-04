@@ -1,0 +1,3 @@
+/* Only the required unavailable state wraps the unchanged official components. */
+.dsh-terminal-disabled { border: 0; margin: 0; padding: 0; min-inline-size: 0; opacity: 0.55; }
+.dsh-terminal-disabled-body { height: 100%; }

@@ -1,0 +1,7 @@
+# Client Core
+
+This package is the browser boot and static module transport compatibility layer, not a composed feature plugin. The app entry passes its generated composition to `startClient`, which directly reuses the pinned official `BootPage`, `bootClient`, Loader, `mountClient`, and static module seeds. Reviewed official `./src/*` entrypoints and the source commit are recorded in `package.json` under `dshBase.reuse`.
+
+Client plugins may declare exact public document paths through `dshBase.client.documentRoutes`. A matching route starts only those providers through the official Loader, without reading private control state, starting other application plugins, or mounting the private shell. A disabled public provider retains route ownership and fails explicitly instead of falling back to the private composition. The login plugin currently owns `/login`, its surface, and its official theme resources. All other routes retain the complete generated composition, official inventory, and real fiber states.
+
+`node packages/client/dsh-base-client-core/tests/document-routes.test.ts` checks exact matching, disabled-provider refusal, and preservation of the private inventory. After building, `pnpm acceptance:local` verifies that English and Chinese login pages request only `/api/auth-policy`, create no WebSockets, and start only the login fiber; it then checks the complete signed-in official composition. This boot isolation does not replace Worker authentication and access control.

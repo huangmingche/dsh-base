@@ -1,0 +1,11 @@
+{
+  "name": "@dsh-base/agent-presets",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./src/*": "./src/*",
+    "./availability": "./src/availability.ts"
+  }
+}

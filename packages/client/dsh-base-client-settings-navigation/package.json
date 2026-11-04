@@ -1,0 +1,79 @@
+{
+  "name": "@dsh-base/client-settings-navigation",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/client/entry.ts",
+    "./client": "./src/client/entry.ts",
+    "./src/*": "./src/*",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-shortcuts",
+        "@deepseek-ai/dsh-client-modules",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-settings-models"
+      ],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-api-remote-access": "*",
+    "@deepseek-ai/dsh-api-remotes": "*",
+    "@deepseek-ai/dsh-client-connection": "*",
+    "@deepseek-ai/dsh-client-locale": "*",
+    "@deepseek-ai/dsh-client-modules": "*",
+    "@deepseek-ai/dsh-client-product-analytics": "*",
+    "@deepseek-ai/dsh-client-store": "*",
+    "@deepseek-ai/dsh-client-ui-layout": "*",
+    "@deepseek-ai/dsh-client-ui-primitives": "*",
+    "@deepseek-ai/dsh-client-ui-renderer": "*",
+    "@deepseek-ai/dsh-client-ui-session": "*",
+    "@deepseek-ai/dsh-client-ui-settings": "*",
+    "@deepseek-ai/dsh-client-ui-sidebar": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*",
+    "clsx": "*",
+    "react": "*",
+    "@deepseek-ai/dsh-settings": "*",
+    "react-dom": "*",
+    "@deepseek-ai/dsh-client-shortcuts": "*",
+    "zod": "*",
+    "@deepseek-ai/dsh-client-ui-settings-models": "*"
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:settings-navigation",
+      "origin": "custom",
+      "order": 65,
+      "replaces": "@deepseek-ai/dsh-client-ui-settings-general"
+    },
+    "forkOf": {
+      "package": "@deepseek-ai/dsh-client-ui-settings-general",
+      "path": "packages/client/ui-settings-general",
+      "commit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "license": "MIT"
+    },
+    "reuse": {
+      "mode": "fork",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-settings-general"
+      ],
+      "reason": "The official shell reads the raw settings slot ledger for navigation, so public priority shadows produce duplicate navigation entries even though section rendering elects only one winner. Exported SettingsRoot cannot replace the shell registration because the original owns its child-slot declarations. Fork the complete official browser implementation and change only the section/onboarding projections to the public entriesOfSlot winner view; preserve all rendering, controllers, CSS, localization and interactions. The General version row is adapted only to append the build-injected upstream tag from dsh-source.lock.json beside the app version from apps/web/package.json; the official row/template remains and no official component is rewritten. The General version row appends a native-linked, localized upstream DeepSeek Harness name and pinned release tag; repository/release URLs are derived at build time from dsh-source.lock.json and injected, so the component contains no URL/version constants.",
+      "gaps": [
+        "Navigation projects the same winning list-slot entries as the official renderer; shadowed originals remain inspectable in the raw registry without duplicate navigation.",
+        "The version row appends the pinned upstream release tag injected from dsh-source.lock.json; the app version is read from apps/web/package.json and is never replaced by the upstream version. No latest-version tracking or sidebar version is added.",
+        "The version row links `DeepSeek Harness` to the pinned repository and the tag to the derived `/releases/tag/<encodedTag>` URL; no live GitHub query, latest tracking, or sidebar version is added."
+      ]
+    }
+  }
+}

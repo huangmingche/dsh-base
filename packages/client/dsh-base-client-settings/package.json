@@ -1,0 +1,41 @@
+{
+  "name": "@dsh-base/client-settings",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/client/index.tsx",
+    "./client": "./src/client/index.tsx"
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:settings-sections",
+      "origin": "custom",
+      "order": 70
+    },
+    "reuse": {
+      "mode": "seam",
+      "for": [
+        "@deepseek-ai/dsh-client-ui-settings-session-log"
+      ],
+      "reason": "Compatibility seam: the official Session-log plugin is mounted unchanged, but whileServed omits its row when this Host namespace is absent. Reuse the exported official UploadRow in its original general-settings slot with an unavailable read-only snapshot and localized explanation; do not add custom settings pages. The stable client entry does not export UploadRow, requiring reviewed source exports.",
+      "sourceEntries": [
+        "@deepseek-ai/dsh-client-ui-settings-session-log/src/client/UploadRow.tsx",
+        "@deepseek-ai/dsh-client-ui-settings-session-log/src/client/locales.ts"
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "gaps": [
+        "Session-log upload has no Host service; the original official switch remains visible and disabled."
+      ]
+    }
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-renderer"
+      ]
+    }
+  }
+}

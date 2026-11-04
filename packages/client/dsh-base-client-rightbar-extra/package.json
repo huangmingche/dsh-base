@@ -1,0 +1,49 @@
+{
+  "name": "@dsh-base/client-rightbar-extra",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/client/index.tsx",
+    "./client": "./src/client/index.tsx"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-client-ui-primitives": "*",
+    "react": "*"
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:rightbar-extra",
+      "origin": "custom",
+      "order": 59
+    },
+    "reuse": {
+      "mode": "seam",
+      "for": [
+        "@deepseek-ai/dsh-client-ui-sidebar-terminal"
+      ],
+      "reason": "Compatibility seam: the official terminal plugin remains mounted unchanged and owns the tab/shortcut/title. The Workers Host has no PTY, so this package provides its declared webTerminals service with explicit unavailable errors and uses the public slot priority contract to wrap the exported official guide/body in a disabled fieldset. The stable client entry does not export these components; source exports are reviewed at the pin. Official documentpreview owns all file previews without a custom fallback.",
+      "sourceEntries": [
+        "@deepseek-ai/dsh-client-ui-sidebar-terminal/src/client/TerminalGuide.tsx",
+        "@deepseek-ai/dsh-client-ui-sidebar-terminal/src/client/LazyTerminalBody.tsx",
+        "@deepseek-ai/dsh-client-ui-sidebar-terminal/src/client/locales.ts"
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "gaps": [
+        "Host PTY/process operations are unavailable; official terminal guide/body controls remain visible and disabled with localized reasons."
+      ]
+    }
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-theme",
+        "@deepseek-ai/dsh-client-shortcuts"
+      ]
+    }
+  }
+}

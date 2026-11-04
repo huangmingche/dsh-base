@@ -1,0 +1,26 @@
+{
+  "$schema": "../../scripts/composition/pack.schema.json",
+  "id": "plugin-management",
+  "planes": {
+    "client": [
+      {
+        "name": "@deepseek-ai/dsh-client-ui-plugin-manager",
+        "module": "@deepseek-ai/dsh-client-ui-plugin-manager/client",
+        "id": "client:ui-plugin-manager",
+        "origin": "upstream",
+        "order": 109
+      }
+    ]
+  },
+  "requires": [
+    "ai-chat-core"
+  ],
+  "config": {},
+  "toggleable": "none",
+  "uninstallImpact": "Disabling hides the official Plugins page and rejects control routes; packages stay installed.",
+  "reuse": {
+    "mode": "custom",
+    "official": [],
+    "reason": "Official Plugins entry and control routes; read-only deployment capability, never user-switchable."
+  }
+}

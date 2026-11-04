@@ -1,0 +1,36 @@
+{
+  "name": "@dsh-base/cloudflare-worker-wire-rpc",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./src/*": "./src/*"
+  },
+  "scripts": {
+    "test": "node --experimental-strip-types tests/mux.test.ts"
+  },
+  "dshBase": {
+    "status": "official-wire-rpc-foundation",
+    "worker": {
+      "id": "cloudflare:worker:wire-rpc",
+      "origin": "custom",
+      "order": 26
+    },
+    "reuse": {
+      "mode": "fork",
+      "official": [
+        "@deepseek-ai/dsh-api-gateway"
+      ],
+      "forkOf": "@deepseek-ai/dsh-api-gateway",
+      "reason": "Official api-gateway Host is Node/ws based. This Worker fork owns the official client-request/server-response envelope over /api/<endpoint> and the /api/remote.mux logical-stream carrier; typed Remote descriptors stay on the official client packages."
+    },
+    "forkOf": {
+      "package": "@deepseek-ai/dsh-api-gateway",
+      "path": "packages/api/gateway",
+      "commit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "license": "MIT"
+    }
+  },
+  "license": "MIT"
+}

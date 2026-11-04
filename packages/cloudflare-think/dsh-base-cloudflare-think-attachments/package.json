@@ -1,0 +1,17 @@
+{
+  "name": "@dsh-base/cloudflare-think-attachments",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { ".": "./src/index.ts", "./src/*": "./src/*" },
+  "dshBase": {
+    "agent": { "id": "cloudflare:think:attachments", "order": 25, "export": "attachments" },
+    "reuse": {
+      "mode": "custom",
+      "official": ["@deepseek-ai/dsh-tool-fs", "@deepseek-ai/dsh-attachment-local"],
+      "reason": "The official file tools and attachment-local provider require Node filesystem paths and the official tool/agent runtime. Mounting or a Host-only fork cannot provide those execution contracts in Think. This minimal Think tool reads the owner Session's admitted immutable R2 objects through its Host service; official upload transport and UI remain reused by the Host/client seams.",
+      "gaps": ["Binary files are readable byte-for-byte but no PDF, Office or image decoding is supplied by this deployment."]
+    }
+  },
+  "peerDependencies": { "@dsh-base/cloudflare-think-core": "workspace:*", "ai": "*", "zod": "*" }
+}

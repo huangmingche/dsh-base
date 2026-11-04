@@ -1,0 +1,25 @@
+{
+  "name": "@dsh-base/cloudflare-think-persona",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./src/*": "./src/*"
+  },
+  "dshBase": {
+    "agent": {
+      "id": "cloudflare:think:persona",
+      "order": 40,
+      "export": "persona"
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [],
+      "reason": "Official DSH agent capabilities are Node/Host-bound; these implement the Workers Think agent seam."
+    }
+  },
+  "peerDependencies": {
+    "@dsh-base/cloudflare-think-core": "workspace:*"
+  }
+}

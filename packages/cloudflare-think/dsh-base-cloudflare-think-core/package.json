@@ -1,0 +1,40 @@
+{
+  "name": "@dsh-base/cloudflare-think-core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./src/*": "./src/*"
+  },
+  "peerDependencies": {
+    "@cloudflare/think": "*",
+    "ai": "*",
+    "agents": "*",
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-system-prompt": "*",
+    "@dsh-base/chat-skills": "workspace:*",
+    "@dsh-base/session-wire": "workspace:*"
+  },
+  "dshBase": {
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-agent-loop",
+        "@deepseek-ai/dsh-agent",
+        "@deepseek-ai/dsh-session",
+        "@deepseek-ai/dsh-system-prompt",
+        "@deepseek-ai/dsh-permission-presets"
+      ],
+      "reason": "Workers Think execution adapter. The official system-prompt registry is reused through its public entrypoint. Mounting or forking the official agent engine requires its Host session, sandbox and execution services; adapting only its Host seam cannot turn those execution semantics into Think durable submissions. This package explicitly implements the Think lifecycle and exposes mapped official session contracts; it does not claim native agent-engine equivalence. Session permission state is supplied by the separately forked official permission service, and effects read it at execution time. Official approval-policy context and switch notices are supplied by the Host at each actual model step. Installed Sessions persist non-human source:user-approval notices without waking inference. Stable IDs handle restart and private runtime provenance prevents duplicate delivery across SDK steps.",
+      "gaps": [
+        "Think submission and compaction semantics differ from the official DSH agent loop; compatibility is verified at the session contract boundary.",
+        "Permission enforcement covers actual logical R2 model effects and action consent. It does not provide a POSIX process sandbox, arbitrary shell execution, or one-off filesystem escalation grants. Explicit user file edits use a separate service.",
+        "Legacy pending inputs without immutable execution-configuration evidence cannot safely resume. They fail closed with a visible error and retain a cancel/resubmit path; the current picker is never substituted.",
+        "Tool approval outside the Think WebSocket protocol requires its private _applyToolApproval transition because the installed SDK exports no public equivalent. The seam fails closed if absent; inference uses public continueLastTurn and actual response hooks. Durable intents prevent blind duplicate model calls, while provider effects remain subject to SDK recovery semantics.",
+        "Precise step/tool clocks and distinct requested/response model identifiers are available for new recorded executions. Unsupported imported timing or provider attribution remains unknown. Provider aggregate usage does not include a measured system/tools token split, so no character-count estimate is presented as accounting.",
+        "Approval policy notices are durable model context, not a replacement for native Agent inbox scheduling/cancellation or canonical command/notification UI history. No extra human input, model run or statistical turn is manufactured."
+      ]
+    }
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "name": "@dsh-base/cloudflare-worker-agents",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./src/*": "./src/*"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "agents": "*"
+  },
+  "dshBase": {
+    "worker": {
+      "id": "cloudflare:worker:agents",
+      "origin": "custom",
+      "order": 20
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [],
+      "reason": "No official DSH package runs on Cloudflare Workers; this is the Worker platform seam."
+    }
+  }
+}

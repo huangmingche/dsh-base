@@ -1,0 +1,65 @@
+{
+  "name": "@dsh-base/cloudflare-worker-permissions",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./runtime": "./src/runtime.ts",
+    "./executor": "./src/executor.ts",
+    "./settings": "./src/settings.ts",
+    "./types": "./src/types.ts",
+    "./src/*": "./src/*",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-session": "*",
+    "@deepseek-ai/dsh-session-projection": "*",
+    "@deepseek-ai/dsh-user-approval": "*",
+    "@deepseek-ai/dsh-sandbox-policy": "*",
+    "@deepseek-ai/dsh-commands": "*",
+    "@deepseek-ai/dsh-typert-protocol": "*",
+    "@deepseek-ai/schemastery": "*",
+    "@deepseek-ai/dsh-settings": "*",
+    "@deepseek-ai/dsh-agent": "*",
+    "@deepseek-ai/dsh-sandbox": "*",
+    "@deepseek-ai/dsh-system-prompt": "*",
+    "@deepseek-ai/dsh-llm": "*"
+  },
+  "dependencies": {
+    "zod": "^4.6.7"
+  },
+  "dshBase": {
+    "worker": {
+      "id": "cloudflare:worker:permissions",
+      "origin": "fork",
+      "order": 39
+    },
+    "forkOf": {
+      "package": "@deepseek-ai/dsh-permission-presets",
+      "path": "packages/interaction/permission-presets",
+      "commit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "license": "MIT"
+    },
+    "reuse": {
+      "mode": "fork",
+      "official": [
+        "@deepseek-ai/dsh-permission-presets",
+        "@deepseek-ai/dsh-session",
+        "@deepseek-ai/dsh-session-projection",
+        "@deepseek-ai/dsh-user-approval",
+        "@deepseek-ai/dsh-system-prompt"
+      ],
+      "reason": "Complete pinned permission-presets source and locales are retained. The confining shell dependency is replaced with a logical R2 file executor, and Host admission explicitly invokes the original initialization algorithm without fabricating a DSH Agent or shell. Preset derivation, whole-value permission/sandbox/approval events, defaults, command behavior and projection folds remain the official implementation. Session, projection and approval services mount unchanged from stable exports. The Host commits the returned official journal and snapshot atomically and reads the latest policy before each R2 effect or approval. The original permission command handler and descriptor are shared by the native registration and Host adapter; parsing and command types use official stable exports. The Host atomically persists real command lifecycle events, policy changes and idempotent receipts keyed by the authenticated RPC request. Approval policy transitions use unchanged ApprovalService.setPolicy through an explicit Session/inject-only port, not a native Agent cast. Unchanged SystemPrompt and ApprovalService generate current policy context. The Host commits original notice IDs/source with policy facts; Think consumes them at actual next steps without waking or creating user turns. Both narrow borrowed-agent operations are tested against the pinned official producer and require pin-upgrade review.",
+      "gaps": [
+        "The enforcement domain is authenticated-owner logical R2 workspaces, not native shell, PTY, POSIX permissions or OS sandboxing. Full access never crosses account boundaries; filesystem sandbox policy does not constrain network fetches.",
+        "The Auto review integration is not mounted and is not selectable. Read-only is configured through the official preset table. Approval never rejects consent-requiring operations; it never auto-approves memory or other tool side effects.",
+        "The Host persistence adapter must commit complete event deltas and effective state in one transaction; the library does not claim to persist events itself. Legacy empty histories use the official seeded-session behavior rather than silently adopting a new user default.",
+        "The Host supports only the permission command. Its command/run and command/done records are durable but are not yet merged into the shared canonical chat journal; command failures therefore surface as explicit Remote errors retaining the real command receipt. Model-facing notices are delivered through durable non-waking context, but their canonical UI history and full native Agent inbox scheduling/cancellation protocol are not implemented; effects still check the latest durable policy.",
+        "Native tool-fs per-operation sandbox_permissions/justification escalation grants are not exposed. The R2 executor enforces standing session policy; explicit user file editing is separately authorized and is not an agent execution gateway."
+      ]
+    }
+  }
+}

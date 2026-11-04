@@ -1,0 +1,74 @@
+{
+  "name": "@dsh-base/client-agent-preset",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/client/index.ts",
+    "./client": "./src/client/index.ts",
+    "./src/*": "./src/*",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-session",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-workspace",
+        "@deepseek-ai/dsh-api-remotes"
+      ],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-agent-preset-registry": "*",
+    "@deepseek-ai/dsh-api-remotes": "*",
+    "@deepseek-ai/dsh-api-session-controller": "*",
+    "@deepseek-ai/dsh-client-locale": "*",
+    "@deepseek-ai/dsh-client-store": "*",
+    "@deepseek-ai/dsh-client-ui-conversation": "*",
+    "@deepseek-ai/dsh-client-ui-plugin-manager": "*",
+    "@deepseek-ai/dsh-client-ui-primitives": "*",
+    "@deepseek-ai/dsh-client-ui-renderer": "*",
+    "@deepseek-ai/dsh-client-ui-session": "*",
+    "@deepseek-ai/dsh-client-ui-settings": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*",
+    "@deepseek-ai/dsh-client-ui-workspace": "*",
+    "@deepseek-ai/dsh-session": "*",
+    "@deepseek-ai/dsh-util-values": "*",
+    "@deepseek-ai/schemastery": "*",
+    "react": "*"
+  },
+  "license": "MIT",
+  "dshBase": {
+    "client": {
+      "id": "client:agent-preset",
+      "origin": "custom",
+      "order": 72,
+      "replaces": "@deepseek-ai/dsh-client-ui-agent-preset"
+    },
+    "forkOf": {
+      "package": "@deepseek-ai/dsh-client-ui-agent-preset",
+      "path": "packages/client/ui-agent-preset",
+      "commit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "license": "MIT"
+    },
+    "reuse": {
+      "mode": "fork",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-agent-preset"
+      ],
+      "reason": "Complete marked fork of the pinned official ui-agent-preset package. It preserves all official controllers, loading, introduce animation, refusal Toast/dismissRefusal, main-view gating, Coding Tools menu effects, guides, section/store behavior and official locale/UI CSS. The only adaptation is Host availability: presetOptions keeps broken rows, the official Seat renders them as disabled menu items with their localized gap and guards onSelect, the official Section disables only the Cloudflare Think declaration reader and Creator entry, and selection is refused in the store. No component was rewritten.",
+      "gaps": [
+        "The four official modes remain visible-but-disabled because this Workers-native deployment cannot start their Host Node/filesystem/terminal/Cordis compositions. The canonical fixed composition is dsh-base-think and has no official Cordis declaration to read.",
+        "Preset switching remains unavailable in this fixed runtime; selection/creation of official ids is refused in the client, Remote, Host and legacy create paths rather than silently aliased.",
+        "The four declaration documents are generated from pinned @deepseek-ai/dsh-web-app package exports by build plumbing and verified by check:preset-declarations."
+      ]
+    }
+  }
+}

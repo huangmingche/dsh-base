@@ -1,0 +1,24 @@
+/** File receipts and historical image bytes retain the official Remote shape. */
+import assert from "node:assert/strict";
+import { createAttachmentRemotes } from "../src/client/attachment-remote.ts";
+const calls: unknown[] = [];
+const success = { ok: true, value: { receiptId: "receipt", file: { attachmentId: "sha256", name: "one.txt", bytes: 3 } } };
+let response: unknown = success;
+const remotes = createAttachmentRemotes(() => ({ call: async (...args: unknown[]) => { calls.push(args); return response; } }) as never);
+const signal = new AbortController().signal;
+const upload = { data: "YWJj", name: "one.txt" };
+assert.equal(await remotes.fileUploads.upload("session", upload, signal), success);
+assert.deepEqual(calls.pop(), ["/api", "fileUploads/upload", { args: { sessionId: "session", request: upload } }, signal]);
+const attachment = { attachmentId: "image" as never, mediaType: "image/png" as const, bytes: 3, width: 1, height: 1 };
+response = { ok: true, value: { attachment, data: "YWJj" } };
+assert.equal(await remotes.attachment({ sessionId: "session", attachment }), response);
+assert.deepEqual(calls.pop(), ["/api", "session/attachment", { args: { request: { sessionId: "session", attachment } } }, undefined]);
+const denied = { ok: false, error: { code: "session/attachment-invalid", message: "wrong session", details: { reason: "FILE_NOT_STAGED" } } };
+response = denied;
+assert.equal(await remotes.fileUploads.upload("other", upload), denied);
+assert.equal(await remotes.attachment({ sessionId: "other", attachment }), denied);
+const offline = new Error("offline");
+const broken = createAttachmentRemotes(() => ({ call: async () => { throw offline; } }) as never);
+await assert.rejects(broken.fileUploads.upload("session", upload), error => error === offline);
+await assert.rejects(broken.attachment({ sessionId: "session", attachment }), error => error === offline);
+console.log("attachment Remote: exact receipt and base64 shapes, cancellation, Host refusals and transport failures passed");

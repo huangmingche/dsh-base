@@ -1,0 +1,15 @@
+body[data-dsh-login="true"] { overflow: hidden; }
+body[data-dsh-login="true"] #root { display: none !important; }
+#dsh-base-login { position: fixed; inset: 0; z-index: 2147483000; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); overflow-y: auto; box-sizing: border-box; }
+.dsh-login { display: flex; justify-content: center; width: 100%; }
+.dsh-login-card { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; }
+.dsh-login-form input { box-sizing: border-box; height: 36px; min-height: 36px; padding: 0 12px; width: 100%; }
+.dsh-login-brand { display: flex; justify-content: center; margin-bottom: 8px; }
+.dsh-login-title { margin: 0; text-align: center; font-size: 22px; line-height: 30px; font-weight: 600; }
+.dsh-login-intro { margin: 0 0 8px; text-align: center; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 20px; }
+.dsh-login-form { display: flex; flex-direction: column; gap: 8px; }
+.dsh-login-label { color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; margin-top: 6px; }
+.dsh-login-hint { color: var(--dsw-alias-label-tertiary); font-size: 11px; line-height: 16px; }
+.dsh-login-error { color: var(--dsw-alias-label-error); font-size: 12px; line-height: 18px; margin: 4px 0 0; }
+.dsh-login-submit { margin-top: 12px; width: 100%; justify-content: center; }
+.dsh-login-switch { margin-top: 2px; width: 100%; justify-content: center; }
