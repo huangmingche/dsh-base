@@ -1,0 +1,13 @@
+{
+  "workerName": "my-dsh-app",
+  "authDatabaseName": "my-dsh-auth",
+  "authDatabaseId": "",
+  "filesBucket": "my-dsh-files",
+  "aiGatewayId": "",
+  "authBaseUrl": "https://my-dsh-app.example.com",
+  "environmentLabel": "Production",
+  "brandName": "My DSH App",
+  "docsUrl": "",
+  "signupEnabled": false,
+  "platformAiEnabled": false
+}

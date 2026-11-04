@@ -1,0 +1,24 @@
+{
+  "name": "@dsh-base/build-server-dependencies",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { "./resolution": "./src/resolution.mjs" },
+  "dependencies": {
+    "@cloudflare/computer": "^0.8.0",
+    "@cloudflare/think": "0.23.0",
+    "agents": "0.33.0",
+    "ai": "7.0.163",
+    "react": "19.3.1",
+    "zod": "4.6.7"
+  },
+  "dshBase": {
+    "build": { "kind": "dependency-environment" },
+    "reuse": {
+      "mode": "seam",
+      "official": ["@deepseek-ai/dsh-client-web"],
+      "reason": "Build-only dependency ownership: keep the pinned official browser React 18 runtime separate from the Cloudflare server SDKs' React 19 optional peer environment. No Client/Worker/Think composition entry, runtime feature or upstream code is provided. React 19 is installed only to satisfy the SDK package contract; its React entrypoints are unused and must never enter the browser graph."
+    }
+  },
+  "license": "MIT"
+}

@@ -1,4 +1,23 @@
+# One repository-root workspace keeps build discovery inside its ancestor boundary.
+# Official sources remain a pinned, read-only submodule, not workspace members.
+verifyDepsBeforeRun: false
 packages:
   - apps/web
+  - packages/build/dsh-base-build-server-dependencies
+resolvePeersFromWorkspaceRoot: false
+autoInstallPeers: true
+strictPeerDependencies: true
+storeDir: .pnpm-store
+# Reviewed security updates for upstream consumers; preserve their used APIs.
+# uuid 11 retains CommonJS v4 support (12+ is ESM-only).
+overrides:
+  "@fortune-sheet/core>uuid": 11.1.1
+  "exceljs>uuid": 11.1.1
+  "micromark-extension-math>katex": 0.19.1
+  "guarded-fetch>undici": 7.30.2
 allowBuilds:
   esbuild: true
+  workerd: true
+  core-js-pure: false
+  "@mongodb-js/zstd": false
+  node-liblzma: false

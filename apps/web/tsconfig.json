@@ -1,0 +1,3 @@
+{
+  "extends": "../../.artifacts/typecheck/client.json"
+}

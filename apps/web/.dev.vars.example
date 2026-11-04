@@ -1,0 +1,8 @@
+# Copy only for local development, or run pnpm template:init to generate random values.
+# Never commit .dev.vars. Production values must be set as Cloudflare secrets.
+AUTH_SECRET=replace-with-at-least-32-random-characters
+CREDENTIALS_KEY=replace-with-base64-encoded-32-random-bytes
+AUTH_REGISTRATION_TOKEN=replace-with-at-least-32-random-characters
+PLUGIN_CONTROL_TOKEN=replace-with-at-least-32-random-characters
+AUTH_SIGNUP_ENABLED=false
+PLATFORM_AI_ENABLED=false

@@ -1,0 +1,27 @@
+{
+  "name": "@dsh-base/cloudflare-think-fetch",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./src/*": "./src/*"
+  },
+  "dshBase": {
+    "agent": {
+      "id": "cloudflare:think:fetch",
+      "order": 20,
+      "export": "fetchTools"
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [],
+      "reason": "Think exposes its official fetch tool; this package is the deployment allowlist/config seam."
+    }
+  },
+  "peerDependencies": {
+    "@cloudflare/think": "*",
+    "@dsh-base/cloudflare-think-core": "workspace:*",
+    "ai": "*"
+  }
+}

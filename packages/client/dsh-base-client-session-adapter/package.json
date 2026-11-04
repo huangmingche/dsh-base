@@ -1,0 +1,98 @@
+{
+  "name": "@dsh-base/client-session-adapter",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/client/index.ts",
+    "./client": "./src/client/index.ts",
+    "./src/*": "./src/*"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-typert-registry"
+      ],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-client-ui-renderer": "*",
+    "@dsh-base/chat-skills": "workspace:*",
+    "@deepseek-ai/dsh-api-remote-access": "*",
+    "@deepseek-ai/dsh-client-connection": "*",
+    "zod": "*",
+    "@dsh-base/client-feedback-availability": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-message-feedback": "*",
+    "@deepseek-ai/dsh-plugin-manager": "*",
+    "@dsh-base/plugin-loader-static": "workspace:*",
+    "@deepseek-ai/dsh-client-file-upload": "*",
+    "@deepseek-ai/dsh-attachment": "*",
+    "@dsh-base/session-wire": "workspace:*",
+    "@deepseek-ai/dsh-commands": "*",
+    "@deepseek-ai/dsh-permission-presets": "*",
+    "@deepseek-ai/dsh-api-gateway": "*",
+    "@deepseek-ai/dsh-typert-registry": "*",
+    "@deepseek-ai/dsh-typert-protocol": "*",
+    "@dsh-base/agent-presets": "workspace:*"
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:session-adapter",
+      "origin": "custom",
+      "order": 45
+    },
+    "reuse": {
+      "mode": "seam",
+      "for": [
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-client-ui-session",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-settings-general",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-theme",
+        "@deepseek-ai/dsh-api-remote-access",
+        "@deepseek-ai/dsh-api-settings-controller",
+        "@deepseek-ai/dsh-client-ui-schedule",
+        "@deepseek-ai/dsh-client-ui-message-feedback",
+        "@deepseek-ai/dsh-client-ui-plugin-manager",
+        "@deepseek-ai/dsh-client-ui-directory-picker-browse",
+        "@deepseek-ai/dsh-client-ui-agent-preset",
+        "@deepseek-ai/dsh-client-ui-settings-account",
+        "@deepseek-ai/dsh-client-file-upload",
+        "@deepseek-ai/dsh-api-gateway",
+        "@deepseek-ai/dsh-typert-registry"
+      ],
+      "reason": "Workers supplies owner-scoped Host services to unchanged official client plugins. Unchanged official remote-access and Typert registry plugins are active composition rows. An internal isolated unchanged Gateway instance uses the real shared Connection as its sole answering/generation owner, supplies generated $mount, codecs, namespace registration and caller-fiber withdrawal, and is not represented as the globally active original Gateway row. The adapter is a Cordis Remote facade retaining the existing Host namespaces; it contains no copied Gateway implementation or local access snapshot. Official Typert generation emits the declared /remote runtime into ignored artifacts from the pinned source. The production resolver supplies its third-party dependencies from the existing app installation with browser/import conditions preserved; generated code is neither rewritten nor externalized. The authenticated Host remoteAccess/follow supplies a verified owner baseline; no non-owner grants are fabricated. $stream directly reuses the stable exported official RemoteStream; only physical carrier failures are translated to RemoteStreamCarrierError, while protocol/business failures remain terminal and legacy fallback requires genuine endpoint-unavailable. Official Connection RPC carries settings and schedule arguments unchanged. The unchanged permission UI uses enforced per-session Host permissions and durable official commands. Approval follows the real PendingApproval UI waterfall with Session scopes, AbortSignal and a single active fetch; only explicit user decisions reach the Host, exceptions never auto-reject and invalidation-driven retry preserves the same decision. Feedback contract tests and PendingApproval lifecycle tests use the pinned exported official implementations. Stable entries do not export the RPC helper or those test components; sourceEntries are reviewed at the pinned commit. Other Host compatibility boundaries are enumerated below.",
+      "sourceEntries": [
+        "@deepseek-ai/dsh-client-connection/src/client/rpc.ts",
+        "@deepseek-ai/dsh-client-ui-message-feedback/src/client/controller.ts",
+        "@deepseek-ai/dsh-client-ui-approval/src/client/contract/slots.ts"
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "gaps": [
+        "The real authenticated owner Host follows the official owner baseline contract. Shared non-owner Peer identities, policy grants and policy mutation are not implemented or advertised. RemoteAccess controls service access, separately from agent tool permission presets. The unchanged Gateway is an isolated internal dependency of this seam while existing handwritten Host namespaces migrate; the original global Gateway composition row remains disabled.",
+        "Owner-scoped durable SSE invalidations refresh official settings, schedule and credential consumers across tabs. Initial/reconnect baselines close the read/subscribe race; notifications carry only revision/topics, never private values.",
+        "Plugin management exposes real read-only client composition inventory, including disabled originals and observed fiber states. Dynamic package installation, removal and switching are unavailable; no Worker/Think inventory is fabricated.",
+        "Conversation-log feedback is unavailable. All official Session/message feedback controls are visible and disabled, and Remote calls and /feedback reject. Tested settings-sidecar feedback helpers remain unmounted and do not claim official log semantics.",
+        "The directory browser addresses durable logical Host directories, not the operator native filesystem. Native picking rejects; official browse remains available.",
+        "Agent preset roster and declaration viewing use the four pinned official @deepseek-ai/dsh-web-app preset exports generated at check/build time; selection/creation with official ids is refused rather than aliased. The actual fixed composition is canonical dsh-base-think; switching presets remains unavailable.",
+        "No billing service exists. Account balance uses the official nullable contract; required link fields use inert same-origin URLs and the account availability seam blocks billing navigation. Profile and sign-out use real checked HTTP outcomes.",
+        "Analytics collection is disabled. Dynamic runs/jobs are empty and their mutations refuse; literal composition has no HMR lifecycle. These optional no-op lifecycle interfaces do not claim persistent operations.",
+        "No image processing binding is configured. Ordinary file uploads use real session-scoped Host receipts; images are refused by the official InputBar picker/drop through a zero-image limit and by the Host with IMAGE_PROCESSOR_UNAVAILABLE. The shared file entry remains available for supported ordinary files. No vision support is claimed.",
+        "Model and reasoning effort selections are forwarded to the durable Host. Only acknowledged values are projected; an older Host that ignores a requested effort is rejected. Legacy catalogs without a reasoning capability remain visibly disabled.",
+        "Projection watermarks are durable Host revisions independent of chat journal cursors. The adapter never fabricates wall-clock sequence values or recomputes snapshots against separately read newer state; a unified native event-derived projection cut remains an explicit compatibility gap."
+      ],
+      "declarationSources": [
+        "@deepseek-ai/dsh-web-app/presets/standard.patch.yml",
+        "@deepseek-ai/dsh-web-app/presets/ptc.patch.yml",
+        "@deepseek-ai/dsh-web-app/presets/minimal.patch.yml",
+        "@deepseek-ai/dsh-web-app/presets/cordis.patch.yml"
+      ],
+      "declarationSourceCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db"
+    }
+  }
+}

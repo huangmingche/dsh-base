@@ -1,0 +1,40 @@
+{
+  "name": "@dsh-base/client-wire-bootstrap",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/client/index.ts",
+    "./client": "./src/client/index.ts",
+    "./src/*": "./src/*"
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:wire-bootstrap",
+      "origin": "custom",
+      "order": 30,
+      "disabled": true,
+      "unavailableReason": "Superseded by the unchanged official Gateway connection lifecycle inside the session adapter."
+    },
+    "reuse": {
+      "mode": "seam",
+      "official": [
+        "@deepseek-ai/dsh-api-gateway"
+      ],
+      "decision": "compatibility-seam",
+      "reason": "Retired compatibility seam. The session adapter now mounts the unchanged official Gateway as the sole Connection generation owner; this inventory row is disabled and has no bundled resolver."
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-client-connection": "*"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-connection"
+      ]
+    }
+  }
+}

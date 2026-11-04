@@ -1,0 +1,11 @@
+# Browser source build compatibility
+
+This package supplies build adapters, keeping product behavior out of the app entry. Official source is read directly from the pinned submodule without edits or copies. Official document preview needs the PDF.js Worker, matching fonts/CMaps/WASM, spreadsheet styles and a bundled Excel parser Worker. This package supplies real resources when building from source and emits third-party notices at `third-party/document-preview.txt`.
+
+Node resolver compatibility applies only to Vite's `client` environment. Workers retain real `nodejs_compat`. Browser filesystem writes fail explicitly instead of reporting false success. This does not supply a browser filesystem, plugin installation or HMR.
+
+`sourceDecorators` identifies actual TypeScript decorator nodes during the build. Official `@Remote` uses the standard decorator / `addInitializer` protocol; Agents' `callable`, including imported aliases, uses the legacy descriptor protocol. Each is lowered to executable target JavaScript without compiling official decorators under the wrong protocol. Mixing both protocols in one module fails explicitly. Tests load the actual pinned LLM and permission services and verify method markers and initialization, rather than only checking output text.
+
+After `cf build`, the app's `build` runs this package's `check-worker-output`, invoking `node --check` for every deployable Worker JavaScript module. This gate does not execute Cloudflare imports; actual startup remains covered by `acceptance:local`. Regressions in `scripts/conformance/tests/build-source-transform.test.mjs` run through `check:conformance`.
+
+`sourcePackageMetadata` evaluates only the registered, statically known `createRequire(import.meta.url)('../package.json')` read in official LLM `src/attribution.ts` at build time. The version comes from the pinned submodule's actual exported package.json, which is watched as a build dependency. Official identity, User-Agent and header functions remain unchanged and no longer depend on source paths unavailable in a Worker. Changes to the read, package name or export contract fail the build and require pin-upgrade review. The regression executes the generated attribution functions without Node module resolution or a filesystem parent path.

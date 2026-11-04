@@ -1,0 +1,7 @@
+# Type checking
+
+Run `node scripts/typecheck/check.mjs`. It uses the application's TypeScript 6.0.3 installation from the repository-root lockfile, verifies the upstream pin, then generates declarations and independent Client / Worker configurations under `.artifacts/typecheck/`. Every owned Client, Worker and Think TypeScript file under `src`, plus the app runtime entries, is checked with `strict: true`. Excluding an owned source file fails the gate.
+
+Shared official dependencies such as Cordis are checked with their package compiler options and emitted as declarations. The official public Typert `WorkspaceAnalyzer` and `FaceModelEmitter` generate real Remote declarations from the pinned Host source. Other official dependencies use TypeScript `emitDeclarationOnly` / `noCheck` for declaration extraction, then are consumed as dependencies instead of merging all upstream augmentations into one checked source project. `noCheck` applies only to dependency extraction. Owned checking never uses it or filters diagnostics by file path.
+
+This does not claim complete semantic checking of the upstream repository, which owns separate Host / Client project boundaries and tests. No invented interfaces, `any` replacement, submodule writes or upstream workspace installation are used. Generated files can be deleted and rebuilt; a passing report lists the checked owned files. Build and browser acceptance separately verify runtime behavior.

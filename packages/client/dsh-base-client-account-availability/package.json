@@ -1,0 +1,42 @@
+{
+  "name": "@dsh-base/client-account-availability",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/client/index.tsx",
+    "./client": "./src/client/index.tsx"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-settings-account"
+      ]
+    }
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:account-availability",
+      "origin": "custom",
+      "order": 72
+    },
+    "reuse": {
+      "mode": "seam",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-settings-account"
+      ],
+      "reason": "Mount the official account plugin unchanged. The exported AccountSection has no billing availability prop, but its unchanged component can be wrapped in native disabled semantics with anchor navigation guards. Reuse the original registration and live account hooks, preserving actual BetterAuth identity and the original launcher/sign-out. Only unavailable billing/account-platform navigation is dimmed and locally explained; no billing values or working billing links are fabricated.",
+      "sourceEntries": [
+        "@deepseek-ai/dsh-client-ui-settings-account/src/client/AccountSection.tsx"
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "gaps": [
+        "The local BetterAuth identity has no DeepSeek Platform balance, bonus wallets, account-profile page, usage page or top-up service. Official account details remain visible; all Platform links are disabled with localized explanations.",
+        "The official AccountView requires absolute link strings even when unavailable; the Host carries inert local-origin compatibility values, and the seam blocks pointer, keyboard, auxiliary-click and context-menu navigation."
+      ]
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "name": "@dsh-base/cloudflare-worker-auth",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./src/*": "./src/*"
+  },
+  "dependencies": {
+    "better-auth": "1.7.18"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*"
+  },
+  "dshBase": {
+    "worker": {
+      "id": "cloudflare:worker:auth",
+      "origin": "custom",
+      "order": 15
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-settings-account",
+        "@deepseek-ai/dsh-api-account-controller",
+        "@deepseek-ai/dsh-deepseek-account"
+      ],
+      "reason": "The official account stack is DeepSeek OAuth and Platform billing, not local product user authentication. The official Account UI is reused unchanged over the local Host seam; Better Auth over D1 supplies the product credential/session capability because no official local-auth package exists. Better Auth 1.7.18's built-in database rate limiter atomically shares per-IP/per-path counters across isolates using the existing AUTH_DB rateLimit table; no in-memory or custom-storage fallback is allowed.",
+      "gaps": [
+        "Authentication is local product authentication, not DeepSeek OAuth, billing or entitlement. Those official account controls retain their separately documented unavailable state.",
+        "The persisted limiter covers client HTTP auth endpoints, not internal auth.api session reads, product API quotas or account-wide credential-stuffing protection across different IPs. It relies on Cloudflare overwriting cf-connecting-ip at the public edge."
+      ]
+    }
+  }
+}

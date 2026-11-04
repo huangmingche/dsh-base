@@ -1,0 +1,75 @@
+{
+  "name": "@dsh-base/client-sidebar-right",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/client/entry.ts",
+    "./client": "./src/client/entry.ts",
+    "./src/*": "./src/*",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-client-resources",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-session",
+        "@deepseek-ai/dsh-client-shortcuts",
+        "@deepseek-ai/dsh-client-ui-context-menu"
+      ],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-api-session-controller": "*",
+    "@deepseek-ai/dsh-client-locale": "*",
+    "@deepseek-ai/dsh-client-resources": "*",
+    "@deepseek-ai/dsh-client-store": "*",
+    "@deepseek-ai/dsh-client-ui-conversation": "*",
+    "@deepseek-ai/dsh-client-ui-dockkit": "*",
+    "@deepseek-ai/dsh-client-ui-layout": "*",
+    "@deepseek-ai/dsh-client-ui-primitives": "*",
+    "@deepseek-ai/dsh-client-ui-renderer": "*",
+    "@deepseek-ai/dsh-client-ui-session": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*",
+    "@deepseek-ai/dsh-session": "*",
+    "react": "*",
+    "react-dom": "*",
+    "picomatch": "*",
+    "clsx": "*",
+    "@deepseek-ai/dsh-util-crypto": "*",
+    "zod": "*",
+    "@deepseek-ai/dsh-client-shortcuts": "*",
+    "@deepseek-ai/dsh-brand": "*",
+    "@deepseek-ai/dsh-client-ui-context-menu": "*"
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:sidebar-right",
+      "origin": "custom",
+      "order": 66,
+      "replaces": "@deepseek-ai/dsh-client-ui-sidebar-right"
+    },
+    "forkOf": {
+      "package": "@deepseek-ai/dsh-client-ui-sidebar-right",
+      "path": "packages/client/ui-sidebar-right",
+      "commit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "license": "MIT"
+    },
+    "reuse": {
+      "mode": "fork",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-sidebar-right"
+      ],
+      "reason": "The pinned official SidebarSessionView logs every rejected opening as a failure, including the owner cancellation caused by its own dispose() releasing a pending official SessionReference. This complete pinned browser fork only ignores its own already-disposed opening cancellation; an active opening failure is still reported. The official plugin cannot be configured with this lifecycle policy, and its exported view components do not replace the internally constructed view owner. All layout, CSS, slots, localization, retained-tab behavior and live references remain official. Public Cordis and slot declarations, and navigation parameter maps, reuse the official client type surface so all official plugin augmentations share one identity; runtime controller and registry implementations remain unchanged. React 18 RefObject declarations retain nullable current values, and the POSIX matcher has its exact used option declarations.",
+      "gaps": [
+        "Workers navigation may retire a pending right-sidebar Session view before its remote history opens. Cancellation of that retired view is not reported as an opening failure; real active failures remain visible in diagnostics."
+      ]
+    }
+  }
+}

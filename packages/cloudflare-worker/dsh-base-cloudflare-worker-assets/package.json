@@ -1,0 +1,25 @@
+{
+  "name": "@dsh-base/cloudflare-worker-assets",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./src/*": "./src/*"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*"
+  },
+  "dshBase": {
+    "worker": {
+      "id": "cloudflare:worker:assets",
+      "origin": "custom",
+      "order": 40
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [],
+      "reason": "No official DSH package runs on Cloudflare Workers; this is the Worker platform seam."
+    }
+  }
+}

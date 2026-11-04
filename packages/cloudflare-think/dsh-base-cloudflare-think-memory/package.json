@@ -1,0 +1,28 @@
+{
+  "name": "@dsh-base/cloudflare-think-memory",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./src/*": "./src/*"
+  },
+  "dshBase": {
+    "agent": {
+      "id": "cloudflare:think:memory",
+      "order": 50,
+      "export": "memory"
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [],
+      "reason": "Think action/tool seam over the agent's durable SQLite fact table."
+    }
+  },
+  "peerDependencies": {
+    "@cloudflare/think": "*",
+    "@dsh-base/cloudflare-think-core": "workspace:*",
+    "ai": "*",
+    "zod": "*"
+  }
+}

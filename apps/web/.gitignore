@@ -1,0 +1,12 @@
+node_modules/
+dist/
+.wrangler/
+.wrangler-home/
+.dev.vars
+*.tsbuildinfo
+.pnpm-store/
+/src/worker/generated-composition.ts
+/src/agent/generated-composition.ts
+.cloudflare/
+
+/public/third-party-notices.txt

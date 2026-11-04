@@ -1,0 +1,48 @@
+{
+  "name": "@dsh-base/client-commands",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/client/index.ts",
+    "./client": "./src/client/index.ts",
+    "./src/*": "./src/*",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-input-trigger",
+        "@deepseek-ai/dsh-client-ui-conversation"
+      ],
+      "platform": "web"
+    }
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:commands",
+      "origin": "custom",
+      "order": 50,
+      "replaces": "@deepseek-ai/dsh-client-ui-commands"
+    },
+    "forkOf": {
+      "package": "@deepseek-ai/dsh-client-ui-commands",
+      "path": "packages/client/ui-commands",
+      "commit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "license": "MIT"
+    },
+    "reuse": {
+      "mode": "fork",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-commands"
+      ],
+      "reason": "The pinned official command popup has no unavailable option contract. Fork its complete browser implementation and add only disabled/disabledReason Host capability fields: keep unavailable model rows visible and explained, skip them during keyboard navigation, and reject pointer/keyboard/confirmation settlement before invoking the original callback. All other official command behavior, rendering, localization and slots remain unchanged. A seam cannot disable individual rows through the original public contract.",
+      "gaps": [
+        "Deployment-unavailable choices remain visible and disabled with Host-localized reasons; no runtime command or model selection is simulated."
+      ]
+    }
+  }
+}

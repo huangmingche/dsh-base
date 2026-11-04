@@ -1,3 +1,38 @@
 node_modules/
+.pnpm-store/
 dist/
-apps/web/src/generated-client.ts
+.wrangler/
+.wrangler-home/
+.dev.vars
+*.tsbuildinfo
+
+/.artifacts/
+
+/node_modules
+
+
+# Local deployment/authentication configuration and generated artifacts.
+.env
+.env.*
+!.env.example
+.dev.vars.*
+!.dev.vars.example
+deployment.local.json
+.cloudflare/
+.DS_Store
+*.tsbuildinfo
+*.log
+*.sqlite
+*.sqlite-shm
+*.sqlite-wal
+*.db
+coverage/
+playwright-report/
+test-results/
+/apps/web/acceptance-*.png
+
+# Generated at check/build time from pinned official package exports.
+/packages/client/dsh-base-client-session-adapter/src/client/official-preset-declarations.generated.ts
+
+# Generated from packs/ toggleable: L1 manifests at check/build time.
+/packages/boot/dsh-base-plugin-management/src/manageable.generated.ts

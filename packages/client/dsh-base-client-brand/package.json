@@ -1,0 +1,56 @@
+{
+  "name": "@dsh-base/client-brand",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/client/index.tsx",
+    "./client": "./src/client/index.tsx",
+    "./src/*": "./src/*"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-sidebar"
+      ],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-client-ui-brand-official": "*",
+    "@deepseek-ai/dsh-client-ui-sidebar": "*",
+    "react": "*",
+    "zod": "*"
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:brand",
+      "origin": "custom",
+      "order": 96
+    },
+    "reuse": {
+      "mode": "seam",
+      "for": [
+        "@deepseek-ai/dsh-client-ui-brand-official"
+      ],
+      "official": [
+        "@deepseek-ai/dsh-client-ui-brand-official"
+      ],
+      "reason": "The official brand plugin registers nothing outside the official build profile, so SidebarRoot renders its fallbacks. Occupying only the public sidebar.brand.name slot replaces the display text; the official mark fallback (FishLogo with its click-to-copy version), layout and interaction stay untouched. No official source is copied, forked or replaced.",
+      "gaps": [
+        "User-approved (2026-11-13): the sidebar shows the code name `dsh-base` in every locale; the product display name `DeepSeek Harness Base` is used in README and documentation.",
+        "Unavoidable: the official name fallback renders the version line and click-to-copy version inside that slot, so occupying it removes them; the official mark fallback and the Settings version row remain."
+      ],
+      "userApprovedDeviations": [
+        {
+          "surface": "sidebar.brand.name",
+          "change": "Sidebar shows the short code name dsh-base in every locale",
+          "approval": "CEO approved on 2026-11-13: the sidebar keeps the code name dsh-base; the product display name DeepSeek Harness Base is used in documentation only."
+        }
+      ]
+    }
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,12 @@
+import assert from "node:assert/strict";
+import { publicDocumentEntries } from "../src/client/document-routes.ts";
+const privateEntry = { id: "private", name: "private", origin: "upstream" as const, disabled: false };
+const loginEntry = { id: "login", name: "login", origin: "custom" as const, disabled: false, documentRoutes: ["/login"] };
+const entries = [privateEntry, loginEntry];
+assert.deepEqual(publicDocumentEntries(entries, "/login"), [loginEntry]);
+assert.equal(publicDocumentEntries(entries, "/"), undefined);
+assert.equal(publicDocumentEntries(entries, "/login-other"), undefined);
+assert.equal(publicDocumentEntries(entries, "/login/"), undefined);
+assert.deepEqual(publicDocumentEntries([privateEntry, { ...loginEntry, disabled: true }], "/login"), [{ ...loginEntry, disabled: true }], "disabled public provider must not fall back to the private app");
+assert.deepEqual(entries, [privateEntry, loginEntry], "private composition inventory is not mutated");
+console.log("document routes: exact metadata-driven public selection; disabled providers fail closed; private roster retained");

@@ -1,0 +1,30 @@
+{
+  "name": "@dsh-base/cloudflare-think-deepseek",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./src/*": "./src/*"
+  },
+  "dshBase": {
+    "agent": {
+      "id": "cloudflare:think:deepseek",
+      "order": 5,
+      "export": "deepSeek",
+      "presetRow": false
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-client-deepseek-provider"
+      ],
+      "reason": "The official DeepSeek provider is a Host-side Cordis package that speaks the DSH Messages protocol and cannot feed a Cloudflare Think AI SDK model. This is the Workers Think seam: an OpenAI-compatible DeepSeek model fed by the owner's BYOK credential the Host decrypts per turn."
+    }
+  },
+  "peerDependencies": {
+    "@cloudflare/think": "*",
+    "@dsh-base/cloudflare-think-core": "workspace:*",
+    "ai": "*"
+  }
+}

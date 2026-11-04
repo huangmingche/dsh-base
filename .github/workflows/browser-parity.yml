@@ -1,0 +1,41 @@
+name: Browser parity (manual)
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: browser-parity-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    env:
+      # Explicitly records the compatibility date supported by the locked local workerd.
+      DSH_LOCAL_COMPATIBILITY_DATE: '2026-10-30'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 12.16.1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 26.13.0
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - name: Fetch pinned source tag
+        run: git -C .submodules/deepseek-harness fetch --depth=1 origin tag dsh-v0.2.2-rc.1
+      - run: pnpm --dir apps/web verify:release
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-parity-evidence
+          path: |
+            .artifacts/acceptance/local-ui/
+            .artifacts/browser-compat-report.json
+            apps/web/dist/parity-evidence/
+          if-no-files-found: ignore
+          retention-days: 7

@@ -1,0 +1,74 @@
+{
+  "name": "@dsh-base/cloudflare-worker-session-host",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./src/*": "./src/*"
+  },
+  "dshBase": {
+    "forkOf": {
+      "package": "@deepseek-ai/dsh-api-session-controller",
+      "path": "packages/api/session-controller",
+      "commit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "license": "MIT"
+    },
+    "status": "session-host + worker-http + official session rpc bridge",
+    "worker": {
+      "id": "cloudflare:worker:session-host",
+      "origin": "fork",
+      "order": 25
+    },
+    "reuse": {
+      "mode": "fork",
+      "official": [
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-util-time",
+        "@deepseek-ai/dsh-host-directory-picker",
+        "@deepseek-ai/dsh-host-directory-picker-browse",
+        "@deepseek-ai/dsh-api-workspace-controller",
+        "@deepseek-ai/dsh-client-file-upload",
+        "@deepseek-ai/dsh-session",
+        "@deepseek-ai/dsh-api-remote-access"
+      ],
+      "forkOf": "@deepseek-ai/dsh-api-session-controller",
+      "reason": "Official session-controller Host is Node-only; this is the Workers-native fork of its Session Remote contract. RRULE syntax, timezone/DST, COUNT bounds and occurrence resolution directly reuse the platform-neutral RRule export from the pinned dsh-util-time public entrypoint. DirectoryPicker preserves the official Remote/types and unchanged official browse UI; Node filesystem backends cannot mount in Workers, so the Host seam exposes durable owner-scoped logical directories instead. Exact event-prefix forks directly reuse the stable dsh-session/fork buildForkSeed export. Cron and DST gaps/overlaps directly use the pinned stable dsh-util-time exports. Committed SQL notifications and atomic per-session projection revisions adapt the Host data plane without browser wall-clock sequence fabrication. The remoteAccess/follow seam preserves the official owner baseline contract only after resolving the authenticated user's actual Host; it never accepts client-supplied owners or grants. Official ApprovalService/SystemPrompt notices and current policy context are persisted atomically with policy facts and exposed through a non-waking next-step Host port. Completed tool-history repair uses only existing Agent SDK evidence, without executing a model or tool.",
+      "gaps": [
+        "Session create cwd can address only registered logical Workspaces. Ungrouped Sessions at arbitrary unregistered directories are unavailable and rejected explicitly; the official Workspace-based composer remains supported.",
+        "Session events and history are projected from Think admitted history and the Host queue; this is a compatibility contract, not official engine equivalence.",
+        "toolResults/watch replays retained durable tool results after reload; the official service is live-only.",
+        "DirectoryPicker browses durable logical workspace directories, not a native operating-system filesystem; native pick is explicitly unavailable.",
+        "Ordinary uploaded files use durable R2-backed receipts and an 8 MiB deployment limit. Server image normalization is unavailable: official image limits disable new image admission, and image upload/read returns an explicit unavailable error.",
+        "Historical imported/forked messages without a provable submission lifecycle retain unknown outcomes; truncated forks use the official forked outcome. Legacy random user ids are correlated only for a unique one-to-one prompt match; ambiguous legacy approvals remain unavailable. Live turns use durable request identities and authoritative Think completion across tool approvals.",
+        "Session permissions enforce the real logical R2 file boundary through the marked official permission fork. They do not provide native process sandboxing or network confinement.",
+        "Exact chat-event forks persist the official seed and conservative closers and exclude future tool results. Permission facts currently inherit the source effective policy rather than reconstructing its historical chat cursor; missing cut-specific cumulative usage is not invented.",
+        "Projection values use an atomic durable per-session revision independent of the dense chat cursor. This supports reliable cross-tab updates but is not the official single native event-derived watermark.",
+        "New model/effort choices are durable and frozen at input admission. Old pending executions without their original configuration fail closed rather than using the current picker.",
+        "Official native terminal, dynamic Cordis execution, production HMR and full subagent lifecycle remain unavailable; dynamic loading and subagent support are unfinished integrations, not blanket Workers impossibilities.",
+        "RemoteAccess is owner-only. The authenticated mux identity selects the owner Host; shared non-owner Peer policy/grant management is not implemented or advertised.",
+        "Permission commands and model-facing policy notices are not yet unified into the canonical UI event journal; full native Agent inbox scheduling/cancellation, Auto review and per-operation escalation remain unimplemented. No notification is counted as an admitted user Turn."
+      ],
+      "settingsContracts": [
+        "packages/client/ui-settings/src/developer-tools-settings.ts",
+        "packages/client/ui-theme/src/theme-settings.ts",
+        "packages/client/locale/src/locale-settings.ts",
+        "packages/client/ui-settings-general/src/index.ts"
+      ],
+      "sourceEntries": [
+        "@deepseek-ai/dsh-client-file-upload/src/http-route.ts"
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db"
+    }
+  },
+  "peerDependencies": {
+    "agents": "*",
+    "@deepseek-ai/dsh-util-time": "*",
+    "@deepseek-ai/dsh-host-directory-picker": "*",
+    "@deepseek-ai/dsh-client-file-upload": "*",
+    "@deepseek-ai/dsh-session": "*",
+    "@deepseek-ai/dsh-api-remote-access": "*",
+    "@dsh-base/agent-presets": "workspace:*"
+  },
+  "license": "MIT"
+}

@@ -1,0 +1,37 @@
+{
+  "name": "@dsh-base/client-core",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/client/index.ts",
+    "./client": "./src/client/index.ts",
+    "./src/*": "./src/*"
+  },
+  "peerDependencies": {
+    "react": "*",
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-client-web": "*",
+    "@deepseek-ai/dsh-client-modules": "*",
+    "@dsh-base/plugin-loader-static": "workspace:*"
+  },
+  "dshBase": {
+    "reuse": {
+      "mode": "seam",
+      "official": [
+        "@deepseek-ai/dsh-client-web",
+        "@deepseek-ai/dsh-client-modules"
+      ],
+      "reason": "Shared browser transport and directory utilities; boots the unchanged official Loader, BootPage and mountClient over the generated static namespace table. Stable web exports do not expose the boot helpers or shell CSS. No alternate product UI.",
+      "sourceEntries": [
+        "@deepseek-ai/dsh-client-ui-theme/src/styles/brand-font.css",
+        "@deepseek-ai/dsh-client-web/src/base.css",
+        "@deepseek-ai/dsh-client-web/src/boot-client.ts",
+        "@deepseek-ai/dsh-client-web/src/boot-page.ts",
+        "@deepseek-ai/dsh-client-web/src/mount.ts",
+        "@deepseek-ai/dsh-client-web/src/seed.ts"
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db"
+    }
+  }
+}

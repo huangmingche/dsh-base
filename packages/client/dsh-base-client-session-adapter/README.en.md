@@ -1,0 +1,37 @@
+# Workers Host seam for official clients
+
+This plugin supplies Workers Host services to official DSH clients. Official plugins own UI layout and interactions; the adaptation copies no official source.
+
+Access mounts the unchanged official `dsh-api-remote-access/client` and Typert registry. An isolated unchanged Gateway inside this seam is the sole generation owner of the real Connection, owning `$events`, reconnect and generated `$mount`; a Cordis facade preserves existing Host namespaces. The official generator emits declarations and `/remote` runtime modules from the pinned checkout into ignored `.artifacts/typecheck`, without editing or copying upstream source. Generated modules resolve third-party dependencies from the app installation with Vite browser/import conditions, without rewriting or externalizing generated code. The Host resolves the authenticated owner's real DO before sending its baseline; the client has no access before that baseline. Shared non-owner Peers/grants are not implemented or invented. The retired wire-bootstrap remains disabled inventory. This access snapshot is separate from agent tool permission policy.
+
+Settings and Schedule call the Host through official Connection RPC. Host descriptors, namespaces, revisions and persistent outcomes are authoritative. Network errors, refusals and missing capabilities never become in-memory success. Official ui-schedule owns its page, sidebar, detail and Session contributions.
+
+The unchanged official permission plugin uses the enforced per-session Host catalog, durable `/permission` command receipts and authoritative projection updates. R2 tool checks and approval policy are enforced by the Worker/Think permission service; the client does not fabricate permission outcomes. Owner-scoped SSE invalidations refresh settings, schedules and credentials across tabs, with initial/reconnect baselines and revision deduplication.
+
+Verify from the repository root:
+
+```sh
+node packages/client/dsh-base-client-session-adapter/tests/remote-access.test.mjs
+node --experimental-strip-types packages/client/dsh-base-client-session-adapter/tests/settings-remote.test.ts
+```
+
+The access test uses actual Cordis, Connection, Gateway, Typert, RemoteAccess and the Worker mux, covering authenticated baselines, nine effects, reverse disposal, rollback, caller unloading, real generation recovery after 1006, and remount. Run `pnpm check:types` first to generate the official `/remote` runtime modules. RPC tests cover arguments, CAS, error details, network rejection and honest permission-command failure.
+
+Re-audit `dshBase.reuse.sourceEntries` on every pin upgrade. See [REUSE.md](REUSE.md) for the complete reuse decision.
+
+Credential reads and writes preserve Host outcomes. An absent carrier or network failure never becomes an empty configuration or a successful mutation. The unused fake `sessions` implementation was removed; the official api-session-controller owns the real lifecycle. Plugin inventory reads live composition inspection and retains disabled originals, provenance and observed fiber states. Management remains unavailable. Runtime rows are not installed bundles: the official Settings built-in plugin surface shows the real inventory, while the bundle catalog is empty.
+
+Conversation-log feedback is unavailable. All official feedback controls remain visible and disabled, and Remotes plus `/feedback` reject explicitly. Settings-sidecar helpers retain carrier/business Result and revision/CAS regressions as unmounted protocol tests; they do not establish log-feedback support.
+
+Additional checks: `node --experimental-strip-types packages/client/dsh-base-client-session-adapter/tests/chat-feedback.test.ts`, `node packages/client/dsh-base-client-session-adapter/tests/feedback-contract.test.mjs`, and `node --experimental-strip-types packages/client/dsh-base-client-session-adapter/tests/plugin-inventory.test.ts`.
+
+Directory selection mounts the unchanged official browse plugin and forwards listing/creation arguments to the Host. Folder creation and workspace registration are separate; native system picking rejects explicitly. Workspace files come only from the real Host file service, with no synthetic conversation-file fallback. The agent directory exposes the four pinned official declarations plus the canonical Cloudflare Think default; the marked official-preset fork keeps official controls, broken modes visible/disabled, and refuses official-id selection/creation. Account reads/sign-out check real HTTP outcomes. Billing returns the official absent value and the availability seam disables billing links. Run `node --experimental-strip-types packages/client/dsh-base-client-session-adapter/tests/host-capabilities.test.ts` for these transport and failure contracts.
+
+File-reference traversal preserves Host failures and cancellation instead of inventing empty or partial success. Uploads retain official FileUploadRuntime, background Worker and progress behavior. Encoded file and historical attachment RPCs reach the real Host; the official Session client decodes historical image base64. Without an image-processing binding, the zero-image limit makes the original picker/drop reject images with localized feedback; the Host also refuses with `IMAGE_PROCESSOR_UNAVAILABLE`. The shared entry remains usable for ordinary files and does not claim vision support. Verify with `node --experimental-strip-types packages/client/dsh-base-client-session-adapter/tests/attachment-remote.test.ts` and `node apps/web/tests/parity/run-upload.mjs`. The latter exercises real official browser contracts over controlled HTTP; real R2 receipt consumption requires independent Host acceptance.
+
+Owner-scoped SSE change notifications now refresh official settings, schedule and credential consumers across tabs. Initial and reconnect baselines close the eager-read/subscription race; duplicate revisions do not cause reload loops, and events carry no private values. Model and effort selections are sent intact to the durable Host; only acknowledged values project. Older Hosts that ignore a requested effort fail explicitly. See `tests/owner-invalidations.test.ts` and `tests/model-selection-remote.test.ts`.
+
+
+Projection versions come from Host SQLite transactions and are independent of chat event cursors. Baselines, control frames, rename acknowledgements and the legacy SSE seam use the same server version. The client never creates Date.now() sequence numbers or recomputes an older snapshot against a separately read newer state. Older Hosts without a genuine version fail explicitly. This separate version domain is a recorded compatibility gap, not the official unified event-log consistent cut.
+
+`$stream` directly uses the stable official `RemoteStream` export. Only physical carrier failures become recoverable CarrierErrors; business/protocol failures remain terminal, and legacy fallback requires genuine endpoint-unavailable. Approval uses the official `PendingApproval` UI waterfall, with retained Session scopes, AbortSignal and a single active read. Only explicit user decisions reach the Host; exceptions never auto-reject, and invalidation-driven retries preserve the same decision. Only an already selected decision gets at most two idempotent retries at 250ms and 1s after transient network/HTTP failure; Connection recovery and owner baselines also trigger recovery. Pending reads use no polling interval. UI exceptions, withdrawal and cancellation never become rejected decisions.

@@ -1,0 +1,56 @@
+{
+  "name": "@dsh-base/client-feedback-availability",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/client/index.tsx",
+    "./client": "./src/client/index.tsx",
+    "./availability": "./src/availability.ts",
+    "./src/*": "./src/*"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-message-feedback",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-locale"
+      ],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-client-ui-message-feedback": "*",
+    "@deepseek-ai/dsh-client-ui-renderer": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*",
+    "@deepseek-ai/dsh-client-locale": "*",
+    "react": "*",
+    "zod": "*"
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:feedback-availability",
+      "origin": "custom",
+      "order": 91
+    },
+    "reuse": {
+      "mode": "seam",
+      "for": [
+        "@deepseek-ai/dsh-client-ui-message-feedback"
+      ],
+      "official": [
+        "@deepseek-ai/dsh-client-ui-message-feedback"
+      ],
+      "reason": "The unchanged official feedback plugin remains active. Exported FeedbackDialog and MessageFeedbackActions are registered through public SlotRegistry inspection and registration, retaining the original per-session injected controllers. Every log-backed feedback action is visible and disabled with localized reasons because the required conversation log service is absent. Stable entries export types but not these components.",
+      "sourceEntries": [
+        "@deepseek-ai/dsh-client-ui-message-feedback/src/client/FeedbackDialog.tsx",
+        "@deepseek-ai/dsh-client-ui-message-feedback/src/client/MessageFeedbackActions.tsx"
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "gaps": [
+        "Conversation-log feedback is unavailable. Session/message dialogs and like/dislike actions remain visible and disabled; all message/session Remote writes and typed /feedback reject. Settings-sidecar helpers are not mounted as the log-feedback service."
+      ]
+    }
+  }
+}

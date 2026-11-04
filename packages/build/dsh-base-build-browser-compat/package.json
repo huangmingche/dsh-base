@@ -1,0 +1,37 @@
+{
+  "name": "@dsh-base/build-browser-compat",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./vite": "./src/vite.mjs",
+    "./decorators": "./src/decorators.mjs",
+    "./package-metadata": "./src/package-metadata.mjs",
+    "./check-worker-output": "./src/check-worker-output.mjs"
+  },
+  "dshBase": {
+    "reuse": {
+      "mode": "seam",
+      "official": [
+        "@deepseek-ai/cordis-plugin-loader",
+        "@deepseek-ai/dsh-client-ui-sidebar-documentpreview",
+        "@deepseek-ai/dsh-typert-protocol",
+        "@deepseek-ai/dsh-llm"
+      ],
+      "reason": "Build-only compatibility for unchanged pinned official source: browser-only Node resolver stubs fail unavailable operations; document preview uses installed same-version PDF.js assets and bundled official Excel parser. No app product behavior, source overlay or edited upstream files. Standard official decorators are lowered with their addInitializer semantics; agents callable decorators retain the legacy descriptor ABI. A parse-only post-build gate rejects invalid deployable Worker modules without executing platform imports. The exact pinned LLM attribution source statically reads its exported package manifest at build time; only that known read is replaced with the real version, preserving official identity/header functions and rejecting source-shape drift on pin upgrade.",
+      "sourceEntries": [
+        "@deepseek-ai/dsh-client-ui-sidebar-documentpreview/src/client/excel/worker.ts",
+        "@deepseek-ai/dsh-client-ui-sidebar-documentpreview/src/client/pdf/runtime.ts",
+        "@deepseek-ai/dsh-client-ui-sidebar-documentpreview/src/client/pdf/document.ts",
+        "@deepseek-ai/dsh-client-ui-sidebar-documentpreview/src/client/pdf/assets.ts",
+        "@deepseek-ai/dsh-client-ui-sidebar-documentpreview/src/client/excel/parse.ts",
+        "@deepseek-ai/dsh-client-web/src/base.css",
+        "@deepseek-ai/dsh-llm/src/attribution.ts"
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db"
+    },
+    "build": {
+      "kind": "vite-plugin"
+    }
+  }
+}

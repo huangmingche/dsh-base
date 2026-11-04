@@ -1,0 +1,54 @@
+{
+  "name": "@dsh-base/client-permission-availability",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/client/index.tsx",
+    "./client": "./src/client/index.tsx",
+    "./availability": "./src/availability.ts"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-locale"
+      ],
+      "platform": "web"
+    }
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:permission-availability",
+      "origin": "custom",
+      "order": 70,
+      "disabled": true,
+      "unavailableReason": "Retired compatibility wrapper: the deployed Host now enforces per-session policies, so the unchanged official permission plugin is mounted."
+    },
+    "reuse": {
+      "mode": "seam",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-permission-presets"
+      ],
+      "reason": "Retained inactive compatibility seam for older Hosts without an enforced permission runtime. The current composition mounts the unchanged official permission plugin and uses the actual durable Host catalog, commands and projection. Exported components and eight-language unavailable copy are retained for explicitly unsupported Host adapters; this package is not an active replacement.",
+      "sourceEntries": [
+        "@deepseek-ai/dsh-client-ui-permission-presets/src/client/PermissionSelect.tsx",
+        "@deepseek-ai/dsh-client-ui-permission-presets/src/client/PermissionRow.tsx",
+        "@deepseek-ai/dsh-client-ui-permission-presets/src/client/locales.ts"
+      ],
+      "gaps": [],
+      "for": [
+        "@deepseek-ai/dsh-client-ui-permission-presets"
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-client-ui-permission-presets": "*",
+    "@deepseek-ai/dsh-client-locale": "*",
+    "@deepseek-ai/dsh-client-ui-renderer": "*",
+    "react": "*",
+    "zod": "*"
+  }
+}

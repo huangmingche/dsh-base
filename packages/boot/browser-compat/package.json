@@ -1,0 +1,14 @@
+{
+  "name": "@dsh-base/browser-compat",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": { "./src/*": "./src/*" },
+  "dshBase": {
+    "reuse": {
+      "mode": "seam",
+      "official": ["@deepseek-ai/cordis-plugin-loader"],
+      "reason": "Inert browser-only compatibility for official Loader imports. Static module resolution bypasses Node loading; unavailable filesystem writes and module loading throw. No filesystem, product behavior or HMR is supplied. The build package installs this only in the client environment."
+    }
+  }
+}

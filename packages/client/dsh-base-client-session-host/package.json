@@ -1,0 +1,30 @@
+{
+  "name": "@dsh-base/client-session-host",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./wire-stream": "./src/wire-stream.ts",
+    "./workspace-gateway": "./src/workspace-gateway.ts",
+    "./src/*": "./src/*",
+    "./remote-stream": "./src/remote-stream.ts"
+  },
+  "dshBase": {
+    "reuse": {
+      "mode": "seam",
+      "official": [
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-api-gateway"
+      ],
+      "reason": "Browser transport seam for the Workers-native Session Host. The mounted official session-controller client consumes these typed Remote gateways through the session-adapter; legacy JSON calls validate HTTP status and an explicit result acknowledgement, preserving Host failures rather than inventing success. Projection acceptance uses the actual exported source ProjectionValueStore class because the stable /client entry exports it only as a type. Projection revisions are SQLite-owned monotonic values, separate from chat journal offsets; client clocks never create acknowledgements. Logical streams reuse the unchanged stable-exported Gateway RemoteStream supervisor; only physical socket loss becomes its RemoteStreamCarrierError. Host business and malformed-protocol failures remain terminal, with original codes preserved.",
+      "for": [
+        "@deepseek-ai/dsh-api-session-controller"
+      ],
+      "sourceEntries": [
+        "@deepseek-ai/dsh-api-session-controller/src/client/sessions/projection-store.ts"
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db"
+    }
+  }
+}

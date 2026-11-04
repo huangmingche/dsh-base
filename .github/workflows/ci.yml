@@ -1,11 +1,19 @@
-name: ci
+name: Template verification
 on:
   push:
-    branches: [main]
   pull_request:
+permissions:
+  contents: read
+concurrency:
+  group: verify-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 jobs:
-  check:
+  verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      # Explicitly records the compatibility date supported by the locked local workerd.
+      DSH_LOCAL_COMPATIBILITY_DATE: '2026-10-30'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -15,8 +23,24 @@ jobs:
           version: 12.16.1
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 26.13.0
           cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
       - run: pnpm install --frozen-lockfile
-      - run: pnpm check
+      - run: pnpm audit
+      - name: Fetch pinned source tag
+        run: git -C .submodules/deepseek-harness fetch --depth=1 origin tag dsh-v0.2.2-rc.1
+      # Browser pixel parity and browser source compatibility do not run on
+      # every push: the Chromium screenshot pass is too slow for the push
+      # budget. Run them manually via browser-parity.yml; locally
+      # `pnpm verify:release` remains the required pre-commit gate.
       - run: pnpm --dir apps/web build
+      - run: pnpm acceptance:local
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-evidence
+          path: |
+            .artifacts/acceptance/local-ui/
+          if-no-files-found: ignore
+          retention-days: 7

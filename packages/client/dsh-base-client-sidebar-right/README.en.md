@@ -1,0 +1,9 @@
+# Right-sidebar Session reference compatibility fork
+
+This package contains the complete pinned browser implementation of `@deepseek-ai/dsh-client-ui-sidebar-right`, copied from `.submodules/deepseek-harness/packages/client/ui-sidebar-right` at commit `66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`. The MIT license and original notice are preserved in [LICENSE](./LICENSE). The official original remains disabled in the composition inventory; this package declares `replaces`.
+
+The only behavior change is in `src/client/session-view.ts`: Workers navigation may release an old view before its remote history opens. Official `SessionReference.release()` rejects that reference's `ready` promise. A view already disposed by its owner must not report its own cancellation as an opening failure. A real opening failure while the view still owns its reference remains reported. `entry.ts` only supplies the local Loader configuration contract. Type seams reuse official `/client` Cordis/slot declarations and parameter maps so the fork does not lose augmentations from other official plugins. Refs use the official React 18 RefObject contract, whose current value is already nullable; the used POSIX matcher surface and generic tab-navigation parameters are typed explicitly. These type changes do not alter runtime behavior.
+
+Layout, CSS, components, slots, localization, retained tabs and reference ownership remain official. No successful reference is simulated, and the upstream checkout is unchanged. Re-audit the cancellation contract when upgrading the upstream pin.
+
+The regression uses real official `ClientSessions` and `SessionReference` objects to compare the original and fork: pending-opening cancellation, view switching, repeated disposal and actual opening failure. Run `node apps/web/tests/parity/run-sidebar-lifecycle.mjs`.
