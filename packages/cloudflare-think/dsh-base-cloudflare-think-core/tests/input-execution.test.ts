@@ -73,6 +73,27 @@ registerHooks({
 });
 const { composeAgent } = await import("../src/index.ts");
 const Agent = composeAgent([]);
+// The model provider rechecks paid operations through the trusted owner Host.
+const authorizedRequests:Request[]=[];const hostNames:string[]=[];
+let authorizationResult:unknown={allowed:true},authorizationStatus=200;
+const authorizationEnv={AUTH_SECRET:'fixture-internal',SESSION_HOST_GENERATION:'default-v49',SESSION_HOST:{
+  idFromName(name:string){hostNames.push(name);return name;},get(){return {async fetch(request:Request){authorizedRequests.push(request);return Response.json(authorizationStatus===200?{result:authorizationResult}:{error:{code:'entitlement_required'}},{status:authorizationStatus});}};},
+}};
+const paidAgent=new Agent({storage,id:{name:'owner:alice:session-a'}} as never,authorizationEnv as never);
+await paidAgent.authorizeOperation('platform_ai');
+assert.deepEqual(hostNames,['owner:alice:default-v49']);
+assert.equal(authorizedRequests[0]!.headers.get('x-dsh-internal-token'),'fixture-internal');
+assert.deepEqual(await authorizedRequests[0]!.json(),{method:'authorizeOperation',params:{sessionId:'session-a',operation:'platform_ai'}});
+authorizationResult={allowed:false};await assert.rejects(paidAgent.authorizeOperation('platform_ai'),/entitlements_unavailable/);
+authorizationResult={};await assert.rejects(paidAgent.authorizeOperation('platform_ai'),/entitlements_unavailable/);
+authorizationStatus=402;await assert.rejects(paidAgent.authorizeOperation('platform_ai'),error=>error instanceof Error&&error.message==='entitlement_required'&&(error as Error&{status:number}).status===402);
+await assert.rejects(paidAgent.authorizeOperation('other'),/unsupported_paid_operation/);
+const noTokenAgent=new Agent({storage,id:{name:'owner:alice:session-a'}} as never,{...authorizationEnv,AUTH_SECRET:undefined} as never);
+await assert.rejects(noTokenAgent.authorizeOperation('platform_ai'),/internal authentication unavailable/);
+const noTransportAgent=new Agent({storage} as never,{} as never);
+await assert.rejects(noTransportAgent.authorizeOperation('platform_ai'),/entitlements_unavailable/);
+const legacyNameAgent=new Agent({storage,id:{name:'alice:session-a'}} as never,authorizationEnv as never);
+await assert.rejects(legacyNameAgent.authorizeOperation('platform_ai'),/entitlements_unavailable/);
 const reopen = () => new Agent({ storage } as never, {} as never);
 let agent = reopen();
 async function prepare(id: string, count = 1) {

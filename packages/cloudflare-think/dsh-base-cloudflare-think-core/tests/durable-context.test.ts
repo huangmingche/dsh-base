@@ -17,7 +17,7 @@ const storage = {
     if (failWrite?.(query, bindings)) { failWrite = undefined; throw new Error("injected context write failure"); }
     const statement = db.prepare(query);
     const rows = statement.all(...bindings as never[]);
-    return { [Symbol.iterator]: () => rows[Symbol.iterator](), rowsWritten: Number(db.prepare("SELECT changes() AS changes").get()!.changes) };
+    return { toArray: () => rows, [Symbol.iterator]: () => rows[Symbol.iterator](), rowsWritten: Number(db.prepare("SELECT changes() AS changes").get()!.changes) };
   } },
   transactionSync<T>(fn: () => T): T {
     db.exec("SAVEPOINT test_write");
@@ -190,7 +190,10 @@ console.log("durable context: real Sessions SQLite branch preservation, stranded
 
 // setThinkPlugins must invalidate the cached official prompt registry and remove
 // tools/actions together without deleting facts. No model/provider call is made.
+let gatewayModels = 0, byokModels = 0;
 const SelectionAgent = composeAgent([
+  { name: "cloudflare-ai-gateway", matchesModel: (_env: unknown, id: string) => id.startsWith("cloudflare-ai-gateway/"), model: () => { gatewayModels += 1; return { provider: "gateway" }; } },
+  { name: "deepseek-official", matchesModel: (_env: unknown, id: string) => id.startsWith("deepseek-official/"), model: () => { byokModels += 1; return { provider: "byok" }; } },
   { name: "fetch", prompt: () => [{ name: "tool:fetch", order: 1600, text: "fetch prompt" }], tools: () => ({ fetch_url: {} }) },
   { name: "memory", prompt: () => [{ name: "tool:memory", order: 1700, text: "memory prompt" }], tools: () => ({ recall_facts: {} }), actions: () => ({ remember_fact: {} }) },
 ] as never);
@@ -205,4 +208,22 @@ await selectionAgent.setThinkPlugins({ disabled: [] });
 selectionDebug = await selectionAgent.systemPromptDebug();
 assert.ok(selectionDebug.text.includes("fetch prompt"));
 assert.ok(selectionDebug.tools.includes("fetch_url"));
+await selectionAgent.freezeExecutionModel("r7", "cloudflare-ai-gateway/deepseek-flash");
+assert.deepEqual(selectionAgent.setThinkPlugins({ disabled: ["cloudflare-ai-gateway"] }).disabled, ["cloudflare-ai-gateway"]);
+assert.throws(() => selectionAgent.getModel(), /no model provider/u, "disabled Gateway cannot construct a provider model");
+assert.equal(gatewayModels, 0);
+selectionDebug = await selectionAgent.systemPromptDebug();
+assert.ok(selectionDebug.tools.includes("fetch_url"), "Gateway disable does not disable fetch");
+assert.ok(selectionDebug.tools.includes("recall_facts"), "Gateway disable does not disable memory");
+const restartedSelection = new SelectionAgent(state as never, env as never);
+await restartedSelection.freezeExecutionModel("r7", "cloudflare-ai-gateway/deepseek-flash");
+assert.throws(() => restartedSelection.getModel(), /no model provider/u, "Gateway exclusion survives Agent reconstruction");
+await restartedSelection.freezeExecutionModel("r6", "deepseek-official/deepseek-flash");
+assert.deepEqual(restartedSelection.getModel(), { provider: "byok" }, "BYOK remains independent");
+assert.equal(byokModels, 1);
+restartedSelection.setThinkPlugins({ disabled: [] });
+await restartedSelection.freezeExecutionModel("r7", "cloudflare-ai-gateway/deepseek-flash");
+assert.deepEqual(restartedSelection.getModel(), { provider: "gateway" }, "re-enabling restores the exact Gateway provider");
+assert.equal(gatewayModels, 1);
 console.log("think plugin selection: prompt registry cache invalidation and tools/actions projection passed without model calls");
+console.log("think plugin selection: durable Gateway provider exclusion/re-enable, independent BYOK, fetch and memory passed");

@@ -5,6 +5,7 @@ import { UploadStore } from "./uploads.ts";
 import { getAgentByName } from "agents";
 import type { SessionModelOption } from "./contract.ts";
 import { createDurableObjectSessionHost, type DurableObjectSql } from "./durable-object.ts";
+import { notifyCompleted } from './completion-observers.ts';
 import { dispatchSessionHost, type SessionHostRequest } from "./service.ts";
 import type { SessionHost, ApprovalContinuation } from "./host.ts";
 import { agentName, ownerIdOf } from "./agent-name.ts";
@@ -13,6 +14,7 @@ import { SettingsStore } from "./settings-store.ts";
 import { CredentialStore } from "./credential-store.ts";
 import { DEPLOYMENT_MODELS, type DeploymentModel } from "./model-catalog.ts";
 import { bareModelId, deepseekModelId, gatewayModelId, isDeepSeekModelId, isGatewayModelId } from "../../../boot/dsh-base-session-wire/src/model-routes.ts";
+import { MANAGEABLE_THINK_MODULES, manageableThinkRuntimeName } from "../../../boot/dsh-base-plugin-management/src/index.ts";
 import { ScheduleStore } from "./schedule-store.ts";
 import { MaintenanceJobStore } from "./maintenance-jobs.ts";
 import { commitMigration, dumpMigrationTables, migrationStatus } from "./migration.ts";
@@ -23,6 +25,7 @@ import { HostChangeFeed, observeHostWrites, invalidationResponse } from "./chang
 import { projectModelSteps } from './step-projection.ts';
 import { createPermissionRuntime } from '@dsh-base/cloudflare-worker-permissions/runtime';
 import { PermissionStore } from './permissions-store.ts';
+import { assertOperationAllowed, EntitlementError } from '@dsh-base/cloudflare-worker-entitlements';
 
 /** Structural subset of the Durable Object state used by this Host. */
 export interface SessionHostObjectState {
@@ -157,6 +160,7 @@ export class SessionHostObject {
   private readonly claims = new Map<string, { submissionId: string; result: Promise<Response> }>();
   /** Better Auth owner encoded in the stable `owner:<userId>:default-v49` storage name. */
   private readonly ownerId: string | undefined;
+  private activationRecorded = false;
   /** R2-backed workspace file store; absent without the `FILES` binding. */
   private readonly files: WorkspaceFileStore | undefined;
   /** AES-GCM store; missing keys disable writes and reject reads of stored secrets. */
@@ -220,11 +224,11 @@ export class SessionHostObject {
   }
 
   /** Session Host over this Durable Object's SQLite and synchronous transactions. */
-  private host(): ReturnType<typeof createDurableObjectSessionHost> {
+  private host(gatewayEnabled = this.platformEnabled()): ReturnType<typeof createDurableObjectSessionHost> {
     return createDurableObjectSessionHost(
       this.state.storage.sql,
       [
-        ...(this.env?.PLATFORM_AI_ENABLED === "true" && Boolean(this.env.AI_GATEWAY_ID?.trim()) ? DEPLOYMENT_MODELS.map(model => ({ ...model, id: gatewayModelId(model.id) })) : []),
+        ...(gatewayEnabled ? DEPLOYMENT_MODELS.map(model => ({ ...model, id: gatewayModelId(model.id) })) : []),
         ...DEPLOYMENT_MODELS.map(model => ({ ...model, id: deepseekModelId(model.id) })),
       ],
       this.state.storage.transactionSync === undefined
@@ -246,6 +250,10 @@ export class SessionHostObject {
           return typeof preset === 'string' ? preset : 'workspace-write';
         });
       }),
+      async () => {
+        if (!this.ownerId || this.activationRecorded) return;
+        if (await notifyCompleted(this.env, this.ownerId)) this.activationRecorded = true;
+      },
     );
   }
 
@@ -339,10 +347,24 @@ export class SessionHostObject {
   /** Resolve and inject credential/provider settings before an input executes.
    * @returns the explicit provider/model identity frozen for this input.
    */
-  private async configureAgentForModel(agent: ThinkAgentRpc, model: string): Promise<string> {
+  private async configureAgentForModel(agent: ThinkAgentRpc, model: string, disabled: readonly string[]): Promise<string> {
     const settings = await this.readSettingsValues();
     const ref = deepseekCredentialRef(settings);
     if (isGatewayModelId(model)) {
+      if (!this.platformEnabled() || disabled.includes("cloudflare-ai-gateway")) {
+        const failure = new SessionRpcFault("model/unavailable", "Cloudflare AI Gateway is disabled for this deployment, account or Session.");
+        // A deliberate capability denial is terminal for this submission, not
+        // a transient transport failure that alarms should retry indefinitely.
+        failure.name = "AgentExecutionFailed";
+        throw failure;
+      }
+      try { await assertOperationAllowed(this.env, this.ownerId, 'platform_ai'); }
+      catch (error) {
+        // An unpaid/expired grant is a terminal refusal for this submission;
+        // storage outages remain retryable and cannot grant inference.
+        if (error instanceof EntitlementError && error.status === 402) error.name = 'AgentExecutionFailed';
+        throw error;
+      }
       // Explicit Gateway must not read or decrypt DeepSeek credentials.
       await agent.setUserCredential(null);
       if (typeof agent.setDeepSeekBaseURL === "function") await agent.setDeepSeekBaseURL(null);
@@ -368,26 +390,45 @@ export class SessionHostObject {
       if (typeof agent.setDeepSeekBaseURL === "function") await agent.setDeepSeekBaseURL(typeof baseURL === "string" && baseURL.trim() !== "" ? baseURL : null);
       return deepseekModelId(bare);
     }
-    if (!this.platformEnabled()) throw new Error("The legacy selection requires the original DeepSeek key or platform Gateway; neither is available");
-    await agent.setUserCredential(null);
-    if (typeof agent.setDeepSeekBaseURL === "function") await agent.setDeepSeekBaseURL(null);
-    return gatewayModelId(bare);
+    // ADR §12: bare ids are BYOK-only. A missing owner key never silently
+    // spends platform quota; the caller must select an explicit gateway id.
+    throw new Error("Legacy bare model ids require an owner DeepSeek key; select an explicit cloudflare-ai-gateway/* model for platform usage");
   }
 
-  /** Read the owner control record and project optional Think tools before a turn/approval. */
-  private async applyThinkPluginSelection(agent: ThinkAgentRpc, sessionId: string): Promise<string[]> {
-    if (this.env?.PluginControl === undefined) return [];
-    if (typeof agent.setThinkPlugins !== "function") return [];
+  /** Read one authoritative account/Session selection for catalog and execution gates. */
+  private async thinkPluginSelection(sessionId?: string): Promise<{ disabled: string[]; config: Record<string, unknown> }> {
+    if (this.env?.PluginControl === undefined) return { disabled: [], config: {} };
     const owner = /^owner:(.+):default-v49$/u.exec(this.state.id?.name ?? "")?.[1];
     if (owner === undefined) throw new Error("plugin_owner_identity_unavailable");
     const id = this.env.PluginControl.idFromName(`owner:${owner}:plugins`);
-    const response = await this.env.PluginControl.get(id).fetch(new Request(`https://plugin-control/api/plugin-manager?sessionId=${encodeURIComponent(sessionId)}`, { headers: { accept: "application/json" } }));
+    const query = sessionId === undefined ? "" : `?sessionId=${encodeURIComponent(sessionId)}`;
+    const response = await this.env.PluginControl.get(id).fetch(new Request(`https://plugin-control/api/plugin-manager${query}`, { headers: { accept: "application/json" } }));
     if (!response.ok) throw new Error(`plugin_selection_unavailable:${response.status}`);
     const state = await response.json() as { overrides?: Record<string, { disabled?: boolean; config?: unknown }>; session?: Record<string, { disabled?: boolean; config?: unknown }> };
-    const effective = (name: string) => state.session?.[name] ?? state.overrides?.[name];
-    const disabled = ["@dsh-base/cloudflare-think-fetch", "@dsh-base/cloudflare-think-memory"].filter(name => effective(name)?.disabled === true).map(name => name.endsWith("-memory") ? "memory" : "fetch");
-    await agent.setThinkPlugins({ disabled, config: { fetch: effective("@dsh-base/cloudflare-think-fetch")?.config ?? {} } });
-    return disabled;
+    if (typeof state !== "object" || state === null || Array.isArray(state)
+      || typeof state.overrides !== "object" || state.overrides === null || Array.isArray(state.overrides)
+      || (state.session !== undefined && (typeof state.session !== "object" || state.session === null || Array.isArray(state.session)))) {
+      throw new Error("plugin_selection_invalid");
+    }
+    for (const name of MANAGEABLE_THINK_MODULES) {
+      for (const entry of [state.overrides[name], state.session?.[name]]) {
+        if (entry !== undefined && (typeof entry !== "object" || entry === null || Array.isArray(entry)
+          || (entry.disabled !== undefined && typeof entry.disabled !== "boolean"))) throw new Error("plugin_selection_invalid");
+      }
+    }
+    const effective = (name: string) => ({ ...state.overrides?.[name], ...state.session?.[name] });
+    const disabled = MANAGEABLE_THINK_MODULES.filter(name => effective(name)?.disabled === true).map(manageableThinkRuntimeName);
+    const fetchEntry = MANAGEABLE_THINK_MODULES.find(name => name.endsWith("-fetch"));
+    const fetchConfig = fetchEntry === undefined ? undefined : effective(fetchEntry)?.config;
+    return { disabled, config: { fetch: fetchConfig ?? {} } };
+  }
+
+  /** Apply the same persisted selection before both ordinary and approval execution. */
+  private async applyThinkPluginSelection(agent: ThinkAgentRpc, sessionId: string): Promise<string[]> {
+    const selection = await this.thinkPluginSelection(sessionId);
+    if (typeof agent.setThinkPlugins === "function") await agent.setThinkPlugins(selection);
+    else if (selection.disabled.length > 0) throw new Error("plugin_runtime_projection_unavailable");
+    return selection.disabled;
   }
 
   private async executeClaim(sessionId: string, submissionId: string): Promise<Response> {
@@ -404,48 +445,62 @@ export class SessionHostObject {
       if (continuation !== undefined) return this.executeApproval(continuation);
       await host.runSubmission({ sessionId, submissionId, resume: true }, async (submission) => {
         const agent = await getAgentByName(this.env!.DshAgent!, this.agentFor(sessionId)) as unknown as ThinkAgentRpc;
-        void await this.applyThinkPluginSelection(agent, sessionId);
-        await agent.ensureHistory(await host.executionHistory(sessionId));
-        const executionConfig = await host.inputExecutionConfig(sessionId, submission.requestId);
-        if (executionConfig === undefined) throw new Error("input_configuration_unavailable: no frozen model is available for this input");
-        const resolvedModel = await this.configureAgentForModel(agent, executionConfig.model);
-        if (resolvedModel !== executionConfig.model) await host.freezeInputModel(sessionId, submission.requestId, resolvedModel);
-        // Every ordinary claim idempotently reconciles Think's durable ledger,
-        // including recovery after Host freeze succeeded but the previous Think
-        // RPC was interrupted. A missing first-time ledger is tolerated because
-        // admitInput below creates it with the effective config.
-        if (typeof agent.freezeExecutionModel === "function") {
-          try { await agent.freezeExecutionModel(submission.requestId, resolvedModel) }
-          catch (error) { if (!String(error).includes("input_configuration_unavailable")) throw error }
+        // A lost response or Host commit does not erase the Agent's recorded
+        // settled result (including an approval pause). Reconcile that request without re-admission,
+        // credentials or provider reconfiguration, even if it is now disabled.
+        const recorded = typeof agent.getInputExecution === "function"
+          ? await agent.getInputExecution(submission.requestId) : undefined;
+        if (recorded === undefined || !["completed", "awaiting-approval", "failed", "cancelled"].includes(recorded.status)) {
+          const disabledThink = await this.applyThinkPluginSelection(agent, sessionId);
+          await agent.ensureHistory(await host.executionHistory(sessionId));
+          const executionConfig = await host.inputExecutionConfig(sessionId, submission.requestId);
+          if (executionConfig === undefined) throw new Error("input_configuration_unavailable: no frozen model is available for this input");
+          const resolvedModel = await this.configureAgentForModel(agent, executionConfig.model, disabledThink);
+          if (resolvedModel !== executionConfig.model) await host.freezeInputModel(sessionId, submission.requestId, resolvedModel);
+          // Every ordinary claim idempotently reconciles Think's durable ledger,
+          // including recovery after Host freeze succeeded but the previous Think
+          // RPC was interrupted. A missing first-time ledger is tolerated because
+          // admitInput below creates it with the effective config.
+          if (typeof agent.freezeExecutionModel === "function") {
+            try { await agent.freezeExecutionModel(submission.requestId, resolvedModel) }
+            catch (error) { if (!String(error).includes("input_configuration_unavailable")) throw error }
+          }
+          const effectiveExecutionConfig = { ...executionConfig, model: resolvedModel };
+          const uploaded = [];
+          const uploadedFiles = [];
+          for (const reference of submission.attachments ?? []) {
+            if (reference.receiptId && reference.file) { uploadedFiles.push({ receiptId: reference.receiptId, file: reference.file }); continue; }
+            const stored = await host.attachment(reference.attachmentId);
+            uploaded.push(await agent.uploadAttachment({
+              name: stored.name,
+              mediaType: stored.mediaType,
+              dataBase64: stored.dataBase64,
+            }));
+          }
+          const accepted = await agent.admitInput({
+            requestId: submission.requestId,
+            text: submission.text,
+            ...(effectiveExecutionConfig.model === "" ? {} : { executionConfig: effectiveExecutionConfig }),
+            ...(uploaded.length === 0 ? {} : { attachments: uploaded }),
+            ...(uploadedFiles.length === 0 ? {} : { uploadedFiles }),
+          });
+          const inspection = accepted.status === "cancelled" ? { status: "cancelled" } : await agent.waitForSubmission(accepted.submissionId);
+          if (inspection?.status === "error") {
+            const failure = new Error(inspection.error ?? "agent turn failed");
+            failure.name = "AgentExecutionFailed";
+            throw failure;
+          }
+          if (inspection === null || inspection.status === "pending" || inspection.status === "running") throw new Error("agent execution has not completed");
+          if (inspection.status === "cancelled" || inspection.status === "aborted" || inspection.status === "skipped") await host.cancel({ sessionId });
         }
-        const effectiveExecutionConfig = { ...executionConfig, model: resolvedModel };
-        const uploaded = [];
-        const uploadedFiles = [];
-        for (const reference of submission.attachments ?? []) {
-          if (reference.receiptId && reference.file) { uploadedFiles.push({ receiptId: reference.receiptId, file: reference.file }); continue; }
-          const stored = await host.attachment(reference.attachmentId);
-          uploaded.push(await agent.uploadAttachment({
-            name: stored.name,
-            mediaType: stored.mediaType,
-            dataBase64: stored.dataBase64,
-          }));
-        }
-        const accepted = await agent.admitInput({
-          requestId: submission.requestId,
-          text: submission.text,
-          ...(effectiveExecutionConfig.model === "" ? {} : { executionConfig: effectiveExecutionConfig }),
-          ...(uploaded.length === 0 ? {} : { attachments: uploaded }),
-          ...(uploadedFiles.length === 0 ? {} : { uploadedFiles }),
-        });
-        const inspection = accepted.status === "cancelled" ? { status: "cancelled" } : await agent.waitForSubmission(accepted.submissionId);
-        if (inspection?.status === "error") {
-          const failure = new Error(inspection.error ?? "agent turn failed");
+        const messages = this.visibleMessages(await agent.getMessages());
+        if (recorded?.status === "failed") {
+          await host.syncAgentMessages({ sessionId, messages });
+          const failure = new Error(recorded.error ?? "agent turn failed");
           failure.name = "AgentExecutionFailed";
           throw failure;
         }
-        if (inspection === null || inspection.status === "pending" || inspection.status === "running") throw new Error("agent execution has not completed");
-        if (inspection.status === "cancelled" || inspection.status === "aborted" || inspection.status === "skipped") await host.cancel({ sessionId });
-        const messages = this.visibleMessages(await agent.getMessages());
+        if (recorded?.status === "cancelled") await host.cancel({ sessionId });
         const turnStats = await agent.takeTurnStats();
         const admittedAt = messages.findIndex((message) => message.id === submission.requestId);
         const turnMessages = admittedAt < 0 ? [] : messages.slice(admittedAt + 1);
@@ -498,6 +553,9 @@ export class SessionHostObject {
       if (error instanceof Error && error.message.startsWith("submission is not queued")) {
         return json(await host.state({ sessionId }));
       }
+      if (error instanceof SessionRpcFault && error.code === "model/unavailable") {
+        return json({ error: { code: error.code, message: error.message } }, 409);
+      }
       console.error("dsh-base session-host: claim failed", error);
       return json({ error: "claim_failed", message: "claim failed" }, 500);
     }
@@ -549,6 +607,16 @@ export class SessionHostObject {
         return json({ error: "session_archived" }, 409);
       }
       const agent = await getAgentByName(this.env.DshAgent, this.agentFor(intent.sessionId)) as unknown as ThinkAgentRpc;
+      // The continuation may already have settled before its Host receipt was
+      // lost. This branch only copies recorded evidence; it never applies a
+      // decision, constructs a model or restores a disabled capability.
+      const recorded = typeof agent.getInputExecution === "function" ? await agent.getInputExecution(intent.requestId) : undefined;
+      if (recorded !== undefined && ["completed", "failed", "cancelled"].includes(recorded.status)) {
+        const messages = this.visibleMessages(await agent.getMessages());
+        const statistics = recorded.sdkRequestId === undefined ? undefined : await agent.getExecutionStats(recorded.sdkRequestId);
+        await host.finishApproval(intent, messages, recorded, statistics);
+        return json({ result: { accepted: true } });
+      }
       const disabledThink = await this.applyThinkPluginSelection(agent, intent.sessionId);
       if (disabledThink.includes("memory") && intent.executionId !== undefined) {
         const pending = await agent.pendingApprovals();
@@ -563,7 +631,7 @@ export class SessionHostObject {
         await host.blockApprovalRecovery(intent, 'Original model configuration is unavailable; cancel this request and submit it again.');
         return json({ error: { code: 'session/input-configuration-unavailable', message: 'Original model configuration is unavailable; cancel this request and submit it again.' } }, 409);
       }
-      const resolvedModel = await this.configureAgentForModel(agent, frozen.model);
+      const resolvedModel = await this.configureAgentForModel(agent, frozen.model, disabledThink);
       const effectiveModel = resolvedModel;
       if (resolvedModel !== frozen.model) {
         await host.freezeInputModel(intent.sessionId, intent.requestId, resolvedModel);
@@ -595,6 +663,10 @@ export class SessionHostObject {
       if (outcome.status === "running" || outcome.status === undefined) await this.state.storage.setAlarm?.(Date.now() + 3_000);
       return json({ result: { accepted: true } });
     } catch (error) {
+      if (error instanceof SessionRpcFault && error.code === 'model/unavailable') {
+        await host.blockApprovalRecovery(intent, error.message);
+        return json({ error: { code: 'session/approval-capability-disabled', message: error.message } }, 409);
+      }
       if (String(error).includes('input_configuration_unavailable')) {
         await host.blockApprovalRecovery(intent,'Original model configuration is unavailable; cancel this request and submit it again.');
         return json({error:{code:'session/input-configuration-unavailable',message:'Original model configuration is unavailable; cancel this request and submit it again.'}},409);
@@ -750,11 +822,36 @@ export class SessionHostObject {
     if (typeof candidate.method !== "string") return json({ error: "invalid_method" }, 400);
     if (candidate.id !== undefined && typeof candidate.id !== "string") return json({ error: "invalid_request_id" }, 400);
     const requestBody: SessionHostRequest = { method: candidate.method, params: candidate.params, ...(candidate.id === undefined ? {} : { id: candidate.id }) };
-    if (candidate.method === 'recordModelRequest' || candidate.method === 'recordStepStart' || candidate.method === 'workspaceFileWriteFromAgent') {
+    if (candidate.method === 'recordModelRequest' || candidate.method === 'recordStepStart' || candidate.method === 'workspaceFileWriteFromAgent' || candidate.method === 'authorizeOperation') {
       const secret = (this.env as unknown as {AUTH_SECRET?: string})?.AUTH_SECRET;
       if (!secret || request.headers.get('x-dsh-internal-token') !== secret) return json({error:'unauthorized'}, 403);
     }
+    if (candidate.method === 'authorizeOperation') {
+      const params = requestBody.params;
+      if (typeof params !== 'object' || params === null || Array.isArray(params)
+        || Object.keys(params).some(key => !['sessionId', 'operation'].includes(key))
+        || (params as {operation?:unknown}).operation !== 'platform_ai') return json({error:'invalid_operation'}, 400);
+      try {
+        // The DO's authenticated storage identity is authoritative. The request
+        // carries no owner and cannot turn another account's grant into access.
+        await assertOperationAllowed(this.env, this.ownerId, 'platform_ai');
+        return json({result:{allowed:true}});
+      } catch (error) {
+        return error instanceof EntitlementError ? json({error:{code:error.code}}, error.status)
+          : json({error:{code:'entitlements_unavailable'}}, 503);
+      }
+    }
     if (requestBody.method === "runtimeInfo") return json({ result: { versionId: this.env?.WORKER_VERSION?.id ?? null, turnLifecycle: 1 } });
+    let gatewayEnabled = this.platformEnabled();
+    if (["modelAccess", "models", "selectModel", "create", "prompt"].includes(requestBody.method)) {
+      const sessionId = (requestBody.params as { sessionId?: unknown } | undefined)?.sessionId;
+      try {
+        const selection = await this.thinkPluginSelection(typeof sessionId === "string" ? sessionId : undefined);
+        gatewayEnabled = gatewayEnabled && !selection.disabled.includes("cloudflare-ai-gateway");
+      } catch {
+        return json({ error: { code: "plugin-manager/selection-unavailable", message: "The account or Session plugin selection could not be read; retry this request." } }, 503);
+      }
+    }
     if (requestBody.method === "modelAccess" || requestBody.method === "models" || requestBody.method === "selectModel") {
       const settingsHost = this.host();
       let settingsValues: Record<string, Record<string, unknown>> | undefined;
@@ -766,29 +863,29 @@ export class SessionHostObject {
       const platformEnabled = this.platformEnabled();
       const deepseekModels = deepseekModelsFromSettings(settingsValues);
       if (requestBody.method === "modelAccess") {
-        const gatewayCatalog = platformEnabled ? catalogFor(true, false) : [];
+        const gatewayCatalog = gatewayEnabled ? catalogFor(true, false) : [];
         return json({ result: {
           platformEnabled,
           ownerKeyConfigured: ownerAvailable,
           ownerKeyError: ownerError,
-          effective: platformEnabled ? "platform-gateway" : ownerAvailable ? "owner-byok" : "unavailable",
+          effective: gatewayEnabled ? "platform-gateway" : ownerAvailable ? "owner-byok" : "unavailable",
           protocol: "openai-chat-completions",
-          catalog: catalogFor(platformEnabled, ownerAvailable, deepseekModels),
+          catalog: catalogFor(gatewayEnabled, ownerAvailable, deepseekModels),
           providers: {
-            "cloudflare-ai-gateway": { available: platformEnabled, catalog: gatewayCatalog },
+            "cloudflare-ai-gateway": { available: gatewayEnabled, catalog: gatewayCatalog },
             "deepseek-official": { available: ownerAvailable, catalog: ownerAvailable ? catalogFor(false, true, deepseekModels) : [] },
           },
         } });
       }
       if (requestBody.method === "models") {
-        return json({ ...(requestBody.id === undefined ? {} : { id: requestBody.id }), result: catalogFor(platformEnabled, ownerAvailable, deepseekModels) });
+        return json({ ...(requestBody.id === undefined ? {} : { id: requestBody.id }), result: catalogFor(gatewayEnabled, ownerAvailable, deepseekModels) });
       }
       const requestedModel = (requestBody.params as { model?: unknown } | undefined)?.model;
       const model = typeof requestedModel === "string" ? requestedModel : "";
       const gatewaySelection = isGatewayModelId(model);
       const deepseekSelection = isDeepSeekModelId(model);
       if (gatewaySelection) {
-        if (!platformEnabled) return json({ error: { code: "model/unavailable", message: "Cloudflare AI Gateway is not enabled for this deployment." } }, 409);
+        if (!gatewayEnabled) return json({ error: { code: "model/unavailable", message: "Cloudflare AI Gateway is disabled for this deployment, account or Session." } }, 409);
         // Deliberately no DeepSeek credential read on the Gateway path.
       } else if (deepseekSelection) {
         if (!ownerAvailable) return json({ error: { code: "model/unavailable", message: ownerError ? "The DeepSeek API key could not be read." : "The owner DeepSeek API key is not configured." } }, 409);
@@ -796,7 +893,7 @@ export class SessionHostObject {
         return json({ error: { code: "model/unavailable", message: "Legacy bare model ids are read-only compatibility and cannot be selected as a new route." } }, 409);
       }
     }
-    const host = this.host();
+    const host = this.host(gatewayEnabled);
     if (requestBody.method === "claim") {
       const params = requestBody.params as { sessionId?: unknown; submissionId?: unknown } | undefined;
       if (typeof params?.sessionId !== "string" || typeof params?.submissionId !== "string") return json({ error: "invalid_claim" }, 400);

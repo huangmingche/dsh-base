@@ -5,21 +5,22 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { mkdir, writeFile } from "node:fs/promises";
+import { settle, stableCompare, stableScreenshot } from "./stability.mjs";
 import { resolve } from "node:path";
 const app=resolve(import.meta.dirname,"../.."), requireFromApp=createRequire(resolve(app,"package.json"));
 const puppeteer=requireFromApp("puppeteer-core").default,vite=await import(requireFromApp.resolve("vite"));
-const configFile=resolve(app,"vite.parity.config.ts"),output=resolve(app,"dist/parity-evidence");
+const configFile=resolve(app,"vite.parity.config.ts"),output=resolve(process.env.DSH_PARITY_OUTPUT ?? resolve(app,"dist/parity-evidence"));
 let browser,server;const cases=[];
 const snapshot=page=>page.evaluate(()=>({text:document.querySelector("#root").innerText,links:[...document.querySelectorAll("#root a")].map(a=>{const b=a.getBoundingClientRect();return {text:a.textContent,href:a.getAttribute("href"),opacity:getComputedStyle(a).opacity,rect:[b.x,b.y,b.width,b.height].map(n=>Math.round(n*100)/100)};})}));
 try{
   await mkdir(output,{recursive:true});await vite.build({configFile,logLevel:"error"});
   server=await vite.preview({configFile,logLevel:"error",preview:{host:"127.0.0.1",port:0,strictPort:true}});const origin=`http://127.0.0.1:${server.httpServer.address().port}`;
-  browser=await puppeteer.launch(acceptanceLaunchOptions());
-  async function open(locale,state,side){const page=await browser.newPage();page.setDefaultTimeout(10000);await page.setViewport({width:1280,height:900,deviceScaleFactor:1});const errors=[],popups=[];page.on("pageerror",e=>errors.push(e.message));page.on("console",m=>{if(m.type()==="error")errors.push(m.text())});page.on("popup",p=>popups.push(p));await page.goto(`${origin}/?${new URLSearchParams({surface:"account",locale,state,side})}`,{waitUntil:"networkidle0"});await page.waitForFunction(()=>window.__ACCOUNT_PARITY__?.registered===true);await page.evaluate(()=>document.fonts.ready);return {page,errors,popups};}
+  const launch=acceptanceLaunchOptions();browser=await puppeteer.launch({...launch,args:[...launch.args,"--disable-gpu"]});
+  async function open(locale,state,side,width=1280,theme="light"){const page=await browser.newPage();page.setDefaultTimeout(10000);await page.setViewport({width,height:900,deviceScaleFactor:1});const errors=[],popups=[];page.on("pageerror",e=>errors.push(e.message));page.on("console",m=>{if(m.type()==="error")errors.push(m.text())});page.on("popup",p=>popups.push(p));await page.goto(`${origin}/?${new URLSearchParams({surface:"account",locale,state,side})}`,{waitUntil:"networkidle0"});await page.waitForFunction(()=>window.__ACCOUNT_PARITY__?.registered===true);await page.evaluate(theme=>document.body.toggleAttribute("data-ds-dark-theme",theme==="dark"),theme);await page.evaluate(()=>document.fonts.ready);return {page,errors,popups};}
   for(const locale of ["en","zh"]){
     const reference=await open(locale,"section","reference"),adapted=await open(locale,"section","adapted");
     assert.deepEqual(await snapshot(adapted.page),await snapshot(reference.page),`${locale}: account section changed beyond declared unavailable state`);
-    const a=await reference.page.screenshot({path:resolve(output,`account-${locale}-official.png`),captureBeyondViewport:false}),b=await adapted.page.screenshot({path:resolve(output,`account-${locale}-adapted.png`),captureBeyondViewport:false});assert.ok(Buffer.from(a).equals(Buffer.from(b)));
+    const pair=await stableCompare(`${locale}/account`,()=>stableScreenshot(reference.page,{path:resolve(output,`account-${locale}-official.png`),captureBeyondViewport:false}),()=>stableScreenshot(adapted.page,{path:resolve(output,`account-${locale}-adapted.png`),captureBeyondViewport:false}));const {a,b}=pair;assert.ok(pair.equal,`${locale}: account pixels differ (attempts ${pair.attempts})`);
     assert.equal(await adapted.page.evaluate(()=>window.__ACCOUNT_PARITY__.registeredLocale),"settings.account","seam must explicitly bind the original locale; StoredEntry.options does not carry renderer localization");
     const data=await snapshot(adapted.page);assert.match(data.text,/Local User/);assert.match(data.text,locale==="zh"?/不提供账单服务/:/Billing is unavailable/);assert.ok(data.links.length>=4);assert.ok(data.links.every(link=>link.opacity==="0.55"&&!link.href.includes("/login")));
     const before=adapted.page.url();
@@ -37,5 +38,48 @@ try{
     assert.deepEqual(await menu.page.evaluate(()=>window.__ACCOUNT_PARITY__.calls),["account/signOut"]);assert.deepEqual(menu.errors,[]);
     cases.push({locale,state:"unchanged-account-menu",signOutCalls:1});await menu.page.close();
   }
-  await writeFile(resolve(output,"account-report.json"),JSON.stringify({ok:true,scope:"Original exported account section compared under explicit disabled billing semantics; real seam registration and guarded links; unchanged official launcher retains local profile and sign-out interaction. Controlled identity fixture, not a deployed account test.",cases},null,2));console.log(`account billing availability: ${cases.length} Chromium cases passed`);
-}finally{await closeAcceptanceBrowser(browser);await server?.close();}
+  // The presentation extension must not change any default Host state or action.
+  const defaultStates = ["signed-out", "unknown", "stream-error", "signed-in", "signed-in-loading", "signed-in-failed", "signed-in-wallets"];
+  const defaultSurface = page => page.$eval(".permission-fixture", root => ({
+    text: root.textContent,
+    elements: [...root.querySelectorAll("*")].map(element => {
+      const rect = element.getBoundingClientRect(), css = getComputedStyle(element);
+      return { tag: element.tagName, text: element.children.length ? null : element.textContent,
+        role: element.getAttribute("role"), label: element.getAttribute("aria-label"), disabled: element.matches(":disabled"),
+        ariaDisabled: element.getAttribute("aria-disabled"), href: element.getAttribute("href"), tabIndex: element.tabIndex,
+        rect: [rect.x, rect.y, rect.width, rect.height],
+        style: Object.fromEntries(["display", "alignItems", "justifyContent", "font", "color", "backgroundColor", "border", "borderRadius", "padding", "margin", "gap", "opacity"].map(key=>[key,css[key]])) };
+    }),
+  }));
+  for (const locale of ["en", "zh"]) for (const theme of ["light", "dark"]) for (const state of defaultStates) {
+    for (const width of state === "signed-out" || state === "signed-in-wallets" ? [1280, 390] : [1280]) {
+      const label = `auto-${locale}-${theme}-${state}-${width}`;
+      const reference = await open(locale, `auto-${state}`, "reference", width, theme);
+      const adapted = await open(locale, `auto-${state}`, "adapted", width, theme);
+      for (const current of [reference, adapted]) { await current.page.mouse.move(0, 0); await settle(current.page); }
+      assert.deepEqual(await defaultSurface(adapted.page), await defaultSurface(reference.page), `${label}: default DOM, state, links, controls and layout`);
+      const pair = await stableCompare(label,
+        () => stableScreenshot(reference.page, { captureBeyondViewport: false }),
+        () => stableScreenshot(adapted.page, { captureBeyondViewport: false }));
+      await writeFile(resolve(output, `${label}-official.png`), pair.a); await writeFile(resolve(output, `${label}-adapted.png`), pair.b);
+      assert.ok(pair.equal, `${label}: default presentation has exact pinned official pixels`);
+      if (["signed-out", "stream-error"].includes(state)) {
+        for (const current of [reference, adapted]) {
+          await current.page.bringToFront(); await current.page.click(".permission-fixture button");
+          await current.page.waitForFunction(() => window.__ACCOUNT_PARITY__.calls.length === 1);
+          assert.deepEqual(await current.page.evaluate(() => window.__ACCOUNT_PARITY__.calls), ["account/signIn"]);
+        }
+      } else {
+        assert.deepEqual(await adapted.page.evaluate(() => window.__ACCOUNT_PARITY__.calls), []);
+        if (state === "unknown") assert.equal(await adapted.page.$eval(".permission-fixture button", button => button.disabled), true);
+      }
+      assert.deepEqual(reference.errors, []); assert.deepEqual(adapted.errors, []);
+      cases.push({ locale, theme, width, state, presentation: "auto", directOfficialReference: true, exactPixels: true });
+      await reference.page.close(); await adapted.page.close(); console.log(`account default: ${label} passed`);
+    }
+  }
+  await writeFile(resolve(output,"account-report.json"),JSON.stringify({ok:true,scope:"Direct pinned AccountSection versus default fork over seven genuine Host contract states, plus preserved owner billing guard and official menu sign-out tests. Controlled fixtures, not a deployed account test.",cases},null,2));console.log(`account billing availability: ${cases.length} Chromium cases passed`);
+} finally {
+  try { await closeAcceptanceBrowser(browser); }
+  finally { await server?.close(); }
+}

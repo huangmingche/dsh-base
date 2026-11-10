@@ -13,7 +13,7 @@
  * is active. Visible dialog chrome belongs to the step, so a
  * mounted-but-deciding step paints nothing here.
  */
-import { useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useId, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import clsx from 'clsx'
 import {
@@ -23,6 +23,7 @@ import {
 } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ConnectionIndicatorState } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { SettingsRootComponentProps, SettingsSectionRow } from './shell-contract.ts'
+import { sectionNavState } from './panel-rows.ts'
 import css from './SettingsRoot.module.css'
 import { DesktopUpdateIndicator } from './DesktopUpdateIndicator.tsx'
 
@@ -49,12 +50,19 @@ type PanelProps = {
   onClose: () => void
 }
 
+/** Composed props of the settings panel shell (exported for the anonymous panel). */
+export type SettingsPanelProps = PanelProps
+
 /**
  * Body-portaled modal layer: full-viewport mask + centered panel. Close paths: the
  * header button, a mask click, and document-level Escape (mounted only while
  * open, so the listener lifetime is the panel's).
+ *
+ * Rows may opt into the anonymous-panel extension (`disabled` +
+ * `disabledReason`); official registrations leave both unset, so their cells
+ * keep the exact previous attributes and activation path.
  */
-function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelProps) {
+export function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelProps) {
   // Entries can unmount underneath the requested id, so the render-time
   // projection falls back to the first row when the id is gone.
   const active = rows.find(r => r.id === activeId)?.id ?? rows[0]?.id
@@ -78,24 +86,35 @@ function SettingsPanel({ rows, renderSlot, activeId, onSelect, onClose }: PanelP
           data-modal-autofocus={active === undefined ? '' : undefined}>{renderSlot('settings.header', {})}</div>
         <nav className={css.nav}>
           <div className={css.navList}>
-            {rows.map(row => (
-              <button
-                key={row.id}
-                type="button"
-                className={clsx(css.navCell, row.id === active && css.active)}
-                aria-current={row.id === active ? 'true' : undefined}
-                data-modal-autofocus={row.id === active ? '' : undefined}
-                onFocus={(event) => { event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' }) }}
-                onClick={() => { onSelect(row.id) }}
-              >
-                <span className={css.navIcon} aria-hidden="true">
-                  {renderSlot('settings.section.icon', { size: 16, active: row.id === active }, {
-                    only: row.id, fallback: navIcon(row.id),
-                  })}
-                </span>
-                <span className={css.navLabel}>{row.label}</span>
-              </button>
-            ))}
+            {rows.map(row => {
+              const state = sectionNavState(row)
+              const reasonId = `${titleId}-${row.id}-reason`
+              const cell = (
+                <button
+                  type="button"
+                  className={clsx(css.navCell, row.id === active && css.active)}
+                  aria-current={row.id === active ? 'true' : undefined}
+                  aria-disabled={state.disabled ? 'true' : undefined}
+                  aria-describedby={state.disabled ? reasonId : undefined}
+                  data-modal-autofocus={row.id === active && !state.disabled ? '' : undefined}
+                  onFocus={(event) => { event.currentTarget.scrollIntoView({ block: 'nearest', inline: 'nearest' }) }}
+                  onClick={() => { if (!state.disabled) onSelect(row.id) }}
+                >
+                  <span className={css.navIcon} aria-hidden="true">
+                    {row.icon ?? renderSlot('settings.section.icon', { size: 16, active: row.id === active }, {
+                      only: row.id, fallback: navIcon(row.id),
+                    })}
+                  </span>
+                  <span className={css.navLabel}>{row.label}</span>
+                </button>
+              )
+              return (
+                <Fragment key={row.id}>
+                  {state.disabled ? <Tooltip label={state.disabledReason ?? row.label} side="right">{cell}</Tooltip> : cell}
+                  {state.disabled && <span id={reasonId} className={css.hiddenLabel}>{state.disabledReason}</span>}
+                </Fragment>
+              )
+            })}
           </div>
         </nav>
         <div className={css.header}>

@@ -185,6 +185,19 @@
   background: var(--dsw-specific-sidebar-nav-item-active);
 }
 
+/* Anonymous panel: account-scoped sections stay visible but cannot open. The
+   attribute only exists on rows that opt into the extension. */
+.navCell[aria-disabled='true'] {
+  opacity: 0.5;
+  cursor: default;
+}
+
+@media (hover: hover) {
+  .navCell[aria-disabled='true']:hover {
+    background-color: transparent;
+  }
+}
+
 .navIcon {
   display: flex;
   flex: none;

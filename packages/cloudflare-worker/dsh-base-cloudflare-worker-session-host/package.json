@@ -30,10 +30,11 @@
         "@deepseek-ai/dsh-api-workspace-controller",
         "@deepseek-ai/dsh-client-file-upload",
         "@deepseek-ai/dsh-session",
-        "@deepseek-ai/dsh-api-remote-access"
+        "@deepseek-ai/dsh-api-remote-access",
+        "@deepseek-ai/dsh-session-log-export"
       ],
       "forkOf": "@deepseek-ai/dsh-api-session-controller",
-      "reason": "Official session-controller Host is Node-only; this is the Workers-native fork of its Session Remote contract. RRULE syntax, timezone/DST, COUNT bounds and occurrence resolution directly reuse the platform-neutral RRule export from the pinned dsh-util-time public entrypoint. DirectoryPicker preserves the official Remote/types and unchanged official browse UI; Node filesystem backends cannot mount in Workers, so the Host seam exposes durable owner-scoped logical directories instead. Exact event-prefix forks directly reuse the stable dsh-session/fork buildForkSeed export. Cron and DST gaps/overlaps directly use the pinned stable dsh-util-time exports. Committed SQL notifications and atomic per-session projection revisions adapt the Host data plane without browser wall-clock sequence fabrication. The remoteAccess/follow seam preserves the official owner baseline contract only after resolving the authenticated user's actual Host; it never accepts client-supplied owners or grants. Official ApprovalService/SystemPrompt notices and current policy context are persisted atomically with policy facts and exposed through a non-waking next-step Host port. Completed tool-history repair uses only existing Agent SDK evidence, without executing a model or tool.",
+      "reason": "Official session-controller Host is Node-only; this is the Workers-native fork of its Session Remote contract. RRULE syntax, timezone/DST, COUNT bounds and occurrence resolution directly reuse the platform-neutral RRule export from the pinned dsh-util-time public entrypoint. DirectoryPicker preserves the official Remote/types and unchanged official browse UI; Node filesystem backends cannot mount in Workers, so the Host seam exposes durable owner-scoped logical directories instead. Exact event-prefix forks directly reuse the stable dsh-session/fork buildForkSeed export. Cron and DST gaps/overlaps directly use the pinned stable dsh-util-time exports. Committed SQL notifications and atomic per-session projection revisions adapt the Host data plane without browser wall-clock sequence fabrication. The remoteAccess/follow seam preserves the official owner baseline contract only after resolving the authenticated user's actual Host; it never accepts client-supplied owners or grants. Official ApprovalService/SystemPrompt notices and current policy context are persisted atomically with policy facts and exposed through a non-waking next-step Host port. Completed tool-history repair uses only existing Agent SDK evidence, without executing a model or tool. Session export reuses the original pinned command handler through an explicit rawInput-only port; Agent access throws and is verified as unused. Real command receipts and lifecycle records commit atomically without waking Think.",
       "gaps": [
         "Session create cwd can address only registered logical Workspaces. Ungrouped Sessions at arbitrary unregistered directories are unavailable and rejected explicitly; the official Workspace-based composer remains supported.",
         "Session events and history are projected from Think admitted history and the Host queue; this is a compatibility contract, not official engine equivalence.",
@@ -47,7 +48,8 @@
         "New model/effort choices are durable and frozen at input admission. Old pending executions without their original configuration fail closed rather than using the current picker.",
         "Official native terminal, dynamic Cordis execution, production HMR and full subagent lifecycle remain unavailable; dynamic loading and subagent support are unfinished integrations, not blanket Workers impossibilities.",
         "RemoteAccess is owner-only. The authenticated mux identity selects the owner Host; shared non-owner Peer policy/grant management is not implemented or advertised.",
-        "Permission commands and model-facing policy notices are not yet unified into the canonical UI event journal; full native Agent inbox scheduling/cancellation, Auto review and per-operation escalation remain unimplemented. No notification is counted as an admitted user Turn."
+        "Permission commands and model-facing policy notices are not yet unified into the canonical UI event journal; full native Agent inbox scheduling/cancellation, Auto review and per-operation escalation remain unimplemented. No notification is counted as an admitted user Turn.",
+        "Export command lifecycle records are durable in the owner Host event ledger; like permission command records they are not yet merged into the canonical chat projection."
       ],
       "settingsContracts": [
         "packages/client/ui-settings/src/developer-tools-settings.ts",
@@ -62,13 +64,17 @@
     }
   },
   "peerDependencies": {
+    "@dsh-base/cloudflare-worker-entitlements": "workspace:*",
     "agents": "*",
     "@deepseek-ai/dsh-util-time": "*",
     "@deepseek-ai/dsh-host-directory-picker": "*",
     "@deepseek-ai/dsh-client-file-upload": "*",
     "@deepseek-ai/dsh-session": "*",
     "@deepseek-ai/dsh-api-remote-access": "*",
-    "@dsh-base/agent-presets": "workspace:*"
+    "@dsh-base/agent-presets": "workspace:*",
+    "@dsh-base/model-declarations": "workspace:*",
+    "@deepseek-ai/dsh-session-log-export": "*",
+    "@dsh-base/cloudflare-worker-google-analytics": "workspace:*"
   },
   "license": "MIT"
 }

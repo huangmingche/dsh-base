@@ -77,6 +77,7 @@ export function browserLicenseComment(chunks, sourceRoot) {
   function include(path) { texts.add(readFileSync(path, "utf8").trim()); }
   include(join(baseRoot, "LICENSE"));
   include(join(sourceRoot, "LICENSE"));
+  include(join(baseRoot, "packages/client/dsh-base-client-session-adapter/src/client/assets/cloudflare.LICENSE"));
   include(join(sourceRoot, "packages/client/ui-theme/src/styles/Montserrat-OFL.txt"));
   const moduleIds = Object.values(chunks).flatMap(chunk => chunk.moduleIds);
   for (const directory of packageDirectories(moduleIds, sourceRoot)) {

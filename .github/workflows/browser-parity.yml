@@ -1,6 +1,25 @@
-name: Browser parity (manual)
+name: Browser parity
 on:
   workflow_dispatch:
+  pull_request:
+    paths:
+      - '.github/workflows/browser-parity.yml'
+      - 'apps/**'
+      - 'packages/client/**'
+      - 'packages/boot/**'
+      - 'packages/build/**'
+      - 'packages/cloudflare-worker/**'
+      - 'packages/cloudflare-think/**'
+      - 'scripts/**'
+      - 'packs/**'
+      - 'patches/**'
+      - 'package.json'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'dsh-source.lock.json'
+      - 'dsh.apps.json'
+      - '.submodules/deepseek-harness'
+      - 'AGENTS.md'
 permissions:
   contents: read
 concurrency:
@@ -29,13 +48,17 @@ jobs:
       - name: Fetch pinned source tag
         run: git -C .submodules/deepseek-harness fetch --depth=1 origin tag dsh-v0.2.2-rc.1
       - run: pnpm --dir apps/web verify:release
+      - run: pnpm acceptance:multiapp
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: browser-parity-evidence
           path: |
             .artifacts/acceptance/local-ui/
+            .artifacts/acceptance/auth-modal-local/
+            .artifacts/acceptance/account-launcher/
             .artifacts/browser-compat-report.json
+            .artifacts/multiapp-acceptance/
             apps/web/dist/parity-evidence/
           if-no-files-found: ignore
           retention-days: 7

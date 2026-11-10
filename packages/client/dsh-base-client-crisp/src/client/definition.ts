@@ -1,0 +1,3 @@
+import {boolean,object,string,type PanelDefinition} from '@dsh-base/client-saas-ui/transport';
+export interface CrispStatus {enabled:boolean;websiteId:string|null}
+export const definition:PanelDefinition={bundle:'dsh-base:crisp',access:'public',load:async({request}):Promise<CrispStatus>=>{const raw=object(await request('/api/saas/crisp')),websiteId=raw.websiteId===null?null:string(raw.websiteId);if(websiteId!==null&&!/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/iu.test(websiteId))throw new Error('Invalid website identifier');return {enabled:boolean(raw.enabled),websiteId};},view:value=>({available:(value as CrispStatus).enabled&&!!(value as CrispStatus).websiteId})};

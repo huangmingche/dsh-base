@@ -1,0 +1,23 @@
+{
+  "name": "@dsh-base/cloudflare-worker-open-in-app-availability",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": { ".": "./src/index.ts" },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-host-open-in-app": "*",
+    "@dsh-base/cloudflare-worker-http": "workspace:*"
+  },
+  "dshBase": {
+    "worker": { "id": "cloudflare:worker:open-in-app-availability", "origin": "custom", "order": 27 },
+    "reuse": {
+      "mode": "seam",
+      "for": ["@deepseek-ai/dsh-client-ui-open-in-app"],
+      "official": ["@deepseek-ai/dsh-host-open-in-app", "@deepseek-ai/dsh-client-ui-open-in-app"],
+      "reason": "The unchanged pinned client constructs its own HTTP controller and probes the official apps route on mount; there is no injected catalog service. The official Host implementation requires Node filesystem, subprocess and desktop probing, which cannot mount on Workers. Forking those launchers would not create a real desktop capability. This minimal Host compatibility adapter reuses the stable shared route and payload contract and reports the true empty catalog. It changes no client controller, UI, global fetch or private API admission.",
+      "gaps": ["Workers has no native desktop launcher. The public catalog is always empty, contains no account or filesystem data, and does not enable launch or icon routes. The existing client availability seam retains the official disabled entry."]
+    }
+  }
+}

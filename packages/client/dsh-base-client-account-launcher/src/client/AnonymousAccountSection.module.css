@@ -1,0 +1,25 @@
+/* The fork retains official account card layout, spacing and typography.
+   This wrapper only places the separate local sign-in row beneath it. */
+.accountPage {
+  display: grid;
+  grid-template-rows: 1fr auto;
+  gap: 16px;
+  min-height: 100%;
+  font-size: 13px;
+  line-height: 22px;
+}
+
+.platformAccount {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.localAccount {
+  border-top: 0.5px solid var(--dsw-alias-border-l2);
+  padding-top: 16px;
+}
+
+.localRow { flex-wrap: wrap; }
+.localCopy { flex: 1 1 200px; }

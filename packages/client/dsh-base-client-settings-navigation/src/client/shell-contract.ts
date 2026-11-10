@@ -7,6 +7,7 @@
  * The settings SLOT types (what registrants contribute) stay in ui-settings.
  */
 import type { ConnectionState } from '@deepseek-ai/dsh-client-connection/client'
+import type { ReactNode } from 'react'
 import type {
   HostObservable, InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime,
 } from '@deepseek-ai/dsh-client-ui-slots'
@@ -25,6 +26,16 @@ export interface SettingsSectionRow {
   id: string
   order: number
   label: string
+  /**
+   * Optional anonymous-panel extension: a section that must stay visible but
+   * cannot be opened. Official registrations never set it, so their cells keep
+   * the exact previous attributes and behavior.
+   */
+  disabled?: boolean
+  /** Localized hover/description reason used only while `disabled` is true. */
+  disabledReason?: string
+  /** Optional nav glyph; official rows resolve theirs through `settings.section.icon`. */
+  icon?: ReactNode
 }
 
 /** One ordered onboarding step projected from a slot registration. */

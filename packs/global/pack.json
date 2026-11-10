@@ -1,0 +1,35 @@
+{
+  "$schema": "../../scripts/composition/pack.schema.json",
+  "id": "global",
+  "planes": {
+    "client": [
+      "@dsh-base/client-site-config",
+      "@dsh-base/client-global-settings",
+      "@dsh-base/client-google-analytics"
+    ],
+    "worker": [
+      "@dsh-base/cloudflare-worker-public-pages",
+      "@dsh-base/cloudflare-worker-site-config",
+      "@dsh-base/cloudflare-worker-seo",
+      "@dsh-base/cloudflare-worker-sitemap",
+      "@dsh-base/cloudflare-worker-robots",
+      "@dsh-base/cloudflare-worker-manifest",
+      "@dsh-base/cloudflare-worker-llms",
+      "@dsh-base/cloudflare-worker-google-analytics"
+    ]
+  },
+  "requires": [
+    "plugin-management"
+  ],
+  "config": {},
+  "toggleable": "none",
+  "uninstallImpact": "Removing global settings removes site branding, public site configuration and page metadata; not individually toggleable.",
+  "reuse": {
+    "mode": "custom",
+    "official": [
+      "@deepseek-ai/dsh-client-ui-plugin-manager",
+      "@deepseek-ai/dsh-client-ui-settings-general"
+    ],
+    "reason": "Groups independently composed site branding, public configuration, page SEO, sitemap, crawler rules, application manifest, AI reading guide and public-page analytics. Official plugin-detail slots provide their shared administrator editor; no app entry owns these capabilities."
+  }
+}

@@ -1,11 +1,11 @@
 /**
- * Capability-pack manifests: the single source for which packages are composed
- * into the client, Worker and Think planes.
+ * Capability-pack manifests: independent grouping/management declarations for
+ * packages composed into the client, Worker and Think planes.
  *
- * A package's own metadata still describes how that package is loaded (module,
- * export, id, order); it is not allowed to add or remove a composed member. The
- * rosters are derived here, sorted deterministically, and written to gitignored
- * generated files by the two generators plus the Vite virtual module.
+ * Production selection comes from package metadata and the client profile in
+ * metadata-roster.mjs. The projections here are audit-only: they must reproduce
+ * every production row without adding, dropping, reordering or reshaping it.
+ * L1 declarations remain the source of which bundled plugins owners may manage.
  *
  * Every read fails closed: a missing/duplicated pack, a member without the
  * metadata its plane needs, a cross-pack duplicate, a broken `requires` graph or
@@ -14,7 +14,8 @@
 import { existsSync, readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
-import { localPackages, officialPackages, repoRoot } from "../conformance/lib.mjs";
+import { localPackages, officialPackages, repoRoot, applicationClientOverrides } from "../conformance/lib.mjs";
+import { projectContext } from "./project-context.mjs";
 
 const PLANES = ["client", "worker", "think"];
 const TOGGLEABLE = new Set(["L1", "none"]);
@@ -33,22 +34,33 @@ const requireString = (value, message) => {
 
 /** Read, validate and topologically check every pack manifest in a directory. */
 export function readPackManifests(root = repoRoot) {
-  const base = join(root, "packs");
-  if (!existsSync(base)) throw new Error("packs/: capability-pack manifests are required");
-  const packs = readdirSync(base, { withFileTypes: true })
+  const context = projectContext(root);
+  const roots = context.consumer ? [context.baseRoot, context.productRoot] : [context.baseRoot];
+  const owned = context.consumer ? new Map(localPackages(root).map(entry => [entry.manifest.name, entry])) : new Map();
+  const packs = roots.flatMap(ownerRoot => {
+    const base = join(ownerRoot, "packs");
+    if (!existsSync(base)) {
+      if (context.consumer && ownerRoot === context.productRoot) return [];
+      throw new Error("packs/: capability-pack manifests are required");
+    }
+    return readdirSync(base, { withFileTypes: true })
     .filter(entry => entry.isDirectory())
     .map(entry => {
       const path = join(base, entry.name, "pack.json");
       if (!existsSync(path)) throw new Error(`packs/${entry.name}/pack.json is missing`);
-      return { directory: entry.name, path, manifest: readJson(path) };
-    })
+      return { directory: entry.name, path, ownerRoot, manifest: readJson(path) };
+    });
+  })
     .sort((left, right) => left.manifest.id.localeCompare(right.manifest.id));
   if (packs.length === 0) throw new Error("packs/: at least one pack manifest is required");
 
   const ids = new Set();
   const members = Object.fromEntries(PLANES.map(plane => [plane, new Map()]));
-  for (const { directory, manifest } of packs) {
+  for (const { directory, ownerRoot, manifest } of packs) {
     requireString(manifest.id, `packs/${directory}: id must be a non-empty string`);
+    const productPack = context.consumer && ownerRoot === context.productRoot;
+    if (productPack && !manifest.id.startsWith(`${context.namespace}:`)) throw new Error(`${manifest.id}: product pack id must start with ${context.namespace}:`);
+    if (productPack && manifest.toggleable !== "none") throw new Error(`${manifest.id}: product packs must remain deployment-owned (toggleable none)`);
     if (ids.has(manifest.id)) throw new Error(`duplicate pack id: ${manifest.id}`);
     ids.add(manifest.id);
     requireObject(manifest.planes, `${manifest.id}: planes must be an object`);
@@ -59,6 +71,7 @@ export function readPackManifests(root = repoRoot) {
       for (const entry of entries) {
         const name = typeof entry === "string" ? entry : entry?.name;
         if (typeof name !== "string" || name === "") throw new Error(`${manifest.id}: planes.${plane} entry must be a package name or an object with name`);
+        if (productPack && owned.get(name)?.ownerRoot !== context.productRoot) throw new Error(`${manifest.id}: product packs may group only their own packages: ${name}`);
         if (members[plane].has(name)) throw new Error(`${manifest.id}: ${plane} member ${name} is already in pack ${members[plane].get(name)}`);
         members[plane].set(name, manifest.id);
       }
@@ -66,6 +79,9 @@ export function readPackManifests(root = repoRoot) {
     if (!Array.isArray(manifest.requires)) throw new Error(`${manifest.id}: requires must be an array`);
     for (const dependency of manifest.requires) requireString(dependency, `${manifest.id}: requires entries must be pack ids`);
     if (!TOGGLEABLE.has(manifest.toggleable)) throw new Error(`${manifest.id}: toggleable must be L1 or none`);
+    if (manifest.toggleable === "L1" && (manifest.planes.worker ?? []).length > 0) {
+      throw new Error(`${manifest.id}: an L1 pack cannot declare worker members; the Worker plane is deployment-owned`);
+    }
     requireObject(manifest.config, `${manifest.id}: config must be a JSON-schema object`);
     if (manifest.config.type !== undefined && manifest.config.type !== "object") throw new Error(`${manifest.id}: config.type must be object`);
     if (manifest.config.properties !== undefined) requireObject(manifest.config.properties, `${manifest.id}: config.properties must be an object`);
@@ -120,10 +136,9 @@ const normalizeClient = (name, meta) => ({
 });
 
 /**
- * Derive the client roster from pack manifests plus package metadata. Disabled
- * rows stay inventory only; `generateClientComposition` never imports them.
+ * Derive the audit projection from pack manifests plus package metadata.
  */
-export function readClientRows(root = repoRoot) {
+export function readClientRows(root = repoRoot, options = {}) {
   const packs = readPackManifests(root);
   const index = packageIndex(root);
   const rows = [];
@@ -142,6 +157,10 @@ export function readClientRows(root = repoRoot) {
     if (entry.order !== undefined) row.order = validateOrder(entry.order, `${pack.id}: client member ${entry.name} order must be a finite number`);
     rows.push(row);
   }
+  // Membership and identity still come independently from packs. Only validated
+  // application configuration is projected onto those independently derived rows.
+  const overrides = applicationClientOverrides(root, options);
+  for (const row of rows) Object.assign(row, overrides.get(row.name));
   rows.sort((left, right) => (left.order ?? 100) - (right.order ?? 100) || left.id.localeCompare(right.id));
   const ids = new Set(), names = new Set();
   for (const row of rows) {
@@ -202,14 +221,14 @@ export function auditToggleablePacks(packs, requiredClient) {
 
 /**
  * Audit the pack rosters against a caller-supplied canonical oracle (see
- * `scripts/conformance/canonical-roster.mjs`). The oracle is derived from
+ * `scripts/composition/metadata-roster.mjs`). The oracle is derived from
  * package metadata, the composition profile and the pinned official inventory;
  * it never reads `packs/`. Comparison is row-for-row, so a silent reorder or a
  * dropped field is a violation, not just a name/id mismatch.
  */
-export function auditPacks(root, canonical) {
-  const packs = readPackManifests(root);
-  const rows = { client: readClientRows(root), worker: readWorkerRows(root), agent: readAgentRows(root) };
+export function auditPacks(root, canonical, packsRoot = root, options = {}) {
+  const packs = readPackManifests(packsRoot);
+  const rows = { client: readClientRows(packsRoot, options), worker: readWorkerRows(packsRoot), agent: readAgentRows(packsRoot) };
   const errors = [];
   const packIds = packs.map(pack => pack.id).join(", ");
   const compare = (plane, packRows, canonicalRows) => {

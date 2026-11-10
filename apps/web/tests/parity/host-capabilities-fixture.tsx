@@ -64,7 +64,7 @@ function prepare(locale: "en" | "zh", mode: "default" | "built-in" | "broken" = 
       paths.add(path); return { ok: true, value: path };
     }
     throw new Error(endpoint);
-  } }) as never);
+  } }) as never, () => true);
   const unwrap = async (pending: Promise<any>) => { const result = await pending; if (!result.ok) throw new Error(result.error.message); return result.value; };
   const fake: any = {
     effect: root.effect.bind(root),

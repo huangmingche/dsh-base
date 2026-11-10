@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { registerHooks } from "node:module";
 import { CredentialStore } from "../src/credential-store.ts";
+import { PluginControl } from "../../dsh-base-cloudflare-worker-control/src/control.ts";
 registerHooks({ resolve(specifier, context, nextResolve) {
   if (specifier === "agents") return { url: `data:text/javascript,${encodeURIComponent('export async function getAgentByName() { throw new Error("No provider should execute in catalog tests"); }')}`, shortCircuit: true };
   return nextResolve(specifier, context);
@@ -50,10 +51,62 @@ assert.equal(access.providers["deepseek-official"].available, false, "broken own
 assert.equal(access.ownerKeyError, true);
 assert.equal((await call("selectModel", { sessionId: "s", model: "cloudflare-ai-gateway/deepseek-flash" })).status, 200, "explicit Gateway selection does not depend on the owner key");
 assert.equal((await call("selectModel", { sessionId: "s", model: "deepseek-official/deepseek-flash" })).status, 409, "explicit DeepSeek reports its own key failure");
-credentials.unset("DEEPSEEK_OFFICIAL_API_KEY");
+// Use the actual persisted control handler, including reset and Session scope.
+const controlStorage = new Map<string, unknown>();
+const storageAdapter = {
+  get: async (key: string) => controlStorage.get(key),
+  put: async (key: string, value: unknown) => { controlStorage.set(key, value); },
+};
+const control = new PluginControl({ storage: { ...storageAdapter, transaction: async (callback: (storage: typeof storageAdapter) => Promise<unknown>) => callback(storageAdapter) } } as never);
+let controlUnavailable = false;
+const PluginControlBinding = { idFromName(name: string) { assert.equal(name, "owner:test:plugins"); return name; }, get: () => ({ fetch: async (request: Request) => controlUnavailable ? Response.json({ error: "unavailable" }, { status: 503 }) : control.fetch(request) }) };
+const scopedEnv = { PluginControl: PluginControlBinding, CREDENTIALS_KEY: secret, PLATFORM_AI_ENABLED: "true", AI_GATEWAY_ID: "explicit-gateway" };
+owner = new SessionHostObject(state, scopedEnv);
+const gatewayName = "@dsh-base/cloudflare-think-ai-gateway";
+const change = async (patch: Record<string, unknown>) => {
+  const result = await control.fetch(new Request("https://control/api/plugin-manager", { method: "PUT", body: JSON.stringify({ name: gatewayName, ...patch }) }));
+  assert.equal(result.status, 200);
+};
+await change({ name: "@dsh-base/client-gateway-provider", disabled: true });
+access = (await (await call("modelAccess")).json()).result;
+assert.equal(access.platformEnabled, true, "deployment readiness is distinct from owner selection");
+assert.equal(access.providers["cloudflare-ai-gateway"].available, false, "owner disable removes Gateway availability");
+assert.deepEqual(access.providers["cloudflare-ai-gateway"].catalog, []);
+assert.equal(access.providers["deepseek-official"].available, true, "Gateway disable preserves BYOK");
+assert.equal(access.effective, "owner-byok");
+assert.ok((await (await call("models")).json()).result.every((model: { id: string }) => model.id.startsWith("deepseek-official/")));
+assert.equal((await call("selectModel", { sessionId: "s", model: "cloudflare-ai-gateway/deepseek-flash" })).status, 409);
+assert.equal((await call("selectModel", { sessionId: "s", model: "deepseek-official/deepseek-flash" })).status, 200);
+await change({ sessionId: "s", config: {} });
+assert.equal((await (await call("modelAccess", { sessionId: "s" })).json()).result.providers["cloudflare-ai-gateway"].available, false, "config-only Session override still inherits owner disable");
+await change({ disabled: false });
+assert.equal((await (await call("modelAccess", { sessionId: "s" })).json()).result.providers["cloudflare-ai-gateway"].available, true, "config-only Session override inherits later owner enable");
+await change({ disabled: true });
+assert.equal((await (await call("modelAccess", { sessionId: "s" })).json()).result.providers["cloudflare-ai-gateway"].available, false, "later owner disable is not frozen by a Session config write");
+await change({ sessionId: "s", disabled: false });
+assert.equal((await (await call("modelAccess", { sessionId: "s" })).json()).result.providers["cloudflare-ai-gateway"].available, true, "Session enable overrides owner disable");
+assert.equal((await call("selectModel", { sessionId: "s", model: "cloudflare-ai-gateway/deepseek-flash" })).status, 200);
+assert.equal((await (await call("modelAccess")).json()).result.providers["cloudflare-ai-gateway"].available, false, "owner catalog does not inherit another Session's override");
+await change({ sessionId: "s", reset: true });
+owner = new SessionHostObject(state, scopedEnv);
+assert.equal((await (await call("modelAccess", { sessionId: "s" })).json()).result.providers["cloudflare-ai-gateway"].available, false, "reset and restart restore owner inheritance");
+await change({ reset: true });
+await change({ sessionId: "s", disabled: true });
+assert.equal((await (await call("modelAccess")).json()).result.providers["cloudflare-ai-gateway"].available, true);
+assert.equal((await (await call("models", { sessionId: "s" })).json()).result.some((model: { id: string }) => model.id.startsWith("cloudflare-ai-gateway/")), false);
+assert.equal((await call("selectModel", { sessionId: "s", model: "cloudflare-ai-gateway/deepseek-flash" })).status, 409);
+controlUnavailable = true;
+assert.equal((await call("modelAccess")).status, 503, "failed control reads cannot advertise a restored provider");
+assert.equal((await call("selectModel", { sessionId: "s", model: "cloudflare-ai-gateway/deepseek-flash" })).status, 503);
+controlUnavailable = false;
+owner = new SessionHostObject(state, { ...scopedEnv, PLATFORM_AI_ENABLED: "false" });
+await change({ sessionId: "s", disabled: false });
+assert.equal((await (await call("modelAccess", { sessionId: "s" })).json()).result.providers["cloudflare-ai-gateway"].available, false, "owner or Session enable cannot override deployment opt-out");
+await credentials.unset("DEEPSEEK_OFFICIAL_API_KEY");
 owner = new SessionHostObject(state, {});
 assert.deepEqual((await (await call("models")).json()).result, []);
 access = (await (await call("modelAccess")).json()).result;
 assert.equal(access.effective, "unavailable");
 db.close();
 console.log("model availability: closed template, explicit platform, owner BYOK precedence/removal, real route status and broken-key failure passed");
+console.log("model availability: actual PluginControl persistence, owner/Session precedence/reset/restart, independent BYOK and failed control reads passed");

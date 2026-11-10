@@ -16,11 +16,17 @@ function rejected(domain: string, error: unknown): Failure {
 }
 
 /** Secrets remain Host-owned; an absent or failed carrier never reports success. */
-export function createCredentialsRemote(transport?: FeedbackTransport) {
+export function createCredentialsRemote(transport?: FeedbackTransport, account?: () => Promise<{ readonly id: string } | null>) {
+  const authenticate = async () => {
+    if (account !== undefined && await account() === null) {
+      throw Object.assign(new Error('Sign in to access Host credentials.'), { code: 'auth/required' });
+    }
+  };
   return {
     describe: async (refs: readonly string[] = []) => {
       if (transport === undefined) return unavailable("credential");
       try {
+        await authenticate();
         const value = await transport.request("credentialsDescribe", { refs }) as {
           entries: Record<string, { configured: boolean; writable: boolean; source?: string }>;
         };
@@ -31,6 +37,7 @@ export function createCredentialsRemote(transport?: FeedbackTransport) {
     set: async (ref: string, value: string) => {
       if (transport === undefined) return unavailable("credential");
       try {
+        await authenticate();
         await transport.request("credentialsSet", { ref, value });
         return { ok: true as const, value: { configured: true, writable: true } };
       } catch (error) { return rejected("credential", error); }
@@ -38,6 +45,7 @@ export function createCredentialsRemote(transport?: FeedbackTransport) {
     unset: async (ref: string) => {
       if (transport === undefined) return unavailable("credential");
       try {
+        await authenticate();
         await transport.request("credentialsUnset", { ref });
         return { ok: true as const, value: undefined };
       } catch (error) { return rejected("credential", error); }

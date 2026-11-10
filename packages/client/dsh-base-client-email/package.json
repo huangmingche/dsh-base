@@ -1,0 +1,56 @@
+{
+  "name": "@dsh-base/client-email",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/client/index.ts",
+    "./client": "./src/client/index.ts"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-client-locale": "*",
+    "@deepseek-ai/dsh-client-ui-renderer": "*",
+    "@deepseek-ai/dsh-client-ui-plugin-manager": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*",
+    "@deepseek-ai/dsh-client-ui-primitives": "*",
+    "react": "*",
+    "zod": "*",
+    "@dsh-base/client-public-navigation": "workspace:*"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-plugin-manager",
+        "@dsh-base/client-public-navigation"
+      ]
+    }
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:email",
+      "origin": "custom",
+      "order": 113
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-settings-account",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-plugin-manager",
+        "@deepseek-ai/dsh-client-ui-primitives"
+      ],
+      "reason": "The pinned official account package implements DeepSeek Platform authorization rather than local email verification or recovery. Neither mounting nor forking it supplies email-provider configuration status. This plugin contributes only the public local-email status through the unchanged plugins.bundle.config slot, using the stable official Button and exported settings field styles. It neither sends test mail nor collects secrets. The purchased template was inspected as a behavior reference only; no template source or official implementation is copied.",
+      "sourceEntries": [
+        "@deepseek-ai/dsh-client-ui-primitives/src/settings-form/fields.module.css"
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "gaps": [
+        "User-requested local email capability adds configuration readiness inside the existing plugin detail configuration seat. The pinned official UI has no local email service surface; the official detail layout and controls remain in use."
+      ]
+    }
+  }
+}

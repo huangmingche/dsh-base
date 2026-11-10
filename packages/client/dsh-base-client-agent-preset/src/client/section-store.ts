@@ -1,8 +1,20 @@
 /** Preset roster, the new-task default and the read-only composition viewer for the settings section. */
 import type { Context } from '@deepseek-ai/cordis'
 import type {} from '@deepseek-ai/dsh-api-remotes/client'
+import type { AgentPresetRoster } from '@deepseek-ai/dsh-agent-preset-registry/types'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
 import { AGENT_PRESET_SETTINGS_NS, requiresCodingTools, writeDefaultPreset, type RosterPreset } from './settings-store.ts'
+
+/**
+ * The roster/declaration Remote face the section reads. Official registration
+ * leaves it out and the controller resolves `ctx.remote.agentPresets`; the
+ * anonymous settings shell passes the same service explicitly because its
+ * context carries no `remote` injection.
+ */
+export interface AgentPresetSectionRemote {
+  list: () => Promise<{ ok: true, value: AgentPresetRoster } | { ok: false, error: { message: string } }>
+  read: (id: string) => Promise<{ ok: true, value: { name?: string, content: string } } | { ok: false, error: { message: string } }>
+}
 
 /** The read-only composition viewer over one preset. */
 export interface PresetView {
@@ -32,7 +44,9 @@ export class AgentPresetSectionController {
   private loading: Promise<void> | undefined
   private pendingSave: Promise<void> | undefined
   private viewRequest = 0
-  constructor(private readonly ctx: Context) {}
+  constructor(private readonly ctx: Context, private readonly remote?: AgentPresetSectionRemote) {}
+
+  private get presets(): AgentPresetSectionRemote { return this.remote ?? this.ctx.remote.agentPresets }
 
   private set(patch: Partial<AgentPresetSectionState>): void { this.store.set({ ...this.store.getSnapshot(), ...patch }) }
 
@@ -44,7 +58,7 @@ export class AgentPresetSectionController {
   }
   private async readRoster(): Promise<void> {
     try {
-      const result = await this.ctx.remote.agentPresets.list()
+      const result = await this.presets.list()
       if (!result.ok) throw new Error(result.error.message)
       this.set({ status: 'ready', error: null, rows: result.value.presets as readonly RosterPreset[] })
     } catch (error) { this.set({ status: 'error', error: message(error) }) }
@@ -58,7 +72,7 @@ export class AgentPresetSectionController {
     const request = ++this.viewRequest
     this.set({ error: null, view: null })
     try {
-      const result = await this.ctx.remote.agentPresets.read(id)
+      const result = await this.presets.read(id)
       if (request !== this.viewRequest) return
       if (!result.ok) throw new Error(result.error.message)
       const { name, content } = result.value

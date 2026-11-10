@@ -15,7 +15,17 @@
         "module": "@deepseek-ai/dsh-client-locale/client",
         "id": "client:locale",
         "origin": "upstream",
-        "order": 10
+        "order": 10,
+        "disabled": true,
+        "unavailableReason": "Replaced by the marked locale-label fork @dsh-base/client-locale-label."
+      },
+      {
+        "name": "@dsh-base/client-locale-label",
+        "module": "@dsh-base/client-locale-label/client",
+        "id": "client:locale-label",
+        "origin": "fork",
+        "order": 10,
+        "replaces": "@deepseek-ai/dsh-client-locale"
       },
       {
         "name": "@deepseek-ai/dsh-client-ui-theme",
@@ -132,13 +142,8 @@
         "order": 51,
         "disabled": true
       },
-      {
-        "name": "@dsh-base/client-rightbar-extra",
-        "module": "@dsh-base/client-rightbar-extra",
-        "id": "client:rightbar-extra",
-        "origin": "custom",
-        "order": 59
-      },
+      "@dsh-base/client-shell-extras",
+      "@dsh-base/client-rightbar-extra",
       {
         "name": "@deepseek-ai/dsh-client-ui-directory-picker-browse",
         "module": "@deepseek-ai/dsh-client-ui-directory-picker-browse/client",
@@ -146,20 +151,26 @@
         "origin": "upstream",
         "order": 59
       },
+      "@dsh-base/client-route-address",
       {
         "name": "@deepseek-ai/dsh-client-ui-sidebar",
         "module": "@deepseek-ai/dsh-client-ui-sidebar/client",
         "id": "client:sidebar",
         "origin": "upstream",
-        "order": 60
+        "order": 60,
+        "disabled": true,
+        "unavailableReason": "Replaced by @dsh-base/client-sidebar: pinned official UI with checked SaaS navigation availability."
       },
       {
         "name": "@deepseek-ai/dsh-client-ui-workspace",
         "module": "@deepseek-ai/dsh-client-ui-workspace/client",
         "id": "client:ui-workspace",
         "origin": "upstream",
-        "order": 60
+        "order": 60,
+        "disabled": true,
+        "unavailableReason": "Replaced by @dsh-base/client-workspace: pinned official UI with checked SaaS navigation availability."
       },
+      "@dsh-base/client-sidebar",
       {
         "name": "@deepseek-ai/dsh-client-ui-settings",
         "module": "@deepseek-ai/dsh-client-ui-settings/client",
@@ -175,22 +186,9 @@
         "order": 65,
         "disabled": true
       },
-      {
-        "name": "@dsh-base/client-settings-navigation",
-        "id": "client:settings-navigation",
-        "origin": "custom",
-        "order": 65,
-        "replaces": "@deepseek-ai/dsh-client-ui-settings-general",
-        "module": "@dsh-base/client-settings-navigation"
-      },
-      {
-        "name": "@dsh-base/client-sidebar-right",
-        "id": "client:sidebar-right",
-        "origin": "custom",
-        "order": 66,
-        "replaces": "@deepseek-ai/dsh-client-ui-sidebar-right",
-        "module": "@dsh-base/client-sidebar-right"
-      },
+      "@dsh-base/client-settings-navigation",
+      "@dsh-base/client-locale-url",
+      "@dsh-base/client-sidebar-right",
       {
         "name": "@deepseek-ai/dsh-client-ui-sidebar-right",
         "module": "@deepseek-ai/dsh-client-ui-sidebar-right/client",
@@ -206,6 +204,7 @@
         "origin": "upstream",
         "order": 67
       },
+      "@dsh-base/client-workspace",
       {
         "name": "@deepseek-ai/dsh-client-ui-chat",
         "module": "@deepseek-ai/dsh-client-ui-chat/client",
@@ -218,8 +217,11 @@
         "module": "@deepseek-ai/dsh-client-ui-settings-account/client",
         "id": "client:account",
         "origin": "upstream",
-        "order": 69
+        "order": 69,
+        "disabled": true,
+        "unavailableReason": "Replaced by the marked account settings fork @dsh-base/client-settings-account."
       },
+      "@dsh-base/client-settings-account",
       {
         "name": "@deepseek-ai/dsh-client-ui-sidebar-browser",
         "module": "@deepseek-ai/dsh-client-ui-sidebar-browser/client",
@@ -241,15 +243,7 @@
         "origin": "upstream",
         "order": 69
       },
-      {
-        "name": "@dsh-base/client-permission-availability",
-        "id": "client:permission-availability",
-        "origin": "custom",
-        "order": 70,
-        "disabled": true,
-        "unavailableReason": "Retired compatibility wrapper: the deployed Host now enforces per-session policies, so the unchanged official permission plugin is mounted.",
-        "module": "@dsh-base/client-permission-availability"
-      },
+      "@dsh-base/client-permission-availability",
       {
         "name": "@deepseek-ai/dsh-client-ui-permission-presets",
         "module": "@deepseek-ai/dsh-client-ui-permission-presets/client",
@@ -266,21 +260,7 @@
         "disabled": true,
         "unavailableReason": "Replaced by the complete marked fork @dsh-base/client-agent-preset: official roster/declarations with Host availability only."
       },
-      {
-        "name": "@dsh-base/client-account-availability",
-        "id": "client:account-availability",
-        "origin": "custom",
-        "order": 72,
-        "module": "@dsh-base/client-account-availability"
-      },
-      {
-        "name": "@dsh-base/client-agent-preset",
-        "id": "client:agent-preset",
-        "origin": "custom",
-        "order": 72,
-        "replaces": "@deepseek-ai/dsh-client-ui-agent-preset",
-        "module": "@dsh-base/client-agent-preset"
-      },
+      "@dsh-base/client-account-availability",
       {
         "name": "@deepseek-ai/dsh-client-ui-subagent",
         "module": "@deepseek-ai/dsh-client-ui-subagent/client",
@@ -288,6 +268,7 @@
         "origin": "upstream",
         "order": 72
       },
+      "@dsh-base/client-account-launcher",
       {
         "name": "@deepseek-ai/dsh-client-ui-secret-mask",
         "module": "@deepseek-ai/dsh-client-ui-secret-mask/client",
@@ -328,8 +309,11 @@
         "module": "@deepseek-ai/dsh-client-ui-entry-customization/client",
         "id": "client:ui-entry-customization",
         "origin": "upstream",
-        "order": 84
+        "order": 84,
+        "disabled": true,
+        "unavailableReason": "Replaced by @dsh-base/client-entry-customization: pinned official UI with checked SaaS navigation availability."
       },
+      "@dsh-base/client-entry-customization",
       {
         "name": "@deepseek-ai/dsh-client-ui-attachment",
         "module": "@deepseek-ai/dsh-client-ui-attachment/client",
@@ -365,13 +349,8 @@
         "origin": "upstream",
         "order": 90
       },
-      {
-        "name": "@dsh-base/client-feedback-availability",
-        "id": "client:feedback-availability",
-        "origin": "custom",
-        "order": 91,
-        "module": "@dsh-base/client-feedback-availability"
-      },
+      "@dsh-base/client-feedback-availability",
+      "@dsh-base/client-open-in-app-availability",
       {
         "name": "@deepseek-ai/dsh-client-ui-approval",
         "module": "@deepseek-ai/dsh-client-ui-approval/client",
@@ -478,14 +457,6 @@
         "order": 105
       },
       {
-        "name": "@dsh-base/client-deepseek-provider",
-        "module": "@dsh-base/client-deepseek-provider/client",
-        "id": "client:deepseek-provider",
-        "origin": "custom",
-        "order": 106,
-        "replaces": "@deepseek-ai/dsh-client-ui-settings-models"
-      },
-      {
         "name": "@deepseek-ai/dsh-client-ui-settings-models",
         "module": "@deepseek-ai/dsh-client-ui-settings-models/client",
         "id": "client:ui-settings-models",
@@ -499,8 +470,11 @@
         "module": "@deepseek-ai/dsh-client-ui-schedule/client",
         "id": "client:ui-schedule",
         "origin": "upstream",
-        "order": 107
+        "order": 107,
+        "disabled": true,
+        "unavailableReason": "Replaced by the marked Schedule UI fork with an optional Host account gate before manual task creation."
       },
+      "@dsh-base/client-schedule",
       {
         "name": "@deepseek-ai/dsh-client-ui-sidebar-terminal",
         "module": "@deepseek-ai/dsh-client-ui-sidebar-terminal/client",
@@ -522,6 +496,7 @@
         "origin": "upstream",
         "order": 111
       },
+      "@dsh-base/client-public-navigation",
       {
         "name": "@deepseek-ai/dsh-client-modules",
         "module": "@deepseek-ai/dsh-client-modules/client",
@@ -542,6 +517,13 @@
         "id": "client:ui-cordis",
         "origin": "upstream",
         "order": 114
+      },
+      {
+        "name": "@deepseek-ai/dsh-session-log-export",
+        "module": "@deepseek-ai/dsh-session-log-export/client",
+        "id": "client:session-log-export",
+        "origin": "upstream",
+        "order": 115
       },
       {
         "name": "@deepseek-ai/dsh-api-gateway",
@@ -710,24 +692,12 @@
         "order": 1020,
         "disabled": true,
         "unavailableReason": "Official DSH plugin is present in the roster but not started by this deployment."
-      },
-      {
-        "name": "@deepseek-ai/dsh-session-log-export",
-        "id": "client:official:session-log-export",
-        "origin": "upstream",
-        "order": 1021,
-        "disabled": true,
-        "unavailableReason": "Official DSH plugin is present in the roster but not started by this deployment."
       }
     ],
     "worker": [
       "@dsh-base/cloudflare-worker-assets",
+      "@dsh-base/cloudflare-worker-open-in-app-availability",
       "@dsh-base/cloudflare-worker-permissions"
-    ],
-    "think": [
-      "@dsh-base/cloudflare-think-attachments",
-      "@dsh-base/cloudflare-think-fetch",
-      "@dsh-base/cloudflare-think-memory"
     ]
   },
   "requires": [],

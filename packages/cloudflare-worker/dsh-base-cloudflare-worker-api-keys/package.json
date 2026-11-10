@@ -1,0 +1,12 @@
+{
+  "name": "@dsh-base/cloudflare-worker-api-keys", "version": "0.0.0", "private": true, "type": "module", "license": "MIT",
+  "exports": { ".": "./src/index.ts" },
+  "dependencies": { "@better-auth/api-key": "1.7.18" },
+  "peerDependencies": { "@deepseek-ai/cordis": "*", "@dsh-base/cloudflare-worker-auth": "workspace:*", "@dsh-base/cloudflare-worker-http": "workspace:*" },
+  "dshBase": {
+    "worker": { "id": "cloudflare:worker:api-keys", "origin": "custom", "order": 12 },
+    "reuse": { "mode": "custom", "official": ["@deepseek-ai/dsh-deepseek-account", "@deepseek-ai/dsh-api-account-controller"],
+      "reason": "The pinned official account stack manages DeepSeek Platform inference credentials, not issuance and revocation of product-user API keys. No equivalent DSH implementation exists to mount or fork. This independently authored Worker adapter composes the pinned Better Auth API key plugin, retaining its key generation, hashing, expiry, database rate limit and ownership checks. It provides only user-owned profile:read keys; it does not turn keys into browser sessions or copy commercial template code.",
+      "gaps": ["Only profile:read is implemented, demonstrated by the whoami route. Keys cannot authorize chat, storage, billing or administrator actions. No organizations, custom scopes, unbounded expiry, metadata, key-as-session or plaintext key recovery is exposed."] }
+  }
+}

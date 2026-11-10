@@ -25,19 +25,21 @@ const ledger = new InputExecutionLedger(state.storage as never);
 const credentialsSeen: Array<string | null> = [];
 const baseURLsSeen: Array<string | null> = [];
 const admittedModels: string[] = [];
+const pluginSelections: string[][] = [];
 let runs = 0;
 const agent = {
   async ensureHistory(_seed: unknown[]) {},
   async setModel() {},
   async setUserCredential(value: string | null) { credentialsSeen.push(value) },
   async setDeepSeekBaseURL(value: string | null) { baseURLsSeen.push(value) },
+  async setThinkPlugins(input: { disabled?: readonly string[] }) { pluginSelections.push([...(input.disabled ?? [])]); return { disabled: [...(input.disabled ?? [])] }; },
   async freezeExecutionModel(requestId: string, model: string) { return { model: ledger.freezeModel(requestId, model)?.model ?? model } },
   async uploadAttachment() { return { id: "a" } },
-  async admitInput(input: { requestId: string; executionConfig?: { model: string } }) { runs += 1; if (input.executionConfig !== undefined) admittedModels.push(input.executionConfig.model); return { submissionId: input.requestId, status: "completed" } },
+  async admitInput(input: { requestId: string; executionConfig?: { model: string } }) { runs += 1; if (input.executionConfig !== undefined) admittedModels.push(input.executionConfig.model); ledger.set(input.requestId, { status: "completed" }); return { submissionId: input.requestId, status: "completed" } },
   async waitForSubmission(id: string) { return { status: "completed", submissionId: id } },
   async getMessages() { return [] },
   async takeTurnStats() { return { turns: 0, steps: 0, llmMs: 0, ttftMs: 0, ttftSteps: 0, decodeMs: 0, decodeTokens: 0 } },
-  async getInputExecution() { return { status: "completed" } },
+  async getInputExecution(requestId: string) { return ledger.get(requestId); },
 };
 (globalThis as unknown as { __providerTestAgent: typeof agent }).__providerTestAgent = agent;
 const secret = Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString("base64");
@@ -49,7 +51,7 @@ const claim = (sessionId: string, submissionId: string) => owner.fetch(new Reque
 async function submit(sessionId: string, model: string): Promise<string> {
   assert.equal((await call("create", { sessionId })).status, 200);
   assert.equal((await call("selectModel", { sessionId, model })).status, 200, `select ${model}`);
-  const prompt = await call("prompt", { sessionId, requestId: "submission", text: "hello" });
+  const prompt = await call("prompt", { sessionId, requestId: `${sessionId}-request`, text: "hello" });
   assert.equal(prompt.status, 200);
   const body = await prompt.json() as { result?: { submissionId?: string } };
   assert.ok(body.result?.submissionId);
@@ -81,17 +83,21 @@ assert.deepEqual(credentialsSeen, [null], "Gateway claim never injects or decryp
 assert.equal(runs, 1);
 assert.equal((await call("selectModel", { sessionId: "legacy", model: "deepseek-flash" })).status, 409, "new bare selection is rejected");
 const legacySubmission = await submitLegacy("legacy");
-assert.equal((await claim("legacy", legacySubmission)).status, 200, "legacy bare no-key selection keeps platform compatibility");
-assert.equal(admittedModels.at(-1), "cloudflare-ai-gateway/deepseek-flash");
-assert.equal(String(db.prepare("SELECT model FROM dsh_session_host_input_configs WHERE session_id = ? AND request_id = ?").get("legacy", "legacy-request")!.model), "cloudflare-ai-gateway/deepseek-flash", "legacy platform routing is frozen");
-assert.equal(ledger.configuration("legacy-request")?.model, "cloudflare-ai-gateway/deepseek-flash", "Think ledger is synchronized");
+// ADR §12: a bare id with no owner key fails explicitly instead of silently
+// spending platform quota, and nothing reaches the Gateway binding.
+const runsBeforeLegacy = runs;
+const legacyFailed = await claim("legacy", legacySubmission);
+assert.notEqual(legacyFailed.status, 200, "legacy bare no-key selection must fail closed");
+assert.match(await legacyFailed.text(), /claim_failed/u);
+assert.equal(runs, runsBeforeLegacy, "a refused legacy claim never admits a run");
+assert.notEqual(String(db.prepare("SELECT model FROM dsh_session_host_input_configs WHERE session_id = ? AND request_id = ?").get("legacy", "legacy-request")!.model), "cloudflare-ai-gateway/deepseek-flash", "legacy bare routing is never frozen onto the platform route");
 await credentials.set("DEEPSEEK_OFFICIAL_API_KEY", "owner-private-value");
 owner = new SessionHostObject(state, { DshAgent: {} as never, PLATFORM_AI_ENABLED: "true", AI_GATEWAY_ID: "explicit-gateway", CREDENTIALS_KEY: secret } as never);
 const byokLegacy = await submitLegacy("legacy-byok");
 assert.equal((await claim("legacy-byok", byokLegacy)).status, 200);
 assert.equal(admittedModels.at(-1), "deepseek-official/deepseek-flash");
 assert.equal(String(db.prepare("SELECT model FROM dsh_session_host_input_configs WHERE session_id = ? AND request_id = ?").get("legacy-byok", "legacy-byok-request")!.model), "deepseek-official/deepseek-flash", "legacy BYOK routing is frozen as explicit DeepSeek");
-assert.equal(String(db.prepare("SELECT model FROM dsh_session_host_input_configs WHERE session_id = ? AND request_id = ?").get("legacy", "legacy-request")!.model), "cloudflare-ai-gateway/deepseek-flash", "adding a key does not rewrite an already frozen legacy route");
+assert.equal(String(db.prepare("SELECT model FROM dsh_session_host_input_configs WHERE session_id = ? AND request_id = ?").get("legacy", "legacy-request")!.model), "deepseek-flash", "the refused legacy input keeps its bare model and is not rewritten by a later key");
 // Host freeze succeeded previously but Think ledger remained bare: next ordinary
 // claim must repair the ledger even though the Host input is already explicit.
 const interrupted = await submitWithFrozen("interrupted", "cloudflare-ai-gateway/deepseek-flash", "deepseek-flash");
@@ -115,7 +121,7 @@ assert.equal((await claim("legacy-broken", brokenLegacy)).status, 500, "legacy r
 assert.equal(runs, runsBeforeBroken, "broken legacy key never starts model execution");
 // New session default is the explicit Gateway model when platform is enabled.
 assert.equal((await call("create", { sessionId: "default" })).status, 200);
-const defaultPrompt = await call("prompt", { sessionId: "default", requestId: "submission", text: "hello" });
+const defaultPrompt = await call("prompt", { sessionId: "default", requestId: "default-request", text: "hello" });
 assert.equal(defaultPrompt.status, 200);
 const defaultBody = await defaultPrompt.json() as { result?: { submissionId?: string } };
 assert.equal((await claim("default", defaultBody.result!.submissionId!)).status, 200);
@@ -137,7 +143,7 @@ assert.equal(baseURLsSeen.at(-1), "https://owner.example/v1");
 owner = new SessionHostObject(state, { DshAgent: {} as never, CREDENTIALS_KEY: secret } as never);
 assert.equal((await call("settingsUpdate", { ns: "llm-deepseek", patch: { models: [] } })).status, 200);
 assert.equal((await call("create", { sessionId: "empty" })).status, 200);
-const emptyPrompt = await call("prompt", { sessionId: "empty", requestId: "submission", text: "hello" });
+const emptyPrompt = await call("prompt", { sessionId: "empty", requestId: "empty-request", text: "hello" });
 if (emptyPrompt.status === 200) {
   const emptyBody = await emptyPrompt.json() as { result?: { submissionId?: string } };
   const emptyClaim = await claim("empty", emptyBody.result!.submissionId!);
@@ -162,5 +168,42 @@ assert.equal(ledger.freezeModel("freeze-test", "deepseek-official/deepseek-flash
 assert.equal(ledger.freezeModel("freeze-test", "deepseek-official/deepseek-flash")?.model, "deepseek-official/deepseek-flash");
 assert.throws(() => ledger.freezeModel("freeze-test", "cloudflare-ai-gateway/deepseek-flash"), /input_provider_conflict/);
 assert.equal(ledger.freezeModel("missing-config", "deepseek-official/deepseek-flash"), undefined);
+// A frozen Gateway request must obey a later account/Session disable at claim,
+// without falling back to BYOK or accidentally disabling the fetch tool.
+const gatewayModule = "@dsh-base/cloudflare-think-ai-gateway";
+const selection: { overrides: Record<string, { disabled: boolean }>; sessions: Record<string, Record<string, { disabled: boolean }>> } = { overrides: {}, sessions: {} };
+const PluginControl = { idFromName: (name: string) => name, get: () => ({ async fetch(request: Request) {
+  const sessionId = new URL(request.url).searchParams.get("sessionId") ?? "";
+  return Response.json({ revision: 1, overrides: selection.overrides, session: selection.sessions[sessionId] ?? {} });
+} }) };
+const controlledEnv = { DshAgent: {} as never, PluginControl, PLATFORM_AI_ENABLED: "true", AI_GATEWAY_ID: "explicit-gateway", CREDENTIALS_KEY: secret };
+await credentials.set("DEEPSEEK_OFFICIAL_API_KEY", "owner-private-value");
+owner = new SessionHostObject(state, controlledEnv);
+const disabledClaim = await submit("disabled-gateway", "cloudflare-ai-gateway/deepseek-flash");
+const beforeDisabled = runs;
+selection.overrides[gatewayModule] = { disabled: true };
+owner = new SessionHostObject(state, controlledEnv);
+assert.equal((await claim("disabled-gateway", disabledClaim)).status, 409, "persisted owner disable blocks a frozen Gateway input after restart");
+assert.equal(runs, beforeDisabled, "disabled provider never reaches Agent admission");
+assert.deepEqual(pluginSelections.at(-1), ["cloudflare-ai-gateway"], "Gateway identity never maps to fetch");
+assert.equal(db.prepare("SELECT status FROM dsh_session_host_submissions WHERE submission_id = ?").get(disabledClaim)?.status, "failed", "capability denial does not become an endless alarm retry");
+const byokWhileDisabled = await submit("byok-while-disabled", "deepseek-official/deepseek-flash");
+assert.equal((await claim("byok-while-disabled", byokWhileDisabled)).status, 200, "Gateway disable leaves BYOK execution available");
+assert.deepEqual(pluginSelections.at(-1), ["cloudflare-ai-gateway"]);
+selection.sessions["session-enabled"] = { [gatewayModule]: { disabled: false } };
+const sessionEnabled = await submit("session-enabled", "cloudflare-ai-gateway/deepseek-flash");
+assert.equal((await claim("session-enabled", sessionEnabled)).status, 200, "Session override can re-enable an operator-enabled Gateway");
+assert.deepEqual(pluginSelections.at(-1), []);
+selection.overrides = {};
+const sessionDisabled = await submit("session-disabled", "cloudflare-ai-gateway/deepseek-flash");
+selection.sessions["session-disabled"] = { [gatewayModule]: { disabled: true } };
+const beforeSessionDisabled = runs;
+assert.equal((await claim("session-disabled", sessionDisabled)).status, 409);
+assert.equal(runs, beforeSessionDisabled);
+const deploymentDisabled = await submit("deployment-disabled", "cloudflare-ai-gateway/deepseek-flash");
+owner = new SessionHostObject(state, { ...controlledEnv, PLATFORM_AI_ENABLED: "false" });
+assert.equal((await claim("deployment-disabled", deploymentDisabled)).status, 409, "frozen requests cannot bypass a later deployment opt-out");
+assert.equal(runs, beforeSessionDisabled);
 db.close();
-console.log("provider claim routing: broken owner key cannot block explicit Gateway, legacy platform selection stays compatible across restart, no DeepSeek credential injection on Gateway");
+console.log("provider claim routing: broken owner key cannot block explicit Gateway, bare ids fail closed instead of platform fallback, no DeepSeek credential injection on Gateway");
+console.log("provider claim routing: frozen requests obey owner/Session/deployment Gateway disable, with no BYOK or fetch collateral effects");

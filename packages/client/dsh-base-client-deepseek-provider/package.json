@@ -31,7 +31,7 @@
     },
     "client": {
       "id": "client:deepseek-provider",
-      "origin": "custom",
+      "origin": "fork",
       "order": 106,
       "replaces": "@deepseek-ai/dsh-client-ui-settings-models"
     },
@@ -40,14 +40,15 @@
       "official": [
         "@deepseek-ai/dsh-client-ui-settings-models"
       ],
-      "reason": "Complete marked fork of the pinned official Models settings package. DeepSeek provider UI/editor and configuration semantics stay official; the fork adds only a read-only provider row for the independent operator-managed Cloudflare AI Gateway provider, rendering its official provider-card instead of the unknown-namespace YAML editor.",
+      "reason": "Complete marked fork of the pinned official Models settings package. DeepSeek provider UI/editor and configuration semantics stay official; the fork adds only a read-only provider row for the independent operator-managed Cloudflare AI Gateway provider, rendering its official provider-card instead of the unknown-namespace YAML editor. The anonymous Models surface additionally reuses this component through a minimal controller face and an optional public-declarations presentation. Public rows are visible without asserting owner configuration, all editors remain read-only, and the unchanged Add provider button can request authentication through an explicit Host callback. Default live rendering and operations remain unchanged.",
       "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
       "sourceEntries": [
         "@deepseek-ai/dsh-client-ui-settings-models/src/client/ModelsSection.tsx",
         "@deepseek-ai/dsh-client-ui-settings-models/src/client/ProviderEditor.tsx"
       ],
       "gaps": [
-        "The independent Gateway row is read-only by design; Gateway configuration is operator-managed. DeepSeek remains the official editable provider."
+        "The independent Gateway row is read-only by design; Gateway configuration is operator-managed. DeepSeek remains the official editable provider.",
+        "This revision limits the workbench to authenticated accounts. The anonymous homepage uses the isolated sign-in and consent document providers."
       ]
     }
   },

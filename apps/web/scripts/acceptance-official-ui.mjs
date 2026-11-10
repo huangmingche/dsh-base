@@ -21,7 +21,7 @@
  * DSH_ACCEPTANCE_PASSWORD.
  */
 import { assertSidebarBrand } from './assert-sidebar-brand.mjs';
-import { remoteAcceptanceConfig, chromeExecutable, closeAcceptanceBrowser, registrationHeaders, mayRegisterAcceptance, waitForHostReadiness, openSavedSession } from "./acceptance-config.mjs";
+import { remoteAcceptanceConfig, chromeExecutable, closeAcceptanceBrowser, registrationHeaders, mayRegisterAcceptance, waitForHostReadiness } from "./acceptance-config.mjs";
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -341,9 +341,12 @@ try {
     for (let attempt = 1; attempt <= 4; attempt += 1) {
       mark(`boot:attempt-${attempt}`);
       try {
+        // Drive navigation through the page itself: chrome's lifecycle watcher
+        // can wait forever for a stalled subresource on this proxy network,
+        // while the document itself is already usable.
         // Model/effort controls belong to an actual Session in the official
         // shell. The home composer may be the inert, sessionless placeholder.
-        await openSavedSession(page, base, rpcSessionId, 60_000);
+        await page.evaluate((url) => { location.href = url; }, `${base}/app/session/${encodeURIComponent(rpcSessionId)}`).catch(() => undefined);
         await page.waitForSelector('[contenteditable="true"], textarea, [role="textbox"]', { timeout: 60_000 });
         const bodyText = await page.evaluate(() => document.body.innerText);
         assert.ok(!/Sign in to dsh-base/.test(bodyText), "boot landed on /login");
@@ -385,10 +388,11 @@ try {
     const inventory = await page.evaluate(() => window.__DSH_BASE_PLUGINS__ ?? []);
     const fork = inventory.find(entry => entry.moduleName === "@dsh-base/client-agent-preset");
     const original = inventory.find(entry => entry.moduleName === "@deepseek-ai/dsh-client-ui-agent-preset");
-    assert.equal(fork?.origin, "custom"); assert.equal(fork?.enabled, true); assert.equal(fork?.fiberPhase, "active");
+    assert.equal(fork?.origin, "fork"); assert.equal(fork?.enabled, true); assert.equal(fork?.fiberPhase, "active");
     assert.equal(fork?.replaces, "@deepseek-ai/dsh-client-ui-agent-preset");
     assert.equal(original?.origin, "upstream"); assert.equal(original?.enabled, false); assert.equal(original?.fiberPhase, null);
     const brand = await assertSidebarBrand(page);
+    assert.equal(await page.$('[class*="brandName"] [data-copy-version]'), null, "sidebar name must omit the version badge");
     assert.ok(!officialResponses.some(entry => entry.path === "/api/session/prompt"), "smoke mode must not submit a prompt");
     assert.deepEqual(consoleErrors, []); assert.deepEqual(pageErrors, []);
     const directory = resolve(import.meta.dirname, "../../../.artifacts/acceptance/preset-deployed");

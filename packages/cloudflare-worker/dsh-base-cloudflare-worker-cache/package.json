@@ -1,0 +1,31 @@
+{
+  "name": "@dsh-base/cloudflare-worker-cache",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@dsh-base/cloudflare-worker-http": "workspace:*",
+    "@dsh-base/cloudflare-worker-auth": "workspace:*",
+    "@dsh-base/cloudflare-worker-site-config": "workspace:*"
+  },
+  "dshBase": {
+    "worker": {
+      "id": "cloudflare:worker:cache",
+      "origin": "custom",
+      "order": 26
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-session-projection-cache"
+      ],
+      "reason": "The initialized pinned official session-projection-cache checkpoints Session projection folds through storage-domain and synchronous coherent state. It is not an eventually consistent public-document TTL cache. Adapting only its Host services cannot change that product contract; this independent plugin provides a bounded public-only Workers KV service, never account or entitlement authority.",
+      "gaps": []
+    }
+  }
+}

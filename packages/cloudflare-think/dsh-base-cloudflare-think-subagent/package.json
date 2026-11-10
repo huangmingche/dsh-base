@@ -1,0 +1,35 @@
+{
+  "name": "@dsh-base/cloudflare-think-subagent",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./src/*": "./src/*"
+  },
+  "dshBase": {
+    "agent": {
+      "id": "cloudflare:think:subagent",
+      "order": 30,
+      "export": "subagentTools"
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-tool-subagent",
+        "@deepseek-ai/dsh-subagent"
+      ],
+      "reason": "The official delegation tool requires DSH subagent session addresses, ownership, execution and cancellation lifecycles. Mounting it or a Host-only fork cannot provide those through Think facets without replacing its lifecycle, and the former agentTool bridge passed only task/run identity without owner BYOK or Host session scope. This package therefore declares the capability unavailable and advertises no delegation tool. DshSubagent stays as an exported bare Think compatibility class so the persisted class name resolves, while model/turn/step/tool execution fails closed and no owner-name Host adapters run.",
+      "gaps": [
+        "Subagent delegation is unavailable for both BYOK and platform-provider deployments: facet identities do not map to owner-scoped Host Sessions and no supported credential/lifecycle bridge exists. The model receives an explicit unavailable statement and no delegate_task tool.",
+        "Storage was cleared by Commit 1's deleted migration: the class name/export and the inherited read path are restored, but this deployment holds no historical facet data, so no history-read claim can be verified. Compatibility is storage identity, not a functional subagent engine."
+      ],
+      "availability": "unavailable"
+    }
+  },
+  "peerDependencies": {
+    "@cloudflare/think": "*",
+    "@dsh-base/cloudflare-think-core": "workspace:*",
+    "ai": "*"
+  }
+}

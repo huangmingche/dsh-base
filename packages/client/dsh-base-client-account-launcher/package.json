@@ -1,0 +1,108 @@
+{
+  "name": "@dsh-base/client-account-launcher",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/client/index.tsx",
+    "./client": "./src/client/index.tsx"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-primitives",
+        "@dsh-base/client-settings-account",
+        "@deepseek-ai/dsh-client-ui-theme",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@dsh-base/client-deepseek-provider",
+        "@dsh-base/client-gateway-provider"
+      ]
+    }
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:account-launcher",
+      "origin": "custom",
+      "order": 73
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-settings-account",
+        "@deepseek-ai/dsh-client-ui-primitives",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-theme",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-settings-general",
+        "@deepseek-ai/dsh-client-ui-permission-presets",
+        "@deepseek-ai/dsh-client-ui-chat",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-shortcuts",
+        "@deepseek-ai/dsh-client-ui-settings-session-log",
+        "@deepseek-ai/dsh-client-shortcuts",
+        "@deepseek-ai/dsh-client-store",
+        "@deepseek-ai/dsh-client-ui-sidebar-right",
+        "@deepseek-ai/dsh-client-ui-settings-plugin-inventory",
+        "@deepseek-ai/dsh-agent-preset-registry",
+        "@deepseek-ai/dsh-client-ui-settings-plugins"
+      ],
+      "sourceEntries": [
+        "@deepseek-ai/dsh-client-ui-settings-account/src/client/AccountMenu.module.css",
+        "@deepseek-ai/dsh-client-ui-renderer/src/client/bind.ts",
+        "@deepseek-ai/dsh-client-locale/src/client/LanguageRow.tsx",
+        "@deepseek-ai/dsh-client-locale/src/client/settings-store.ts",
+        "@deepseek-ai/dsh-client-ui-theme/src/client/AppearanceRow.tsx",
+        "@deepseek-ai/dsh-client-ui-theme/src/client/FontSettingsGroup.tsx",
+        "@deepseek-ai/dsh-client-ui-theme/src/client/settings-store.ts",
+        "@deepseek-ai/dsh-client-ui-theme/src/client/index.ts",
+        "@deepseek-ai/dsh-client-ui-permission-presets/src/client/PermissionRow.tsx",
+        "@deepseek-ai/dsh-client-ui-permission-presets/src/client/settings-store.ts",
+        "@deepseek-ai/dsh-client-ui-chat/src/client/settings/TranscriptViewRow.tsx",
+        "@deepseek-ai/dsh-client-ui-chat/src/client/settings/LinkOpeningRow.tsx",
+        "@deepseek-ai/dsh-client-ui-chat/src/client/settings/PerformanceUsageRow.tsx",
+        "@deepseek-ai/dsh-client-ui-chat/src/chat-settings.ts",
+        "@deepseek-ai/dsh-client-ui-chat/src/client/presentation-policy.ts",
+        "@deepseek-ai/dsh-client-ui-conversation/src/client/settings/EnterBehaviorRow.tsx",
+        "@deepseek-ai/dsh-client-ui-conversation/src/client/contract/composer-submission.ts",
+        "@deepseek-ai/dsh-client-ui-settings-general/src/client/DeveloperToolsRow.tsx",
+        "@deepseek-ai/dsh-client-ui-settings-general/src/client/CurrentVersionRow.tsx",
+        "@deepseek-ai/dsh-client-ui-shortcuts/src/client/Reference.tsx",
+        "@deepseek-ai/dsh-client-ui-settings-session-log/src/client/UploadRow.tsx",
+        "@deepseek-ai/dsh-client-ui-settings-session-log/src/client/upload-preference.ts",
+        "@deepseek-ai/dsh-client-ui-chat/src/client/transcript-view.ts",
+        "@deepseek-ai/dsh-client-ui-chat/src/client/performance-usage.ts",
+        "@deepseek-ai/dsh-client-ui-conversation/src/client/input/submission-policy.ts",
+        "@deepseek-ai/dsh-client-ui-conversation/src/submission-settings.ts",
+        "@deepseek-ai/dsh-client-ui-settings-account/src/client/AccountSection.module.css",
+        "@deepseek-ai/dsh-client-ui-settings-plugin-inventory/src/client/PluginInventorySettingsTab.tsx"
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "reason": "The official account and settings plugins register behind private Host access gates, which remain intact. This custom plugin supplies only the anonymous sidebar entry and composes exported official rows and our marked settings shell. AccountSection has no official contract to render full account content for a genuine signed-out snapshot: it returns a placeholder first. A complete marked @dsh-base/client-settings-account fork adds an explicit full-unavailable Host presentation option while retaining official markup, CSS and dictionaries. This launcher uses its stable /client export with signed-out state, no attempt and no private details. Platform actions remain disabled; the separate Dsh-base account row below alone requests local authentication through the official Button. No private permission or synthetic identity is introduced. Anonymous Models now uses the existing marked Models fork stable export with a read-only public-declarations Host contract and local-only operations, rather than a handwritten catalog. Public schema and defaults are shared with the Worker through a platform-neutral data library. Unknown owner credentials and Gateway availability remain unknown; Add provider and a lower sign-in action request local authentication.",
+      "gaps": [
+        "Anonymous launcher structure mirrors the official AccountMenu signed-out branch and is hand-written, not forked; re-review on pin upgrades.",
+        "The feedback disabled reason ('available after sign-in') is authored here in eight languages because the official settings.account dictionary has no such key; the official feedback external form is not linked while anonymous.",
+        "The anonymous settings slot graph is access-gated, so official row registrations (their inject faces and stores) are unreachable while anonymous; the policy-driven rows use the official TranscriptViewPolicy / ComposerSubmissionPolicy / PerformanceUsagePolicy classes over the same official configForms entries (ui-chat / ui-conversation) and official schemas, per the Architect-approved route. No invented interaction or storage format.",
+        "Nine General rows are usable while anonymous: language/appearance/font through the local settings document; work details, link opening and performance through the official chat form; enter behavior through the official conversation form; developer tools through the shared configForms preference; shortcuts through ctx.shortcuts and the store already registered in shell.overlay, persisting in the official dsh.keybindings.v1 key. Permission and session log stay disabled with the localized reason.",
+        "The panel reuses our marked fork's exported SettingsPanel with optional disabled/disabledReason/icon row fields; official sections never set them, so the signed-in shell keeps its previous attributes and activation path (unit-tested projection).",
+        "Nav icons come from ui-primitives because the official settings.section.icon slot has no registrants while anonymous; re-review on pin upgrades.",
+        "Long localized section labels keep the official single-line ellipsis behavior (e.g. de/ru/es/ja/pt for Built-in plugins / Agent presets); the truncation is inherited from the official nav cell and is treated as an upstream localization issue, not a local deviation.",
+        "The anonymous Account page uses the marked account settings fork full-unavailable Host contract over a genuine signed-out snapshot. Official account identity, balance, bonus and navigation rows remain visible; unavailable Platform actions have no href and are disabled. The separate lower Dsh-base login region alone requests local authentication. The full anonymous layout is a user-approved extension of the official signed-in layout, documented in ADR-0005 section 21; it is not an upstream anonymous behavior.",
+        "The anonymous Models section directly composes the marked official ModelsSection and ProviderEditor over local public declarations. It sets no available/configured owner credential facts, reads no private remotes and refuses all writes. The Gateway card has an explicit signed-out state, not a false disabled-deployment status. A user-approved public-declarations presentation keeps the original cards visible and the original Add button requests sign-in. Its default owner path is unchanged. The public schema/default support library is not an independently active feature.",
+        "This revision limits the workbench to authenticated accounts. The anonymous homepage uses the isolated sign-in and consent document providers."
+      ]
+    }
+  },
+  "license": "MIT",
+  "dependencies": {
+    "@dsh-base/client-auth-login": "workspace:*",
+    "@dsh-base/client-settings-account": "workspace:*",
+    "@dsh-base/client-deepseek-provider": "workspace:*",
+    "@dsh-base/client-gateway-provider": "workspace:*"
+  },
+  "peerDependencies": {
+    "@dsh-base/model-declarations": "workspace:*"
+  }
+}

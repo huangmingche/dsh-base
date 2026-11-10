@@ -1,8 +1,9 @@
-/** One Host-generation model catalog shared by every Session selector. */
+/** One Session's effective Host-generation model catalog. */
 
 import type { Context as ClientContext } from '@deepseek-ai/cordis'
 import type { ModelCatalog, ModelSelection, ModelProviderGroup } from '@deepseek-ai/dsh-api-remotes/client'
 import { createSnapshotStore, type SnapshotStore } from '@deepseek-ai/dsh-client-store'
+import type {} from '@dsh-base/client-session-adapter/src/client/session-model-catalog.ts'
 
 /** Observable lifecycle of the shared model catalog. */
 export interface ModelCatalogState {
@@ -33,27 +34,34 @@ export class ModelCatalogDirectory {
 
   private generation = 0
   private inflight: Promise<ModelCatalog> | undefined
+  private disposed = false
 
   /**
    * @param ctx - the providing plugin's context, whose `remote.session`
    * namespace carries the Host-generation catalog.
    */
-  constructor(private readonly ctx: ClientContext) {}
+  constructor(private readonly ctx: ClientContext, private readonly sessionId?: string) {}
 
   /**
    * Return the current generation's catalog, sharing its one in-flight load.
-   * @returns the loaded global catalog.
+   * @param fresh - re-read authoritative selection when an existing menu opens.
+   * @returns the loaded effective catalog.
    */
-  load(): Promise<ModelCatalog> {
+  load(fresh = false): Promise<ModelCatalog> {
+    if (this.disposed) return Promise.reject(new Error('Session model catalog is disposed'))
+    if (this.inflight !== undefined) return this.inflight
+    if (fresh) this.invalidate(true)
     const state = this.store.getSnapshot()
     if (state.status === 'ready' && state.value !== null) return Promise.resolve(state.value)
-    if (this.inflight !== undefined) return this.inflight
     const generation = this.generation
     this.store.update((draft) => {
       draft.status = 'loading'
       draft.error = null
     })
-    const operation = this.ctx.remote.session.modelCatalog().then((response) => {
+    const request = this.sessionId === undefined
+      ? this.ctx.remote.session.modelCatalog()
+      : this.ctx.sessionModelCatalog.load(this.sessionId).then(value => ({ ok: true as const, value }))
+    const operation = request.then((response) => {
       if (!response.ok) {
         throw new Error(`${response.error.code}: ${response.error.message}`)
       }
@@ -94,14 +102,25 @@ export class ModelCatalogDirectory {
 
   /** Invalidate and reload the catalog after a Host-side model input changes. */
   refresh(): void {
-    this.invalidate()
+    if (this.disposed) return
+    // A prior capability snapshot is not evidence that a provider remains
+    // enabled while the authoritative Session selection is being re-read.
+    this.invalidate(true)
     void this.load().catch(() => { /* the selector exposes the shared error */ })
   }
 
   /** Clear Host-specific values and load the replacement Host generation. */
   resetGeneration(): void {
+    if (this.disposed) return
     this.reasoning.clear()
     this.invalidate(true)
     void this.load().catch(() => { /* the selector exposes the shared error */ })
+  }
+
+  /** A released Session binding cannot publish a late catalog response. */
+  dispose(): void {
+    this.disposed = true
+    this.reasoning.clear()
+    this.invalidate(true)
   }
 }

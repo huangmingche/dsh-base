@@ -139,6 +139,7 @@ export interface SessionHostStorage {
   syncMessages?(sessionId: string, messages: readonly { id: string; role: string; parts: readonly unknown[] }[]): Promise<SessionMessageRecord[]>;
   /** Repair only a completed input's stale tool parts from trusted Agent evidence. */
   repairCompletedToolResults?(sessionId: string, messages: readonly { id: string; role: string; parts: readonly unknown[] }[]): Promise<number>;
+  executeExportCommand?(input: { sessionId: string; line: string; attachments: readonly unknown[]; rpcId: string }): Promise<import('@deepseek-ai/dsh-commands/types').CommandExecution>;
   listSessions(): Promise<readonly SessionRecord[]>;
   getSession(sessionId: string): Promise<SessionRecord | undefined>;
   putSession(record: SessionRecord): Promise<void>;

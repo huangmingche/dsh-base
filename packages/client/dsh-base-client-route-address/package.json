@@ -1,0 +1,58 @@
+{
+  "name": "@dsh-base/client-route-address",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/client/index.ts",
+    "./client": "./src/client/index.ts"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-api-workspace-controller",
+        "@deepseek-ai/dsh-client-ui-workspace",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-locale",
+        "@dsh-base/client-session-adapter",
+        "@deepseek-ai/dsh-client-ui-layout"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-client-locale": "*",
+    "@deepseek-ai/dsh-client-store": "*",
+    "@deepseek-ai/dsh-client-ui-primitives": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*",
+    "@deepseek-ai/dsh-client-ui-workspace": "*",
+    "react": "*",
+    "zod": "*",
+    "@dsh-base/client-session-adapter": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-layout": "*"
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:route-address",
+      "origin": "custom",
+      "order": 60
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-workspace",
+        "@deepseek-ai/dsh-client-ui-session",
+        "@deepseek-ai/dsh-client-ui-layout"
+      ],
+      "reason": "The official client has no URL router: no pushState/popstate/hash routing exists, so Sessions and Workspaces cannot be deep-linked, refreshed, or shared by id. This plugin reuses the official uiWorkspace.openSession/openWorkspace services and the official session/workspace observables to add a thin address seam; it renders no replacement layout. Language prefixes come from @dsh-base/locale-path, never from a second copy. Navigation restoration waits for checked SaaS authentication; anonymous deep links preserve their full address without refreshing private lists or reporting a protected target as missing. URL restoration participates in the official layout.beginNavigation cancellation contract: newer panel, Session and browser-history navigation supersede pending work; official Workspace navigation owns cancellation after handoff. No retry or settle timer replays an obsolete address. Test-only: the stable client entry does not export UiWorkspaceService. Lifecycle regressions exercise the unchanged pinned official navigation service with controllable Host catalogs and acquisition, including its saved-blank cancellation behavior.",
+      "gaps": [],
+      "sourceEntries": [
+        "@deepseek-ai/dsh-client-ui-workspace/src/client/navigation.ts"
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db"
+    }
+  }
+}

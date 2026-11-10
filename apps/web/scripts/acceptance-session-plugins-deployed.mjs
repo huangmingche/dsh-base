@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 /** Staging acceptance for the read-only official Settings session/global plugin inventory. */
 import { assertSidebarBrand } from './assert-sidebar-brand.mjs';
-import { remoteAcceptanceConfig, chromeExecutable, closeAcceptanceBrowser, waitForHostReadiness, openSavedSession } from "./acceptance-config.mjs";
+import { remoteAcceptanceConfig, chromeExecutable, closeAcceptanceBrowser, waitForHostReadiness } from "./acceptance-config.mjs";
 import { loadOfficialDeclarations } from "./generate-preset-declarations.mjs";
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import puppeteer from "puppeteer-core";
+import { prefixFor } from "../../../packages/boot/dsh-base-locale-path/src/index.ts";
 
 const { base, credentials } = remoteAcceptanceConfig();
 const expectedVersion = process.env.DSH_EXPECTED_DEPLOYMENT_VERSION;
@@ -69,6 +70,10 @@ assert.ok(modelSessionId, "deployed acceptance account has no non-blank test Ses
 const created = await rpc("session/create", { title: `Session plugin acceptance ${suffix}`, agentPreset: "dsh-base-think" });
 const sessionId = created.sessionId;
 const readiness = await waitForHostReadiness((method, params) => hostCall(method, params).then(result => ({ status: 200, body: { result } })), sessionId, { expectedVersion, timeoutMs: 360_000 });
+const publicSiteResponse = await fetchRetry(`${base}/api/site-config`);
+assert.equal(publicSiteResponse.status, 200);
+const publicSite = await publicSiteResponse.json();
+assert.ok(typeof publicSite.brand?.name === 'string' && publicSite.brand.name.trim() !== '');
 const initialSettings = await hostCall("settingsDescribe");
 const initialLocale = initialSettings.values?.locale?.preference;
 
@@ -117,7 +122,7 @@ const screenshots = [];
 const evidence = [];
 try {
   for (const locale of ["en", "zh"]) {
-    const prefix = locale === "zh" ? "/zh-CN" : "";
+    const prefix = prefixFor(locale === "zh" ? "zh" : "en");
     await hostCall("settingsUpdate", { ns: "locale", patch: { preference: locale } });
     await openBuiltIn(prefix);
     // Official General version row: app version + pinned upstream tag.
@@ -172,7 +177,7 @@ try {
     await openBuiltIn(prefix);
     // Official Models page on a non-blank acceptance-account Session (so the
     // official first-run onboarding does not replace the Settings panel).
-    await openSavedSession(page, `${base}${prefix}`, modelSessionId, 120_000);
+    await page.goto(`${base}${prefix}/app/session/${encodeURIComponent(modelSessionId)}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
     await page.waitForSelector('[contenteditable="true"], textarea, [role="textbox"]', { timeout: 120_000 });
     await page.waitForFunction(() => [...document.querySelectorAll('button')].some(element => /account menu|账号菜单/u.test(`${element.getAttribute("aria-label") ?? ""} ${element.textContent ?? ""}`)), { timeout: 120_000 });
     await clickVisible("account menu|账号菜单");

@@ -1,0 +1,60 @@
+{
+  "name": "@dsh-base/client-gateway-provider",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/client/index.tsx",
+    "./client": "./src/client/index.tsx",
+    "./src/*": "./src/*"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-settings-models"
+      ],
+      "platform": "web"
+    }
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:gateway-provider",
+      "origin": "custom",
+      "order": 107
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-settings-models"
+      ],
+      "reason": "The official Models page is mounted through the marked @dsh-base/client-deepseek-provider fork; no official Gateway provider exists. This plugin contributes the independent operator-managed Gateway provider card via the public settings.models.provider-card slot. Its row, compact Details action and expanded editor hierarchy reuse the pinned official ModelsSection CSS classes; the Host/modelAccess seam supplies real availability and catalog. Anonymous Models reuses the same card with a minimal observable signed-out face containing only optional caller-supplied public model declarations; it never constructs the live controller or reads account state. No settings page or provider editor is copied.",
+      "sourceEntries": [
+        "@deepseek-ai/dsh-client-ui-settings-models/src/client/slot-contract.ts",
+        "@deepseek-ai/dsh-client-ui-settings-models/src/client/ModelsSection.module.css"
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "gaps": [
+        "Gateway is a product-specific provider with no official package; its slot card reuses the pinned official Models row/editor styles rather than a pure Host-only seam.",
+        "Gateway configuration is operator-managed and read-only; its expanded surface exposes status/authentication/catalog only, with no editable credential form.",
+        "User-approved UI adaptation (R1): the official credential-dot class/token is reused for platform authentication readiness; the green dot means platform auth is configured/available, not an API key or credential, and is absent for loading/error/unavailable/signed-out.",
+        "Anonymous state is explicit and localized as Sign in to view; public model declarations are labelled Models, never Available models. The immutable signed-out facade does not read the Host, install refresh listeners or upgrade into observed availability. The official row/details hierarchy and controlled disclosure behavior remain unchanged."
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-api-remotes": "*",
+    "@deepseek-ai/dsh-client-locale": "*",
+    "@deepseek-ai/dsh-client-ui-primitives": "*",
+    "@deepseek-ai/dsh-client-ui-renderer": "*",
+    "@deepseek-ai/dsh-client-ui-settings": "*",
+    "@deepseek-ai/dsh-client-ui-settings-models": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*",
+    "react": "*",
+    "zod": "*"
+  }
+}

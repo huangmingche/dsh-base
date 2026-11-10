@@ -8,7 +8,7 @@ import { readLocalAccount, signOutLocalAccount } from "../src/client/account-tra
 const calls: unknown[] = [];
 const refused = { ok: false, error: { code: "directory-picker/exists", message: "already exists", details: { path: "/work" } } };
 const signal = new AbortController().signal;
-const directories = createDirectoryRemote(() => ({ async call(...args: unknown[]) { calls.push(args); return refused; } }) as never);
+const directories = createDirectoryRemote(() => ({ async call(...args: unknown[]) { calls.push(args); return refused; } }) as never, () => true);
 assert.equal(await directories.list(undefined, signal), refused);
 assert.equal(await directories.list("/work", signal), refused);
 assert.equal(await directories.createDirectory("/", "work"), refused);

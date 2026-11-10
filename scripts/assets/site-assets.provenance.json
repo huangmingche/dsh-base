@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "source": {
+    "package": "@deepseek-ai/dsh-client-ui-primitives",
+    "export": ".",
+    "symbols": [
+      "FISH_LOGO_PATH",
+      "FISH_LOGO_VIEWBOX"
+    ],
+    "repository": "https://github.com/deepseek-ai/deepseek-harness.git",
+    "tag": "dsh-v0.2.2-rc.1",
+    "commit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+    "license": "MIT",
+    "files": {
+      ".submodules/deepseek-harness/packages/client/ui-primitives/package.json": "8fcf43db8b1675458670ea9ae6b09e7a489a7d1a97a1605979cdd5a462dd7f9b",
+      ".submodules/deepseek-harness/packages/client/ui-primitives/src/FishLogo.tsx": "284e14941ee40ecb3473f424866a2f9370fb28ecdb8e5f1bbd8b1af295e5ddeb",
+      ".submodules/deepseek-harness/packages/client/ui-primitives/src/index.ts": "567ddf700b04b4f19d8d9352b475c70416041fa615920c083284a7e97ce2a012",
+      ".submodules/deepseek-harness/packages/client/ui-theme/package.json": "a4294e3306133fbd50c79e12683d222e2c079e558e1a4f94b6ce058fb80947fd",
+      ".submodules/deepseek-harness/packages/client/ui-theme/src/styles/Montserrat-OFL.txt": "861d64229728cd65a98d119612c12769582574d1a092f0b63c8b0fd474e7065f",
+      ".submodules/deepseek-harness/packages/client/ui-theme/src/styles/montserrat-medium.woff2": "8a81ca6f05cb6831d5487e4b287ce5a625a718c39226b736f155900adc394166",
+      ".submodules/deepseek-harness/packages/client/ui-theme/src/styles/montserrat-regular.woff2": "0f4a15e29a9535af580a64db967929a8d6b202fad9a467be390619a591d2c4c5"
+    }
+  },
+  "geometry": {
+    "pathSha256": "5bee701f39229e6dbb3950e8ed7fe69aedc6de462df916ace5e84563715abc47",
+    "viewBox": {
+      "width": 23.16,
+      "height": 17.04
+    },
+    "background": "#171717",
+    "foreground": "#ffffff",
+    "websiteLight": "#000000",
+    "websiteDark": "#ffffff",
+    "websiteFallback": "#000000",
+    "iconWidth": 448,
+    "maskableWidth": 320,
+    "safeCircleRadius": 204.8,
+    "cornerRadius": 112,
+    "ogLogoWidth": 192
+  },
+  "renderer": {
+    "browser": "Chrome/157.0.8103.79",
+    "method": "Canvas2D Path2D, uniform scale, pinned Montserrat fonts",
+    "ico": "lossless PNG frames: 16,32,48"
+  },
+  "assets": {
+    "/favicon.svg": {
+      "sha256": "d9b11c1dc76d89127ed2d98e0d6ba984f9f653e1655dc69a64cea4b1180a36b0",
+      "bytes": 3681,
+      "width": 512,
+      "height": 512
+    },
+    "/favicon-dark.svg": {
+      "sha256": "785bf73c67e50bbe8d76c58cb0d4dc0c413eba1b026ba7abdf52760e2b2e1c84",
+      "bytes": 3681,
+      "width": 512,
+      "height": 512
+    },
+    "/favicon.ico": {
+      "sha256": "7907c17c0938c43ed2a32b2a2c2cd69aa569cac63946e171648aed78722de716",
+      "bytes": 2715,
+      "width": 48,
+      "height": 48
+    },
+    "/favicon-16x16.png": {
+      "sha256": "816902cabed4fc71e3d96d922dd47043a4819f8f1a3553d7fd800a11cc7bcff2",
+      "bytes": 419,
+      "width": 16,
+      "height": 16
+    },
+    "/favicon-32x32.png": {
+      "sha256": "30bd54f65a5404f75a21524771f9d991c5b9425a3c7d2279beca7ac9565cd7e3",
+      "bytes": 899,
+      "width": 32,
+      "height": 32
+    },
+    "/apple-touch-icon.png": {
+      "sha256": "9eaa115c7268508846d6388e652bbd5655a250d67437e6ea9839c45320974a98",
+      "bytes": 8364,
+      "width": 180,
+      "height": 180
+    },
+    "/icon-192.png": {
+      "sha256": "3834d1649017d722e19bbf01d2305da0139ef5c3b643c31d31b576a7fa6f6f13",
+      "bytes": 9031,
+      "width": 192,
+      "height": 192
+    },
+    "/icon-512.png": {
+      "sha256": "0debe4b2af07e1c7e5b4715293cf33ccefee698edefde5e5b9308124d0948f8e",
+      "bytes": 30466,
+      "width": 512,
+      "height": 512
+    },
+    "/icon-maskable-512.png": {
+      "sha256": "75da5210b7e71a8306ddb874df2ad901353400a4dc6c54c49056cca41dae17d0",
+      "bytes": 20975,
+      "width": 512,
+      "height": 512
+    },
+    "/og.png": {
+      "sha256": "0307d071e5702d0c28f6376b7ab5592ed582fe838fe6eba25a10e33e3399bdd1",
+      "bytes": 53595,
+      "width": 1200,
+      "height": 630
+    }
+  }
+}

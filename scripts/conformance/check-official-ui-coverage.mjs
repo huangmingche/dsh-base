@@ -1,17 +1,20 @@
 #!/usr/bin/env node
 /** Declared official Web UI coverage; runtime and rendered parity need acceptance. */
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { clientRows, isMain, isPackageExported, localPackages, officialPackages, packageName, printResult, readJson, repoRoot } from "./lib.mjs";
+import { projectContext } from "../composition/project-context.mjs";
+import { checkPluginOrigin } from "./plugin-origin.mjs";
 
-export function checkOfficialUiCoverage(root) {
+export function checkOfficialUiCoverage(root, options = {}) {
   const failures = [];
-  const lock = readJson(join(root, "dsh-source.lock.json"));
-  const patch = readFileSync(join(root, ".submodules/deepseek-harness/packages/bundle/web-app/cordis.patch.yml"), "utf8");
+  const context = projectContext(root);
+  const lock = readJson(join(context.baseRoot, "dsh-source.lock.json"));
+  const patch = readFileSync(join(context.upstreamRoot, "packages/bundle/web-app/cordis.patch.yml"), "utf8");
   const official = officialPackages(root);
   const required = [...new Set([...patch.matchAll(/^\s+name:\s*['"](@deepseek-ai\/dsh-client-[^'"\n]+)['"]/gm)].map((match) => match[1]))];
   if (required.length === 0) failures.push("official web-app patch yielded no client packages; review the pinned composition format");
-  const rows = clientRows(root);
+  const rows = clientRows(root, options);
   const active = new Map(rows.filter((row) => row.disabled !== true).map((row) => [row.name, row]));
   const locals = new Map(localPackages(root).map(({ manifest }) => [manifest.name, manifest]));
   const replacements = new Map();
@@ -23,12 +26,20 @@ export function checkOfficialUiCoverage(root) {
     names.add(row.name); ids.add(row.id);
     if (row.disabled === true) continue;
     if (official.has(row.name) && row.origin !== "upstream") failures.push(`${row.name}: official active row must have origin upstream`);
-    if (locals.has(row.name) && row.origin !== "custom") failures.push(`${row.name}: local active row must have origin custom`);
-    if (row.replaces === undefined) continue;
     const metadata = locals.get(row.name)?.dshBase;
+    if (locals.has(row.name)) failures.push(...checkPluginOrigin(locals.get(row.name), row.origin, "client composition origin"));
     const fork = metadata?.forkOf;
     const reuse = metadata?.reuse;
-    const trackedFork = fork?.package === row.replaces && fork.commit === lock.commit && fork.path && fork.license;
+    const replaced = official.get(row.replaces);
+    const trackedFork = row.replaces !== undefined && replaced?.manifest.dsh?.client !== undefined
+      && fork?.package === row.replaces && fork.commit === lock.commit
+      && typeof fork.path === "string" && fork.path.length > 0
+      && resolve(context.upstreamRoot, fork.path) === replaced.directoryPath
+      && typeof fork.license === "string" && fork.license.length > 0 && fork.license === replaced.manifest.license;
+    if (locals.has(row.name) && row.origin !== "custom" && !(row.origin === "fork" && trackedFork)) {
+      failures.push(`${row.name}: local active row must have origin custom or fork with a pinned tracked fork matching replaces`);
+    }
+    if (row.replaces === undefined) continue;
     const componentEntries = Array.isArray(reuse?.sourceEntries) ? reuse.sourceEntries.filter((entry) => packageName(entry) === row.replaces) : [];
     const componentSeam = reuse?.mode === "seam" && (reuse.for ?? reuse.official)?.includes(row.replaces)
       && reuse.sourceReviewCommit === lock.commit && componentEntries.length > 0

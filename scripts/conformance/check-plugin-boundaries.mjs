@@ -4,6 +4,7 @@ import { builtinModules } from "node:module";
 import { readFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { importsIn, isMain, isPackageExported, localPackages, officialPackages, packageName, printResult, readJson, repoRoot, runtimeGroups, walk } from "./lib.mjs";
+import { projectContext } from "../composition/project-context.mjs";
 
 const nodeModules = new Set(builtinModules.map((name) => name.replace(/^node:/, "")));
 const idPrefixes = { client: "client:", worker: "cloudflare:worker:", think: "cloudflare:think:" };
@@ -11,17 +12,31 @@ const namePrefixes = { client: "@dsh-base/client-", worker: "@dsh-base/cloudflar
 
 export function checkBoundaries(root) {
   const failures = [];
-  const packages = localPackages(root).map((entry) => ({ ...entry, plane: entry.group === "build" ? "build" : runtimeGroups[entry.group] ?? "shared" }));
+  const context = projectContext(root);
+  const packages = localPackages(root).map((entry) => ({
+    ...entry,
+    browserSupport: entry.group === "boot" && entry.manifest.dshBase?.boot?.kind === "browser-support",
+    plane: entry.group === "build" ? "build"
+      : entry.group === "boot" && entry.manifest.dshBase?.boot?.kind === "browser-support" ? "client"
+        : runtimeGroups[entry.group] ?? "shared",
+  }));
   const byName = new Map(packages.map((entry) => [entry.manifest.name, entry]));
   const official = officialPackages(root);
-  const pin = readJson(join(root, "dsh-source.lock.json")).commit;
-  for (const { manifest, directoryPath, plane, path } of packages) {
+  const pin = readJson(join(context.baseRoot, "dsh-source.lock.json")).commit;
+  for (const { manifest, directoryPath, plane, path, group, browserSupport, ownerRoot } of packages) {
+    const scope = context.consumer && ownerRoot === context.productRoot ? context.namespace : "dsh-base";
+    const packagePrefixes = Object.fromEntries(Object.entries(namePrefixes).map(([key, value]) => [key, value.replace("@dsh-base/", `@${scope}/`)]));
     const meta = manifest.dshBase?.[plane === "think" ? "agent" : plane];
-    if (plane === "build") {
-      if (!manifest.name?.startsWith("@dsh-base/build-") || !["vite-plugin", "dependency-environment"].includes(manifest.dshBase?.build?.kind)) failures.push(`${relative(root, path)}: build-only packages require @dsh-base/build- naming and dshBase.build.kind = vite-plugin or dependency-environment`);
+    if (manifest.dshBase?.boot !== undefined && (!browserSupport || group !== "boot")) failures.push(`${relative(root, path)}: boot support metadata requires packages/boot and kind = browser-support`);
+    if (browserSupport) {
+      if (!manifest.name?.startsWith(packagePrefixes.client)) failures.push(`${relative(root, path)}: browser support package name must start with ${packagePrefixes.client}`);
+      if (manifest.dsh?.client !== undefined || ["client", "worker", "agent"].some(key => manifest.dshBase?.[key] !== undefined)) failures.push(`${relative(root, path)}: browser support libraries cannot declare runtime composition`);
+      if (manifest.dshBase?.reuse?.mode !== "seam") failures.push(`${relative(root, path)}: browser support libraries must record compatibility seam metadata`);
+    } else if (plane === "build") {
+      if (!manifest.name?.startsWith(`@${scope}/build-`) || !["vite-plugin", "dependency-environment"].includes(manifest.dshBase?.build?.kind)) failures.push(`${relative(root, path)}: build-only packages require @${scope}/build- naming and dshBase.build.kind = vite-plugin or dependency-environment`);
       if (manifest.dsh?.client !== undefined || ["client", "worker", "agent"].some(key => manifest.dshBase?.[key] !== undefined)) failures.push(`${relative(root, path)}: build-only packages cannot declare runtime composition`);
     } else if (plane !== "shared") {
-      if (!manifest.name?.startsWith(namePrefixes[plane])) failures.push(`${relative(root, path)}: package name must start with ${namePrefixes[plane]}`);
+      if (!manifest.name?.startsWith(packagePrefixes[plane])) failures.push(`${relative(root, path)}: package name must start with ${packagePrefixes[plane]}`);
       if (meta !== undefined && (typeof meta.id !== "string" || !meta.id.startsWith(idPrefixes[plane]))) failures.push(`${relative(root, path)}: composition id must start with ${idPrefixes[plane]}`);
       if (plane === "client" && manifest.dsh?.client !== undefined && manifest.dsh.client.platform !== "web") failures.push(`${relative(root, path)}: client plugin platform must be web`);
     }
@@ -35,7 +50,7 @@ export function checkBoundaries(root) {
           if (target.plane !== "shared" && target.plane !== plane) failures.push(`${location}: ${plane} package ${manifest.name} imports ${target.plane} package ${target.manifest.name}`);
           continue;
         }
-        if (specifier.startsWith("@dsh-base/")) failures.push(`${location}: unknown local package ${packageName(specifier)}`);
+        if (specifier.startsWith("@dsh-base/") || context.consumer && specifier.startsWith(`@${context.namespace}/`)) failures.push(`${location}: unknown local package ${packageName(specifier)}`);
         if (plane === "client" || plane === "shared") {
           const workersRuntime = ["@cloudflare/think", "agents", "@cloudflare/workers-types"].includes(packageName(specifier))
             && !["@cloudflare/think/react", "agents/react"].includes(specifier);

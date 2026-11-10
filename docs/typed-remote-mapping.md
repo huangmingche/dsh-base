@@ -1,5 +1,9 @@
 # Current Remote and transport map
 
+Updated: 2026-11-10. This is the implemented bridge map, not a proposal to migrate
+already-completed work. The previous Phase C narrative is preserved in
+[history](history/2026-11-10-pre-alignment-typed-remote-mapping.md).
+
 Official client plugins consume Host services supplied by the client seam.
 Several namespaces use official-style unary RPC and logical streams; others
 still use Host-specific transport or explicitly unavailable services. A namespace
@@ -65,7 +69,7 @@ a newer value. The former custom generation bootstrap is disabled inventory.
 
 ## Client adapters and fallback rules
 
-`packages/client/dsh-base-client-session-host` supplies official Session,
+`packages/boot/dsh-base-client-session-host` supplies official Session,
 workspace, workspace-file, and permission gateways. The Session adapter uses
 those gateways for migrated reads/mutations, including prompt/page/fork/queue.
 The official Connection RPC is used when active; the transport can use same-origin
@@ -104,9 +108,9 @@ is stored separately and remains unknown when not supplied by the response.
 | File mutations | Custom Host file APIs backed by R2/DO metadata; official read/change contracts coexist with them. |
 | Skills/references | Real catalog/workspace/session data is adapted for the official composer. This is not a general official command registry. |
 | Feedback | Conversation-log feedback is unavailable. Official message/session feedback controls remain visible and disabled; Remote submission and `/feedback` explicitly reject. Sidecar contract helpers are tested but not mounted as fake log submission. |
-| Plugin inventory | `pluginInventory.list()` returns a read-only projection of real client Loader entries plus the pinned preset declaration groups; manager `listBundles` is empty because no owner-manageable package exists. Every install/update/physical-uninstall/registry call returns an explicit unavailable error. | No synthetic installed inventory and no owner-level switch; the seam is adaptation-only. |
+| Plugin inventory | `pluginInventory.list()` returns the observed client and Worker entries for an authenticated session, with separate groups for Think and pinned preset declarations. The manager lists the generated bundle catalog. Only the Gateway provider, web fetch and memory are switchable under the owner-level `L1` policy. | Dynamic installation, upgrade, physical removal and registry operations report their deployment limits. |
 | Agent presets | The marked ui-agent-preset fork exposes the four official ids with their real pinned declarations and a canonical `dsh-base-think` default in Settings and the composer. Creation with official ids is rejected; the Host accepts only the canonical fixed composition. Read/select never fake success. |
-| Plugin inventory | Actual client composition entries, origins and fiber states; disabled originals remain. No installed bundle is invented, and dynamic management methods reject. |
+| Plugin inventory | Authenticated client and Worker entries retain their recorded fiber phases. Think declarations retain a null phase. Dynamic install, update and uninstall operations report their deployment limits. Enabled owner-level switches persist per account. |
 | `/permission` | Official preset selection changes that Session only; the settings default applies to new Sessions. Actual R2 file operations enforce policy and never-policy refuses approval-dependent operations. |
 | Think delegation | Unavailable for both BYOK and platform modes: the retained plugin advertises the limitation and registers no `delegate_task`. Historical facet export/storage/reads remain compatible, while model/turn/step/tool execution rejects before provider access. Official subagent registry/history/controller mapping remains absent. |
 | Terminal, dynamic Cordis, native settings editor, real HMR rebuild | Required Host capabilities are absent and must remain visible as unavailable. |
@@ -155,10 +159,11 @@ queue/cancellation, revision conflicts, stream cancellation, and replay safety.
 Then verify origin/fibers and rendered interaction through local/deployed browser
 acceptance. Full official parity requires comparing the same states and actions
 against the pinned official UI; successful HTTP status codes or a complete
-package roster are insufficient. The current local result is 108 checked inventory rows, 76 scoped
-reference/integration browser cases and 7 document-worker/login-policy cases,
-with a separate no-private-traffic public-login assertion. Deployment/remote
-results are recorded separately in [completion-status.md](completion-status.md).
+package roster are insufficient. On November 10, 2026, local acceptance
+checked 108 inventory rows, 76 scoped reference and integration cases, and
+7 document-worker and login-policy cases. A separate assertion checked
+public login for private traffic. See the [acceptance record](completion-status.en.md)
+for subsequent local runs and the exact deployment each remote check used.
 
 ## Projection revision versus conversation cursor
 

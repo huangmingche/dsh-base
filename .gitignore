@@ -28,6 +28,7 @@ deployment.local.json
 *.db
 coverage/
 playwright-report/
+/.playwright-mcp/
 test-results/
 /apps/web/acceptance-*.png
 
@@ -36,3 +37,9 @@ test-results/
 
 # Generated from packs/ toggleable: L1 manifests at check/build time.
 /packages/boot/dsh-base-plugin-management/src/manageable.generated.ts
+
+# Metadata-only official bundle discovery catalog from the pinned checkout.
+/packages/client/dsh-base-client-session-adapter/src/client/official-bundle-catalog.generated.ts
+
+# Complete owned display inventory, generated from production metadata and pack grouping.
+/packages/client/dsh-base-client-session-adapter/src/client/owned-plugin-inventory.generated.ts

@@ -1,16 +1,17 @@
+import { cliProductRoot, outputPath } from "../build/product-paths.mjs";
 /**
  * Generate the Worker plugin composition from each Worker package's `dshBase.worker`
  * metadata. The app keeps no hand-written Worker roster: run this before cf build.
  */
 import { writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { readWorkerRows } from "./packs.mjs";
+import { readWorkerMetadataRows } from "./metadata-roster.mjs";
 import { fileURLToPath } from "node:url";
 
-const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const output = join(repoRoot, "apps", "web", "src", "worker", "generated-composition.ts");
+const repoRoot = cliProductRoot();
+const output = outputPath(repoRoot, "apps/web/src/worker/generated-composition.ts");
 
-const rows = readWorkerRows(repoRoot);
+const rows = readWorkerMetadataRows(repoRoot);
 rows.sort((a, b) => a.order - b.order || a.id.localeCompare(b.id));
 const ids = new Set();
 for (const row of rows) {

@@ -23,3 +23,5 @@ Host 使用稳定 requestId 提交，重连时恢复已有 submission；`ensureH
 `beforeStep` 在推理和 live 推送前，通过可信内部 RPC 持久化 Step 起点；Host 同时校验冻结输入与真实 SDK 请求身份。写入失败会停止本次执行，重试沿用 Agent 已持久化的起点与身份。即使 provider 在首个 token 前失败、没有 assistant 消息，Host 历史仍能重建这个 Step，并用权威失败或取消时间闭合；不会合成模型回复。
 
 旧 pending 请求若没有持久模型/effort 配置，不能可靠复原原执行，明确返回 `input_configuration_unavailable`。Host 保留审批与取消/重新提交路径，并停止盲目自动重试；不读取当前 picker 偷换旧请求模型。
+
+平台推理提供者通过运行时 `authorizeOperation('platform_ai')` 在每次出站前检查收费策略。该接口只接受可信 `owner:<userId>:<sessionId>` Agent 身份，使用已有内部令牌向对应 owner Host 请求当前权益；不存在浏览器指定 owner 的入口，也不跨运行面导入 Worker 包。拒绝、存储故障及丢失鉴权能力均阻止出站。该检查不替代平台 AI 的部署开关，也不改变免费 BYOK 路由。

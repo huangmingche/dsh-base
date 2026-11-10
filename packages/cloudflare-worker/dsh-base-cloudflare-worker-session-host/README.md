@@ -15,7 +15,7 @@ RPC 桥：
 - 官方 `session/*` RPC 端点（unary：list/state/projections/page/create/fork/rename/selectModel/modelCatalog/cancel/prompt）
 - Host tasks：durable schedule store + alarm 引擎（after/at/every/daily/weekly/cron/rrule），官方 schedule/* 端点与 delivery history
 - 后台维护任务：durable interval 注册 + run journal（cleanupFiles / pruneSchedules / recoverSubmissions），由 alarm 执行
-- 加密凭据：AES-GCM（`CREDENTIALS_KEY` secret）存储、describe/set/unset；claim 时解密注入 Think；仅在未配置 BYOK 且部署显式允许平台调用时回落 AI Gateway，模板默认关闭平台调用
+- 加密凭据：AES-GCM（`CREDENTIALS_KEY` secret）存储、describe/set/unset；claim 只为显式 DeepSeek/BYOK 路由解密注入 Think；显式 Gateway 路由不读取 owner key，两个方向均不隐式回退，模板默认关闭平台调用
 - 持久 settings 文档：`settingsDescribe` / `settingsMutate`（revision compare-and-set，冲突返回 settings/conflict）
 - 审批：`pendingApprovals` / `resolveApproval`（approval-gated toolCallId 与 durable-pause executionId），批准后的 continuation 会同步回 durable transcript
 - 官方 `session/state` 队列投影 + `session/updateQueue`（edit/remove；steer 显式不可用），alarm 成功 claim 后会继续调度下一条 queued 输入
@@ -212,7 +212,11 @@ node --import ./tests/official-runtime-hook.mjs tests/turn-lifecycle.test.ts
 
 官方 Schedule 表单提交的 DTSTART/RRULE 直接由 `@deepseek-ai/dsh-util-time` 的稳定 RRule 导出解析与计算，支持 TZID、DST、COUNT、一次性/每日/每周及官方其余受支持规则。修改 timing 会重算下一次触发；手动运行不消耗或移动原定 occurrence；迟到的定时运行采用官方最新到期 occurrence 语义。
 
-凭据读取遵循 fail-closed：已保存的 BYOK 读取或解密失败会中断 claim 并等待重试，不会当作未配置密钥而静默切换至平台 provider。只有实际未设置 BYOK 时才使用平台回退。
+凭据读取遵循 fail-closed：已保存的 BYOK 读取或解密失败会中断 claim 并等待重试，不会当作未配置密钥而静默切换至平台 provider。未设置 BYOK 也不会回退；平台调用必须选择显式 Gateway 模型并满足部署开关。
+
+Gateway 的账号/会话开关与部署开关共同约束目录、选择、普通执行和审批续跑；会话覆盖优先于账号覆盖，reset 恢复继承。官方无会话参数的 `session/modelCatalog()` 保持账号级目录；内部 `modelAccess/models` 可以带 `sessionId` 查询会话有效目录。控制记录读取失败返回可重试错误，不恢复默认启用。已冻结 Gateway 输入在禁用后不会改走 BYOK；未启动的回合明确失败，待审批输入保留原决定和取消/重新启用后的重试路径，alarm 不自动续跑被阻止的审批。该开关在下次准入/审批续跑读取，不撤销已经发出的提供商请求。
+
+若 Agent 已为同一 requestId 持久记录完成、失败、取消或审批暂停，但响应丢失或 Host 状态提交失败，恢复只回收真实历史与结果，不再准入、不配置模型、不注入凭据。此时后续禁用 Gateway 不会把既有完成结果改写为失败或丢弃已有审批卡，也不会为恢复重新启用 provider；审批续跑已持久终结时使用相同的只读回收边界。没有持久结果证据以及真正开始审批续跑时仍必须通过当前执行开关。
 
 
 ## 目录浏览
@@ -244,3 +248,13 @@ node --import ./tests/official-runtime-hook.mjs --experimental-strip-types tests
 模型与 Effort 在准入事务冻结，审批沿用原配置；响应型号与请求型号分别记录。owner 推送替代观察轮询，连接取消会释放订阅。投影使用真实持久版本，与聊天游标分域；完整原生事件日志仍是差异。历史分叉继承源当前权限，不复制父会话请求回执或切点后累计用量。权限命令执行/结果/幂等回执原子落盘，失败显式返回；独立命令轨迹尚未合入官方聊天日志，不能声称完整原生命令展示等价。
 
 访问控制：`remoteAccess/follow` 在认证 mux 身份对应的真实 Host 可用后发送官方 owner baseline，直到取消保持连接。请求不得指定 owner/grants，非 owner Peer 共享策略尚未实现；访问服务权限与智能体工具 preset 独立。回归：`node --import ./tests/official-runtime-hook.mjs --experimental-strip-types tests/remote-access.test.ts`。
+
+会话导出通过独立的 `@dsh-base/cloudflare-worker-session-export` 兼容层挂载官方插件。Host 提供同一快照的完整标题与对话，以及经过会话准入与完整性校验的附件。原版 `/export` 命令处理器通过显式只读入参端口执行；幂等回执与真实命令生命周期原子保存，不启动模型。命令记录尚未合入规范对话投影。
+
+当部署把 `platform_ai` 映射到收费权益时，Host 在普通提交及审批恢复的网关配置前调用支付权益服务；拒绝时不注入凭据、不启动推理。Think 每个实际网关请求还会通过内部鉴权的 `authorizeOperation` 方法复查。owner 取自该 DO 的可信存储名称，传入 owner 或未知 operation 均被拒绝；没有收费映射时保留原免费策略，平台 AI 的显式部署开关仍然生效。回归：`tests/paid-inference-policy.test.ts` 使用真实 SQLite 支付投影验证退款、到期、跨用户、内部令牌和缺配置。
+
+## 首次完成回合统计
+
+可选完成回调在最终 completed 状态持久化后执行；创建、排队、失败、待审批或取消不触发。统计异常不改变完成结果。DO 按统一站点配置向第一方汇总提交每账号首次 activation，后台不继承浏览器 Google 同意；已记成功后以内存标记减少 D1 请求，重启由持久回执去重。
+
+统计实现不在 Host/DO 中重复实例化。Host 插件通过声明的 `siteAnalytics` 可选注入注册 isolate 内 completed observer，提供方卸载即移除；DO 仅发送可信完成通知。没有提供方、启动尚未就绪或已卸载时不访问统计 D1，也不写入待补报标志；以后发生新的真实完成可重试。`tests/completion-observers.test.ts` 用真实 Cordis 生命周期和 owner SQLite DO 验证此契约。

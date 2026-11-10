@@ -8,3 +8,5 @@ Unavailable models remain visible and disabled. Pointer, Enter/Tab and final eff
 Reasoning effort now follows real Host capabilities. Connected DeepSeek routes support off/low/high/max with the official high default; the durable Host forwards the selection to execution. The generic unavailable gate remains only for Hosts that do not advertise the capability, including withdrawal while a menu is open. Workers itself does not prevent configurable reasoning.
 
 `node apps/web/tests/parity/run-model-effort.mjs` compares the available official interaction and tests unavailable capabilities and withdrawal without hiding controls.
+
+Model catalogs are cached per official SessionBinding. The session-adapter `sessionModelCatalog` Host seam reads that Session’s effective account/Session plugin selection, without guessing a global current Session. Existing provider, settings, credentials and connection events refresh retained catalogs; invalidation withdraws stale availability, failures do not fall back to the account catalog, and disposed bindings cannot publish late responses. Account settings retain the official zero-argument catalog. Visual components are unchanged.

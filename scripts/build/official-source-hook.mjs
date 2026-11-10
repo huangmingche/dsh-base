@@ -1,3 +1,4 @@
+import { buildContext } from "./product-paths.mjs";
 /**
  * Build-time resolver for official source exports from the pinned submodule.
  *
@@ -7,16 +8,11 @@
  * TypeScript for Node's ESM loader. It is not imported by the production bundle.
  */
 import { registerHooks, createRequire } from "node:module";
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, existsSync, realpathSync } from "node:fs";
 import { pathToFileURL } from "node:url";
 import { join, resolve } from "node:path";
 import { officialPackages, isPackageExported, packageName } from "../conformance/lib.mjs";
 
-const root = resolve(import.meta.dirname, "../..");
-const official = officialPackages(root);
-const app = createRequire(new URL("../../apps/web/package.json", import.meta.url));
-const { transformSync } = app("esbuild");
-const dependencies = new Map(["@js-temporal/polyfill", "rrule"].map((name) => [name, app.resolve(name)]));
 let registered = false;
 
 /** Executable path from a package exports value. */
@@ -28,7 +24,15 @@ function executable(value) {
 }
 
 /** Register the official-source resolver once for this build process. */
-export function registerOfficialSourceHooks() {
+export function registerOfficialSourceHooks(productRoot) {
+  const { baseRoot: root, appRoot, upstreamRoot } = buildContext(productRoot);
+  const sourcePrefixes = [upstreamRoot, realpathSync(upstreamRoot)].map(path => pathToFileURL(path + '/').href);
+  const officialUrl = url => typeof url === 'string' && sourcePrefixes.some(prefix => url.startsWith(prefix));
+  const official = officialPackages(productRoot ?? root);
+  const appManifest = pathToFileURL(join(appRoot, "package.json"));
+  const app = createRequire(appManifest);
+  const { transformSync } = app("esbuild");
+  const dependencies = new Map(["@js-temporal/polyfill", "rrule"].map((name) => [name, app.resolve(name)]));
   if (registered) return;
   registered = true;
   registerHooks({
@@ -51,13 +55,13 @@ export function registerOfficialSourceHooks() {
         };
       }
       if (dependencies.has(specifier)) return nextResolve(dependencies.get(specifier), context);
-      if (context.parentURL?.includes("/.submodules/deepseek-harness/") && !specifier.startsWith(".") && !specifier.startsWith("node:")) {
-        return nextResolve(specifier, { ...context, parentURL: new URL("../../apps/web/package.json", import.meta.url).href });
+      if (officialUrl(context.parentURL) && !specifier.startsWith(".") && !specifier.startsWith("node:")) {
+        return nextResolve(specifier, { ...context, parentURL: appManifest.href });
       }
       return nextResolve(specifier, context);
     },
     load(url, context, nextLoad) {
-      if (url.includes("/.submodules/deepseek-harness/") && url.endsWith(".ts")) {
+      if (officialUrl(url) && url.endsWith(".ts")) {
         return {
           format: "module",
           shortCircuit: true,

@@ -15,6 +15,8 @@ import { agentName } from "./agent-name.ts";
 import { getAgentByName } from "agents";
 import { handleSessionHostRequest } from "./worker-http.ts";
 import { SESSION_HOST_STORAGE_ID } from "./migration.ts";
+import { registerCompletedObserver } from "./completion-observers.ts";
+import type { ConversionAnalyticsService } from "@dsh-base/cloudflare-worker-google-analytics";
 
 export type { SessionHostReadContract } from "./storage.ts";
 export type { SessionHostStorage, SessionMessageRecord, SessionRecord } from "./storage.ts";
@@ -63,6 +65,22 @@ export const inject = ["http", "auth"];
 export const Config = undefined;
 
 export function apply(ctx: Context): void {
+  ctx.inject(['siteAnalytics'], scope => scope.effect(() => {
+    const analytics = scope.siteAnalytics as ConversionAnalyticsService;
+    return registerCompletedObserver(async (env, ownerId) => {
+      if (typeof analytics.recordConversion !== 'function') return false;
+      const result = await analytics.recordConversion(env, {name:'activation', dedupeKey:`activation:${ownerId}`, consent:false});
+      return result.status === 'recorded' || result.status === 'duplicate';
+    });
+  }, 'dsh-base: optional completed-turn observer'));
+  // A separately composed export plugin may appear/disappear independently.
+  // Only its declared injection scope may read the Cordis service; command
+  // endpoints stay mounted when the optional capability is absent.
+  let exportAvailable = false;
+  ctx.inject(['sessionLogExport'], (scope) => {
+    exportAvailable = Reflect.get(scope, 'sessionLogExport') === true;
+    return () => { exportAvailable = false; };
+  });
   const authenticated: WorkerHandler = async (request, env) => {
     // This handler runs before later API/static handlers; it must not claim
     // requests outside its own route or it would turn every unauthenticated
@@ -154,7 +172,7 @@ export function apply(ctx: Context): void {
   // composed. The custom `/api/session-host` transport above never depends on
   // them, so a deployment that omits wire-RPC keeps the stable fallback.
   ctx.inject(["wireRpc"], (scope) => {
-    const disposers = [registerSessionRemoteEndpoints(scope.wireRpc), registerUploadRemoteEndpoints(scope.wireRpc), registerPermissionPresetEndpoints(scope.wireRpc)];
+    const disposers = [registerSessionRemoteEndpoints(scope.wireRpc), registerUploadRemoteEndpoints(scope.wireRpc), registerPermissionPresetEndpoints(scope.wireRpc, () => exportAvailable)];
     return () => { for (const dispose of disposers.reverse()) dispose(); };
   });
   ctx.inject(["wireRpc"], (scope) => registerWorkspaceRemoteEndpoints(scope.wireRpc));

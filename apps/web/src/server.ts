@@ -3,7 +3,9 @@ import { handleWorkerRequest } from "./worker/runtime";
 
 export { DshAgent } from "./agent";
 export { AuthStoreObject } from "@dsh-base/cloudflare-worker-auth";
+export { PluginControl } from "@dsh-base/cloudflare-worker-control";
 export { SessionHostObject } from "@dsh-base/cloudflare-worker-session-host";
+export { DshSubagent } from "@dsh-base/cloudflare-think-subagent";
 
 /**
  * Worker entry: export the Durable Object class and delegate every request to

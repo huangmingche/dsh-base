@@ -1,10 +1,10 @@
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { test } from "node:test";
 import { clientRows, repoRoot } from "../lib.mjs";
-import { canonicalClientRows } from "../canonical-roster.mjs";
+import { auditPacks } from "../../composition/packs.mjs";
 import { compositionVirtualId, dshComposition, readClientComposition } from "../../composition/client.mjs";
 
 function fixture(t) {
@@ -18,19 +18,7 @@ function fixture(t) {
   return { root, write };
 }
 
-function materializeFixturePack(root) {
-  if (root === repoRoot || existsSync(join(root, "packs/base/pack.json"))) return;
-  const rows = canonicalClientRows(root);
-  mkdirSync(join(root, "packs/base"), { recursive: true });
-  writeFileSync(join(root, "packs/base/pack.json"), JSON.stringify({
-    id: "fixture", planes: { client: rows }, requires: [], config: {},
-    toggleable: "none", uninstallImpact: "fixture only",
-    reuse: { mode: "custom", official: [], reason: "fixture only" },
-  }, null, 2));
-}
-
 async function loadVirtual(root) {
-  materializeFixturePack(root);
   const plugin = dshComposition({ root });
   const source = plugin.load(plugin.resolveId(compositionVirtualId));
   // Branding is unrelated to module loading; all generated import/load code
@@ -78,6 +66,22 @@ test("profile precedence is shared, preserves public ownership, and can explicit
   assert.deepEqual(composition.entries[0].documentRoutes, ["/login"]);
   assert.equal(await composition.modules[name].load(), 42);
   assert.deepEqual(readClientComposition(f.root), clientRows(f.root));
+});
+
+test("profile edits drive the actual Vite roster even when pack declarations are stale", async t => {
+  const f = fixture(t);
+  const name = "@dsh-base/client-profile-source";
+  const row = { name, id: "client:profile-source", module: "data:text/javascript,export default 1;", origin: "custom", order: 1 };
+  f.write("apps/web/composition.profile.json", { client: [row] });
+  f.write("packs/base/pack.json", { id: "base", planes: { client: [row] }, requires: [], config: {}, toggleable: "none", uninstallImpact: "fixture", reuse: { mode: "custom", official: [], reason: "fixture" } });
+  assert.equal((await loadVirtual(f.root)).composition.entries[0].disabled, false);
+  f.write("apps/web/composition.profile.json", { client: [{ ...row, disabled: true, unavailableReason: "disabled by profile" }] });
+  const { composition } = await loadVirtual(f.root);
+  assert.equal(composition.entries[0].disabled, true);
+  assert.equal(Object.hasOwn(composition.modules, name), false);
+  const audit = auditPacks(f.root, { client: readClientComposition(f.root), worker: [], agent: [] });
+  assert.equal(audit.ok, false, "stale packs must fail the independent release audit");
+  assert.ok(audit.errors.some(error => error.startsWith("client: roster differs")));
 });
 
 test("deployment activates the official permission plugin and keeps the retired wrapper unevaluated", async () => {

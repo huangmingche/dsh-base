@@ -11,7 +11,7 @@ const { Context } = await import('@deepseek-ai/cordis');
 const { installConnection } = await import('@deepseek-ai/dsh-client-connection/client');
 const Registry = await import('@deepseek-ai/dsh-typert-registry/client');
 const Access = await import('@deepseek-ai/dsh-api-remote-access/client');
-const { createHostRemoteStream } = await import('../../dsh-base-client-session-host/src/remote-stream.ts');
+const { createHostRemoteStream } = await import('../../../boot/dsh-base-client-session-host/src/remote-stream.ts');
 const { installRemoteMount } = await import('../src/client/remote-mount.ts');
 const { RemoteStreamMux } = await import('../../../cloudflare-worker/dsh-base-cloudflare-worker-wire-rpc/src/mux.ts');
 const { registerRemoteAccessStreamEndpoint } = await import('../../../cloudflare-worker/dsh-base-cloudflare-worker-session-host/src/remote-access.ts');
@@ -37,6 +37,7 @@ const env = { SESSION_HOST: { idFromName(name) { observedOwners.push(name); retu
 const handlers = new Map();
 registerRemoteAccessStreamEndpoint({ register(name, handler) { handlers.set(name, handler); return () => handlers.delete(name); } });
 const sockets = [];
+let revokeOnNextSocket = false;
 function createWebSocket(url) {
   assert.equal(new URL(url).pathname, '/api/remote.mux');
   const browser = new Socket(), server = new Socket(); browser.peer = server; server.peer = browser; sockets.push(browser);
@@ -45,7 +46,14 @@ function createWebSocket(url) {
     invocation.request.signal.addEventListener('abort', () => { streamsAborted++; }, { once: true });
     return handlers.get(endpoint)(payload, invocation);
   }).handle(server, { request: new Request('https://owner.test/api/remote.mux'), env, user: { id: 'owner-from-auth' }, method: '', rpcId: '' });
-  queueMicrotask(() => { browser.readyState = server.readyState = 1; browser.emit('open'); });
+  if (revokeOnNextSocket) {
+    revokeOnNextSocket = false;
+    queueMicrotask(() => {
+      authenticated = false;
+      for (const listener of authListeners) listener();
+    });
+  }
+  queueMicrotask(() => { if (browser.readyState === 3) return; browser.readyState = server.readyState = 1; browser.emit('open'); });
   return browser;
 }
 const ctx = new Context(); let accessSource;
@@ -55,11 +63,23 @@ const provider = ctx.plugin({ apply(scope) {
   installConnection(scope, { interactions: 'answer', location: new URL('https://owner.test/'), recovery: { backoffBaseMs: 1, backoffMaxMs: 5 }, transport: { streamBaseUrl: 'https://owner.test', createWebSocket } });
 } }); await provider.await();
 const connection = ctx.get('connection');
-const bridge = ctx.plugin({ inject: ['connection', 'typert'], apply: scope => installRemoteMount(scope, { $stream: options => createHostRemoteStream(connection, options), existingHostNamespace: { preserved: true } }) });
+let authenticated = false;
+const authListeners = new Set();
+const bridge = ctx.plugin({ inject: ['connection', 'typert'], apply: scope => installRemoteMount(scope, { $stream: options => createHostRemoteStream(connection, options), existingHostNamespace: { preserved: true } }, {
+  isAuthenticated: () => authenticated,
+  subscribe(listener) { authListeners.add(listener); return () => authListeners.delete(listener); },
+}) });
 await bridge.await();
 assert.equal(ctx.get('remote').existingHostNamespace.preserved, true);
 const access = ctx.plugin(Access); await access.await();
 assert.equal(accessSource.getSnapshot(), false, 'no owner permission before authenticated Host baseline');
+await new Promise(resolve => setTimeout(resolve, 30));
+assert.equal(sockets.length, 0, 'anonymous boot mounts the official closed access UI without starting a private WebSocket');
+assert.equal(hostReads, 0, 'anonymous boot performs no private Host RPC');
+assert.equal(connection.generation.getSnapshot(), undefined);
+assert.equal(ctx.get('remote.remoteAccess'), undefined, 'anonymous declarations stay pending, not fabricated namespaces');
+authenticated = true;
+for (const listener of authListeners) listener();
 await until(() => connection.generation.getSnapshot() !== undefined && hostReads === 1, 'actual $events readiness and Host call');
 const firstGeneration = connection.generation.getSnapshot().id;
 assert.equal(connection.state.getSnapshot(), 'connected');
@@ -98,8 +118,26 @@ assert.equal(connection.state.getSnapshot(), 'connected', 'consumer teardown lea
 const again = ctx.plugin(Access); await again.await();
 await until(() => accessSource.getSnapshot() && hostReads >= 3, 'fresh mount gets its own baseline');
 await again.dispose();
+
+// Revocation closes the real carrier and removes generated namespaces. A
+// subsequent sign-in replays only callers that are still alive.
+authenticated = false;
+for (const listener of authListeners) listener();
+await until(() => connection.generation.getSnapshot() === undefined && sockets.every(socket => socket.readyState === 3), 'authentication revokes Gateway');
+const beforeRevokedStartup = hostReads;
+const pending = ctx.plugin(Access); await pending.await();
+revokeOnNextSocket = true;
+authenticated = true;
+for (const listener of authListeners) listener();
+await until(() => !revokeOnNextSocket && sockets.every(socket => socket.readyState === 3), 'revoke while Gateway startup awaits');
+assert.equal(ctx.get('remote.remoteAccess'), undefined, 'revoked startup cannot publish a stale private namespace');
+assert.equal(hostReads, beforeRevokedStartup, 'revoked startup does not dispatch a pending private follow');
+authenticated = true;
+for (const listener of authListeners) listener();
+await until(() => accessSource.getSnapshot() && hostReads === beforeRevokedStartup + 1, 'sign-in after interrupted startup');
+await pending.dispose();
 await bridge.dispose();
 assert.equal(connection.generation.getSnapshot(), undefined);
 assert.ok(sockets.every(socket => socket.readyState === 3));
 await provider.dispose();
-console.log('RemoteAccess: unchanged official plugin + actual Connection/Gateway/Typert/Worker mux, authenticated baseline, full iterable/rollback/caller teardown, 1006 recovery and remount passed');
+console.log('RemoteAccess: anonymous zero-private-I/O boot, authenticated unchanged Connection/Gateway/Typert/Worker mux, baseline, full iterable/rollback/caller teardown, 1006 recovery and remount passed');

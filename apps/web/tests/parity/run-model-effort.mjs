@@ -4,10 +4,11 @@ import { acceptanceLaunchOptions, closeAcceptanceBrowser } from "../../scripts/a
 import assert from "node:assert/strict";
 import { createRequire } from "node:module";
 import { mkdir, writeFile } from "node:fs/promises";
+import { settle, stableCompare, stableScreenshot } from "./stability.mjs";
 import { resolve } from "node:path";
 const app=resolve(import.meta.dirname,"../.."),requireFromApp=createRequire(resolve(app,"package.json"));
 const puppeteer=requireFromApp("puppeteer-core").default,vite=await import(requireFromApp.resolve("vite"));
-const configFile=resolve(app,"vite.parity.config.ts"),output=resolve(app,"dist/parity-evidence");
+const configFile=resolve(app,"vite.parity.config.ts"),output=resolve(process.env.DSH_PARITY_OUTPUT??resolve(app,"dist/parity-evidence"));
 let browser,server;const cases=[];
 try {
   await mkdir(output,{recursive:true});await vite.build({configFile,logLevel:"error"});
@@ -26,10 +27,9 @@ try {
     const reference=await open(locale,"reference","supported"),adapted=await open(locale,"adapted","supported");
     for(const pane of ["root","effort"]){
       await root(reference.page);if(pane==="effort")await clickMenu(reference.page,"menu.effort");
-      const a=await reference.page.screenshot({path:resolve(output,`model-${locale}-${pane}-official.png`),captureBeyondViewport:false});
-      await root(adapted.page);if(pane==="effort")await clickMenu(adapted.page,"menu.effort");
-      const b=await adapted.page.screenshot({path:resolve(output,`model-${locale}-${pane}-adapted.png`),captureBeyondViewport:false});
-      assert.ok(Buffer.from(a).equals(Buffer.from(b)),`${locale}/${pane}: supported selector must retain official pixels`);
+      const pair=await stableCompare(`${locale}/${pane}`,async()=>{await root(reference.page);if(pane==="effort")await clickMenu(reference.page,"menu.effort");return stableScreenshot(reference.page,{path:resolve(output,`model-${locale}-${pane}-official.png`),captureBeyondViewport:false});},async()=>{await root(adapted.page);if(pane==="effort")await clickMenu(adapted.page,"menu.effort");return stableScreenshot(adapted.page,{path:resolve(output,`model-${locale}-${pane}-adapted.png`),captureBeyondViewport:false});});
+      const {a,b}=pair;
+      assert.ok(pair.equal,`${locale}/${pane}: supported selector must retain official pixels (attempts ${pair.attempts})`);
     }
     // Exercise the unchanged official interaction for every advertised value.
     // Each selection must carry the exact requested effort, including Off.

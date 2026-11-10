@@ -1,0 +1,10 @@
+/* Match the official detail summary's gap and independent text weight.
+   Keep the count together when it moves to a new line, allowing internal
+   wrapping only when the summary itself exceeds the available width. */
+.summary {
+  display: inline-block;
+  margin-inline-start: 10px;
+  max-inline-size: calc(100% - 10px);
+  vertical-align: baseline;
+  font-weight: 400;
+}

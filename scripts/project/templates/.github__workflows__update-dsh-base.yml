@@ -1,0 +1,98 @@
+name: Update Dsh-base
+on:
+  schedule:
+    - cron: '23 3 * * 1'
+  workflow_dispatch:
+    inputs:
+      ref:
+        description: Base release tag, commit, or branch to check
+        default: main
+        required: true
+permissions:
+  contents: write
+  pull-requests: write
+  actions: write
+concurrency:
+  group: update-dsh-base
+  cancel-in-progress: false
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      GH_TOKEN: ${{ github.token }}
+      BASE_REF: ${{ inputs.ref || 'main' }}
+      DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: __BASE_PATH__/package.json
+      - name: Prepare candidate
+        id: candidate
+        run: |
+          node "./__BASE_PATH__/scripts/project/source-init.mjs"
+          node "./__BASE_PATH__/scripts/project/update.mjs" --ref "$BASE_REF" --prepare-only
+          if ! git diff --quiet || ! git diff --cached --quiet; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Select candidate Node runtime
+        uses: actions/setup-node@v4
+        if: steps.candidate.outputs.changed == 'true'
+        with:
+          node-version-file: __BASE_PATH__/package.json
+      - uses: pnpm/action-setup@v4
+        if: steps.candidate.outputs.changed == 'true'
+      - name: Refresh dependency lock
+        if: steps.candidate.outputs.changed == 'true'
+        run: pnpm install --lockfile-only --no-frozen-lockfile
+      - name: Open upgrade PR and dispatch verification
+        if: steps.candidate.outputs.changed == 'true'
+        run: |
+          target=$(git -C "./__BASE_PATH__" rev-parse HEAD)
+          branch="chore/dsh-base-${target:0:12}"
+          if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+            # Preserve existing review work. Never rewrite or force-push an upgrade branch.
+            git fetch --no-tags origin "refs/heads/$branch"
+            branch_commit=$(git rev-parse FETCH_HEAD)
+            read -r mode kind existing_target existing_path < <(git ls-tree "$branch_commit" -- "__BASE_PATH__")
+            if [ "$mode" != "160000" ] || [ "$kind" != "commit" ] || [ "$existing_target" != "$target" ]; then
+              echo "Existing upgrade branch has a different base pin; refusing to overwrite: $branch" >&2
+              exit 1
+            fi
+          else
+            remote_status=$?
+            if [ "$remote_status" -ne 2 ]; then
+              echo "Cannot determine whether the upgrade branch exists; retry without pushing" >&2
+              exit "$remote_status"
+            fi
+            git switch -c "$branch"
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            app_manifests=()
+            while IFS= read -r manifest; do app_manifests+=("$manifest"); done < <(node --input-type=module -e 'import { readApplications } from "./__BASE_PATH__/scripts/composition/applications.mjs"; for (const app of readApplications(process.cwd()).apps) console.log(`${app.path}/package.json`);')
+            test "${#app_manifests[@]}" -gt 0
+            git add -- "./__BASE_PATH__" package.json "${app_manifests[@]}" packages/build/product-server-dependencies/package.json pnpm-workspace.yaml pnpm-lock.yaml dsh.dependencies.json
+            git commit -m "chore(deps): update dsh-base to ${target:0:12}"
+            git push origin "$branch"
+            branch_commit=$(git rev-parse HEAD)
+          fi
+          pr_state=$(gh pr list --head "$branch" --base "$DEFAULT_BRANCH" --state all --json state,isCrossRepository --jq '[.[] | select(.isCrossRepository == false) | .state] | if index("OPEN") then "OPEN" elif length > 0 then "CLOSED_OR_MERGED" else "MISSING" end')
+          if [ "$pr_state" = "CLOSED_OR_MERGED" ]; then
+            echo "The upgrade PR was closed or merged; leaving it unchanged: $branch"
+            exit 0
+          fi
+          if [ "$pr_state" = "MISSING" ]; then
+            body=$(mktemp)
+            trap 'rm -f "$body"' EXIT
+            printf '%s\n' 'Updates the pinned Dsh-base submodule and its inherited dependency declarations.' '' 'Review the product verification run and plugin regressions before merging. No deployment or data migration has been performed.' > "$body"
+            gh pr create --head "$branch" --base "$DEFAULT_BRANCH" --title "chore(deps): update dsh-base to ${target:0:12}" --body-file "$body"
+          fi
+          verification=$(gh run list --workflow verify.yml --branch "$branch" --commit "$branch_commit" --event workflow_dispatch --limit 1 --json status,conclusion --jq 'if length == 0 then "missing" elif .[0].status != "completed" then "active" elif .[0].conclusion == "success" then "passed" else "retry" end')
+          if [ "$verification" = "active" ] || [ "$verification" = "passed" ]; then
+            echo "Verification is already $verification for $branch_commit"
+          else
+            gh workflow run verify.yml --ref "$branch"
+          fi

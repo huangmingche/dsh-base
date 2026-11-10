@@ -1,0 +1,61 @@
+{
+  "name": "@dsh-base/client-public-navigation",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/client/index.tsx",
+    "./client": "./src/client/index.tsx",
+    "./public-configurations": "./src/client/public-configurations.ts"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@dsh-base/client-plugin-manager",
+        "@dsh-base/client-session-adapter",
+        "@dsh-base/client-schedule"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-client-locale": "*",
+    "@deepseek-ai/dsh-client-ui-layout": "*",
+    "@deepseek-ai/dsh-client-ui-renderer": "*",
+    "@deepseek-ai/dsh-client-ui-schedule": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*",
+    "@deepseek-ai/dsh-schedule": "*",
+    "@dsh-base/client-plugin-manager": "workspace:*",
+    "@dsh-base/client-session-adapter": "workspace:*",
+    "@dsh-base/client-auth-login": "workspace:*",
+    "react": "*",
+    "zod": "*",
+    "@dsh-base/client-schedule": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-primitives": "*"
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:public-navigation",
+      "origin": "custom",
+      "order": 111
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-plugin-manager",
+        "@deepseek-ai/dsh-client-ui-schedule"
+      ],
+      "reason": "The pinned official plugins register pages only under private RemoteAccess catalog grants. Granting those rights to anonymous visitors is invalid, and no official anonymous account-boundary plugin exists to mount or fork. This composition plugin reuses the complete marked manager and Schedule forks, with metadata-only Host faces and action-level login gates. It retains official page layout and styles, adding an official sign-in button only in private configuration seats. Plugin values are deployment declarations, never owner settings or observed fibers. Task previews explicitly request sign-in and do not claim an authoritative private catalog. The Schedule fork exposes an optional onBeforeCreate Host hook; public navigation supplies it, without label/DOM interception. Private registration and Gateway access remain unchanged. Public configuration descriptors remain visible, but the composition renderSlot facade replaces bundle/row configuration pages and summaries with official sign-in controls before any private form component can mount. Explicit bundle registration through the publicPluginConfigurations compatibility service allows self-gated public SaaS panels to mount. Unknown bundles and every row configuration remain denied; disposal revokes the registration.",
+      "sourceEntries": [],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "gaps": [
+        "This revision limits the workbench to authenticated accounts. The anonymous homepage uses the isolated sign-in and consent document providers."
+      ]
+    }
+  }
+}

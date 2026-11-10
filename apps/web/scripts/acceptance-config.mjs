@@ -18,6 +18,19 @@ export function remoteAcceptanceConfig(env = process.env) {
   return { base: url.origin, credentials };
 }
 
+/** Sign in once using the explicitly configured acceptance account. */
+export async function remoteBrowserCookie({ base, credentials }) {
+  const response = await fetch(base + '/api/auth/sign-in/username', {
+    method: 'POST', headers: { origin: base, 'content-type': 'application/json' },
+    body: JSON.stringify({ username: credentials.username, password: credentials.password }),
+    signal: AbortSignal.timeout(30_000),
+  });
+  if (response.status !== 200) throw new Error(`Acceptance account sign-in: HTTP ${response.status}`);
+  const cookie = response.headers.getSetCookie().join('; ').match(/((?:__Secure-)?better-auth\.session_token)=([^;]+)/u);
+  if (!cookie) throw new Error('Acceptance sign-in returned no session cookie');
+  return { name: cookie[1], value: cookie[2], url: base, secure: true, httpOnly: true, sameSite: 'Lax' };
+}
+
 export function registrationHeaders(env = process.env) {
   return env.AUTH_REGISTRATION_TOKEN ? { "x-dsh-registration-token": env.AUTH_REGISTRATION_TOKEN } : {};
 }
@@ -107,19 +120,4 @@ export function acceptanceLaunchOptions(env = process.env) {
     protocolTimeout: 240_000,
     args: ["--no-sandbox"],
   };
-}
-
-/** Restore a real Host Session using the pinned Workspace client's saved selection. */
-export async function openSavedSession(page, home, sessionId, timeout = 30_000) {
-  const origin = new URL(home).origin;
-  const setup = await page.evaluateOnNewDocument((expectedOrigin, id) => {
-    if (window === window.top && location.origin === expectedOrigin) {
-      localStorage.setItem("dsh.sessions.current", JSON.stringify({ sessionId: id }));
-    }
-  }, origin, sessionId);
-  try {
-    await page.goto(home, { waitUntil: "domcontentloaded", timeout });
-  } finally {
-    await page.removeScriptToEvaluateOnNewDocument(setup.identifier);
-  }
 }

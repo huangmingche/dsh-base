@@ -14,7 +14,7 @@
     "status": "official-wire-rpc-foundation",
     "worker": {
       "id": "cloudflare:worker:wire-rpc",
-      "origin": "custom",
+      "origin": "fork",
       "order": 26
     },
     "reuse": {

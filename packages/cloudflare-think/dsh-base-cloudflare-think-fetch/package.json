@@ -15,8 +15,8 @@
     },
     "reuse": {
       "mode": "custom",
-      "official": [],
-      "reason": "Think exposes its official fetch tool; this package is the deployment allowlist/config seam."
+      "official": ["@deepseek-ai/dsh-web-fetch-http", "@deepseek-ai/dsh-tool-web"],
+      "reason": "The pinned official web-fetch-http provider uses Node undici and tool-web requires the native tools/web/systemPrompt services. Neither exports a deployment-versus-owner allowlist subset policy to mount or fork. This package keeps Think's fetch tool unchanged and adapts only deployment/owner configuration; the shared policy validates HTTPS origins and proves path containment before passing canonical patterns to Think."
     }
   },
   "peerDependencies": {

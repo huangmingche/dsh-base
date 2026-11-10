@@ -14,6 +14,7 @@ const permissions = new URL('../../dsh-base-cloudflare-worker-permissions/', imp
 const permissionsManifest = JSON.parse(readFileSync(new URL('package.json', permissions), 'utf8'));
 const executable = value => typeof value === 'string' ? value : value?.import ? executable(value.import) : value?.default ? executable(value.default) : undefined;
 registerHooks({ resolve(specifier, context, nextResolve) {
+  if (specifier === '@dsh-base/cloudflare-worker-entitlements') return { url: new URL('../../dsh-base-cloudflare-worker-entitlements/src/index.ts', import.meta.url).href, shortCircuit: true };
   if (serverPackageName(specifier)) return nextResolve(specifier, { ...context, parentURL: pathToFileURL(serverManifestPath).href });
   if (specifier === "@dsh-base/session-wire") return { url: new URL("../../../boot/dsh-base-session-wire/src/index.ts", import.meta.url).href, shortCircuit: true };
   if (specifier === permissionsManifest.name || specifier.startsWith(permissionsManifest.name + '/')) {

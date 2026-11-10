@@ -9,6 +9,7 @@
  * Usage: SESSION_HOST_URL=https://... node scripts/acceptance-session-host.mjs
  */
 import { remoteAcceptanceConfig, registrationHeaders, mayRegisterAcceptance, waitForHostReadiness } from "./acceptance-config.mjs";
+import { LOCALE_IDS, localizePath } from "../../../packages/boot/dsh-base-locale-path/src/index.ts";
 import assert from "node:assert/strict";
 
 const { base, credentials } = remoteAcceptanceConfig();
@@ -78,6 +79,7 @@ let cleanupCredential = false;
 let officialSequence = 0;
 const modelEvidence = [];
 const failureEvidence = [];
+const credentialEvidence = [];
 async function hostResult(method, params = {}) {
   const response = await call(method, params);
   assert.equal(response.status, 200, `${method}: HTTP ${response.status}`);
@@ -85,6 +87,10 @@ async function hostResult(method, params = {}) {
   assert.ok(Object.hasOwn(response.body, "result"), `${method}: missing result`);
   return response.body.result;
 }
+// Deployment-state flags live outside the try: the final report reads them after
+// the block, and a block-scoped declaration would be a ReferenceError.
+const expectPlatformAi = process.env.DSH_EXPECT_PLATFORM_AI === "true";
+let platformMode = expectPlatformAi;
 try {
 const created = await call("create", { sessionId: sourceId, title: "Acceptance" });
 assert.equal(created.status, 200);
@@ -124,8 +130,30 @@ assert.equal(scopedRow.workspaceId, workspace.body.result.workspace.workspaceId)
 const state = await call("state", { sessionId: sourceId });
 assert.equal(state.body.result.title, "Acceptance");
 
-const model = "deepseek-flash";
-const selected = await call("selectModel", { sessionId: sourceId, model, reasoningEffort: "off" });
+// Deployment state. A platform-AI-enabled deployment (B state) addresses the
+// Gateway provider by its qualified id; the bare id then resolves to the owner's
+// BYOK provider and is rejected with a 409. DSH_EXPECT_PLATFORM_AI selects the
+// expectation instead of letting the wrong state fail as an opaque HTTP error.
+let model = expectPlatformAi ? "cloudflare-ai-gateway/deepseek-flash" : "deepseek-flash";
+let provider = expectPlatformAi ? "cloudflare-ai-gateway" : "deepseek-official";
+let proModel = expectPlatformAi ? "cloudflare-ai-gateway/deepseek-v4-pro" : "deepseek-v4-pro";
+let selected;
+try {
+  selected = await call("selectModel", { sessionId: sourceId, model, reasoningEffort: "off" });
+} catch (error) {
+  if (platformMode || !String(error?.message ?? error).includes("HTTP 409")) {
+    throw new Error(`${error.message}\nselectModel(${model}) failed: if this deployment has platform AI enabled, rerun with DSH_EXPECT_PLATFORM_AI=true; if it is BYOK-only, unset it.`);
+  }
+  // The deployment has platform AI enabled but the caller did not declare it:
+  // the bare id resolves to the owner's BYOK provider and is rejected. Retry
+  // once with the qualified Gateway id and record the detected state.
+  model = "cloudflare-ai-gateway/deepseek-flash";
+  provider = "cloudflare-ai-gateway";
+  proModel = "cloudflare-ai-gateway/deepseek-v4-pro";
+  platformMode = true;
+  credentialEvidence.push({ note: "platform AI auto-detected from the first selectModel 409; model switched to cloudflare-ai-gateway/deepseek-flash" });
+  selected = await call("selectModel", { sessionId: sourceId, model, reasoningEffort: "off" });
+}
 assert.equal(selected.status, 200);
 assert.deepEqual(selected.body.result, { model, reasoningEffort: "off" });
 
@@ -182,7 +210,7 @@ assert.match(assistantText, /BANANA-42/);
 const projections = await call("projections", { sessionId: sourceId });
 assert.ok((projections.body.result.usage?.inputTokens ?? 0) > 0, "usage projection was not recorded");
 assert.ok(projections.body.result.tokenUsage !== undefined, "derived tokenUsage projection is missing");
-assert.deepEqual(projections.body.result.modelSelection.lastUsed, { provider: "deepseek-official", model, reasoningEffort: "off" });
+assert.deepEqual(projections.body.result.modelSelection.lastUsed, { provider, model, reasoningEffort: "off" });
 for (const record of claimedPage.body.result.records.filter(record => record.role === "assistant")) {
   const provenance = record.parts.find(part => part.type === "data-dsh-model-source")?.data;
   assert.ok(provenance && typeof provenance.model === "string", "completed step has no actual response-model evidence");
@@ -558,9 +586,15 @@ assert.equal((await hostResult("permissionSnapshot", { sessionId: permissionNewI
 // Encrypted credentials: describe → set → describe → unset, with the secret
 // value never returned by the read path.
 const credentialRef = "DEEPSEEK_OFFICIAL_API_KEY";
+// The account may already carry the owner's BYOK key (deployment history). The
+// acceptance must never overwrite it silently; DSH_ACCEPTANCE_CLEAN_BYOK=true is
+// the explicit opt-in that allows the destructive mechanics on this account.
+const allowOverwriteByok = process.env.DSH_ACCEPTANCE_CLEAN_BYOK === "true";
 const credentialsBefore = await call("credentialsDescribe", { refs: [credentialRef] });
 assert.equal(credentialsBefore.body.result?.writable, true);
-assert.equal(credentialsBefore.body.result?.entries?.[credentialRef]?.configured, false);
+const byokConfigured = credentialsBefore.body.result?.entries?.[credentialRef]?.configured === true;
+const byokMechanicsSafe = !byokConfigured || allowOverwriteByok;
+if (byokMechanicsSafe) {
 cleanupCredential = true;
 const credentialWrite = await call("credentialsSet", { ref: credentialRef, value: "acceptance-secret-value" });
 assert.equal(credentialWrite.status, 200, `credentialsSet HTTP ${credentialWrite.status}`);
@@ -570,68 +604,81 @@ assert.ok(!JSON.stringify(credentialsAfter.body).includes("acceptance-secret-val
 const credentialUnset = await call("credentialsUnset", { ref: credentialRef });
 assert.equal(credentialUnset.status, 200);
 assert.equal((await call("credentialsDescribe", { refs: [credentialRef] })).body.result?.entries?.[credentialRef]?.configured, false);
+cleanupCredential = false;
+} else {
+  credentialEvidence.push({ skipped: "pre-existing DEEPSEEK_OFFICIAL_API_KEY on this account; credential mechanics and invalid-BYOK branch skipped to avoid overwriting the owner key (set DSH_ACCEPTANCE_CLEAN_BYOK=true on a disposable account to run them)" });
+}
 
 // BYOK runtime: an invalid stored key must reach the model runtime and fail the
 // turn; removing it falls back to the platform AI Gateway.
-await call("credentialsSet", { ref: "DEEPSEEK_OFFICIAL_API_KEY", value: "invalid-byok-key" });
-const byokSessionId = `accept-byok-${suffix}`;
-await call("create", { sessionId: byokSessionId, title: "BYOK acceptance" });
-await call("selectModel", { sessionId: byokSessionId, model, reasoningEffort: "off" });
-await officialRpc("session/prompt", { request: {
-  sessionId: byokSessionId,
-  requestId: `byok-${suffix}`,
-  mode: "queue",
-  content: [{ type: "text", text: "BYOK invalid key probe." }],
-} });
-let byokFailed = false;
-const byokDeadline = Date.now() + 120_000;
-while (Date.now() < byokDeadline) {
-  const state = await call("state", { sessionId: byokSessionId });
-  const history = await hostResult("history", { sessionId: byokSessionId });
-  const assistant = history.records.find((record) => record.role === "assistant");
-  const input = history.turns.find(turn => turn.requestId === `byok-${suffix}`);
-  if (state.body.result?.running === false && assistant === undefined && input?.status === "failed") { byokFailed = true; break; }
-  if (assistant !== undefined) break;
-  await new Promise((resolve) => setTimeout(resolve, 1000));
+if (platformMode || !byokMechanicsSafe) {
+  // Platform-enabled deployments route the acceptance model through the platform
+  // Gateway, so an invalid owner BYOK key never reaches this turn. Record the skip
+  // instead of asserting a BYOK-only failure that cannot happen here.
+  failureEvidence.push({ skipped: expectPlatformAi
+    ? "invalid-BYOK branch not applicable with platform AI enabled; rerun without DSH_EXPECT_PLATFORM_AI on a BYOK-only deployment"
+    : "invalid-BYOK branch skipped: this account already carries the owner's DEEPSEEK_OFFICIAL_API_KEY and was not overwritten" });
+} else {
+  await call("credentialsSet", { ref: "DEEPSEEK_OFFICIAL_API_KEY", value: "invalid-byok-key" });
+  const byokSessionId = `accept-byok-${suffix}`;
+  await call("create", { sessionId: byokSessionId, title: "BYOK acceptance" });
+  await call("selectModel", { sessionId: byokSessionId, model, reasoningEffort: "off" });
+  await officialRpc("session/prompt", { request: {
+    sessionId: byokSessionId,
+    requestId: `byok-${suffix}`,
+    mode: "queue",
+    content: [{ type: "text", text: "BYOK invalid key probe." }],
+  } });
+  let byokFailed = false;
+  const byokDeadline = Date.now() + 120_000;
+  while (Date.now() < byokDeadline) {
+    const state = await call("state", { sessionId: byokSessionId });
+    const history = await hostResult("history", { sessionId: byokSessionId });
+    const assistant = history.records.find((record) => record.role === "assistant");
+    const input = history.turns.find(turn => turn.requestId === `byok-${suffix}`);
+    if (state.body.result?.running === false && assistant === undefined && input?.status === "failed") { byokFailed = true; break; }
+    if (assistant !== undefined) break;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+  }
+  assert.ok(byokFailed, "invalid BYOK key did not fail the turn (credential may not reach the runtime)");
+  // This already-required provider failure exercises entry before the first token.
+  // A real failed model Step remains durable without inventing an assistant reply.
+  const failedHistory = await hostResult("history", { sessionId: byokSessionId });
+  assert.equal(failedHistory.records.filter(record => record.role === "user").length, 1);
+  assert.equal(failedHistory.records.filter(record => record.role === "assistant").length, 0);
+  assert.equal(failedHistory.turns.length, 1);
+  const failedTurn = failedHistory.turns[0];
+  assert.equal(failedTurn.requestId, `byok-${suffix}`);
+  assert.equal(failedTurn.status, "failed");
+  assert.ok(Array.isArray(failedTurn.steps) && failedTurn.steps.length > 0, "before-token failure lost actual model Step entry evidence");
+  assert.ok(failedTurn.steps.every(step => typeof step.id === "string" && step.id.length > 0 && Number.isFinite(step.startedAt) && step.startedAt > 0));
+  assert.equal(new Set(failedTurn.steps.map(step => step.id)).size, failedTurn.steps.length, "replayed model entry duplicated a Step");
+  assert.ok(Number.isFinite(failedTurn.endedAt) && failedTurn.steps.every(step => step.startedAt <= failedTurn.endedAt));
+  const failedWire = await officialRpc("session/page", { request: { address: { kind: "session", sessionId: byokSessionId }, maxMessages: 100 } });
+  assert.equal(failedWire.hasMore, false);
+  const failedEvents = failedWire.records.map(row => row.event);
+  const failedStarts = failedEvents.filter(event => event.type === "step/start");
+  assert.deepEqual(failedStarts.map(event => event.time), failedTurn.steps.map(step => step.startedAt), "wire Step starts must preserve real durable entry times");
+  assert.equal(failedEvents.filter(event => event.type === "assistant/message").length, 0, "failure wire history fabricated an assistant response");
+  assert.equal(failedEvents.filter(event => event.type === "turn/start").length, 1);
+  for (const start of failedStarts) assert.equal(failedEvents.filter(event => event.type === "step/end" && event.data.step === start.data.step).length, 1);
+  const failedEnds = failedEvents.filter(event => event.type === "turn/end");
+  assert.equal(failedEnds.length, 1);
+  assert.equal(failedEnds[0].data.reason.kind, "error");
+  assert.equal(failedEnds[0].time, failedTurn.endedAt);
+  const failedProjections = await hostResult("projections", { sessionId: byokSessionId });
+  assert.equal(failedProjections.sessionStats.turns, 1);
+  assert.equal(failedProjections.sessionStats.steps, failedStarts.length);
+  assert.deepEqual(failedProjections.modelSelection.lastUsed, { provider: "deepseek-official", model, reasoningEffort: "off" }, "lastUsed records the actual attempted request even when the provider rejects before output");
+  const failedOfficialProjections = await officialRpc("session/projections", { request: { sessionId: byokSessionId } });
+  assert.equal(failedOfficialProjections.values.sessionStats.steps, failedStarts.length);
+  assert.equal(failedOfficialProjections.values.sessionStats.turns, 1);
+  assert.deepEqual(await hostResult("history", { sessionId: byokSessionId }), failedHistory, "reloading failure history changed entered Step evidence");
+  assert.deepEqual((await officialRpc("session/page", { request: { address: { kind: "session", sessionId: byokSessionId }, maxMessages: 100 } })).records, failedWire.records);
+  assert.deepEqual((await hostResult("projections", { sessionId: byokSessionId })).sessionStats, failedProjections.sessionStats, "replay or reload incremented failed Step counts");
+  failureEvidence.push({ requestId: failedTurn.requestId, status: failedTurn.status, steps: failedTurn.steps, endedAt: failedTurn.endedAt, wireSteps: failedStarts.length, lastUsed: failedProjections.modelSelection.lastUsed, assistantMessages: 0, errorCode: failedEnds[0].data.reason.error?.code });
+  await call("credentialsUnset", { ref: "DEEPSEEK_OFFICIAL_API_KEY" });
 }
-assert.ok(byokFailed, "invalid BYOK key did not fail the turn (credential may not reach the runtime)");
-// This already-required provider failure exercises entry before the first token.
-// A real failed model Step remains durable without inventing an assistant reply.
-const failedHistory = await hostResult("history", { sessionId: byokSessionId });
-assert.equal(failedHistory.records.filter(record => record.role === "user").length, 1);
-assert.equal(failedHistory.records.filter(record => record.role === "assistant").length, 0);
-assert.equal(failedHistory.turns.length, 1);
-const failedTurn = failedHistory.turns[0];
-assert.equal(failedTurn.requestId, `byok-${suffix}`);
-assert.equal(failedTurn.status, "failed");
-assert.ok(Array.isArray(failedTurn.steps) && failedTurn.steps.length > 0, "before-token failure lost actual model Step entry evidence");
-assert.ok(failedTurn.steps.every(step => typeof step.id === "string" && step.id.length > 0 && Number.isFinite(step.startedAt) && step.startedAt > 0));
-assert.equal(new Set(failedTurn.steps.map(step => step.id)).size, failedTurn.steps.length, "replayed model entry duplicated a Step");
-assert.ok(Number.isFinite(failedTurn.endedAt) && failedTurn.steps.every(step => step.startedAt <= failedTurn.endedAt));
-const failedWire = await officialRpc("session/page", { request: { address: { kind: "session", sessionId: byokSessionId }, maxMessages: 100 } });
-assert.equal(failedWire.hasMore, false);
-const failedEvents = failedWire.records.map(row => row.event);
-const failedStarts = failedEvents.filter(event => event.type === "step/start");
-assert.deepEqual(failedStarts.map(event => event.time), failedTurn.steps.map(step => step.startedAt), "wire Step starts must preserve real durable entry times");
-assert.equal(failedEvents.filter(event => event.type === "assistant/message").length, 0, "failure wire history fabricated an assistant response");
-assert.equal(failedEvents.filter(event => event.type === "turn/start").length, 1);
-for (const start of failedStarts) assert.equal(failedEvents.filter(event => event.type === "step/end" && event.data.step === start.data.step).length, 1);
-const failedEnds = failedEvents.filter(event => event.type === "turn/end");
-assert.equal(failedEnds.length, 1);
-assert.equal(failedEnds[0].data.reason.kind, "error");
-assert.equal(failedEnds[0].time, failedTurn.endedAt);
-const failedProjections = await hostResult("projections", { sessionId: byokSessionId });
-assert.equal(failedProjections.sessionStats.turns, 1);
-assert.equal(failedProjections.sessionStats.steps, failedStarts.length);
-assert.deepEqual(failedProjections.modelSelection.lastUsed, { provider: "deepseek-official", model, reasoningEffort: "off" }, "lastUsed records the actual attempted request even when the provider rejects before output");
-const failedOfficialProjections = await officialRpc("session/projections", { request: { sessionId: byokSessionId } });
-assert.equal(failedOfficialProjections.values.sessionStats.steps, failedStarts.length);
-assert.equal(failedOfficialProjections.values.sessionStats.turns, 1);
-assert.deepEqual(await hostResult("history", { sessionId: byokSessionId }), failedHistory, "reloading failure history changed entered Step evidence");
-assert.deepEqual((await officialRpc("session/page", { request: { address: { kind: "session", sessionId: byokSessionId }, maxMessages: 100 } })).records, failedWire.records);
-assert.deepEqual((await hostResult("projections", { sessionId: byokSessionId })).sessionStats, failedProjections.sessionStats, "replay or reload incremented failed Step counts");
-failureEvidence.push({ requestId: failedTurn.requestId, status: failedTurn.status, steps: failedTurn.steps, endedAt: failedTurn.endedAt, wireSteps: failedStarts.length, lastUsed: failedProjections.modelSelection.lastUsed, assistantMessages: 0, errorCode: failedEnds[0].data.reason.error?.code });
-await call("credentialsUnset", { ref: "DEEPSEEK_OFFICIAL_API_KEY" });
 const platformSessionId = `accept-platform-${suffix}`;
 await call("create", { sessionId: platformSessionId, title: "Platform fallback acceptance" });
 await call("selectModel", { sessionId: platformSessionId, model, reasoningEffort: "off" });
@@ -653,10 +700,18 @@ while (Date.now() < platformDeadline) {
 assert.ok(platformAssistant !== undefined, "platform gateway fallback did not answer after clearing BYOK");
 
 // Models discovery endpoint: without a stored BYOK key it refuses with the
-// official discovery code instead of inventing models.
+// official discovery code instead of inventing models. When the branch above
+// skipped because the account already carries the owner's key, discovery
+// correctly answers with the account's models; assert that state instead.
 const discovery = await call("llmDiscoverModels", { settingsNs: "llm-deepseek" });
-assert.equal(discovery.status, 400);
-assert.equal(discovery.body.error?.code, "llm/model-discovery-rejected");
+if (byokMechanicsSafe) {
+  assert.equal(discovery.status, 400);
+  assert.equal(discovery.body.error?.code, "llm/model-discovery-rejected");
+} else {
+  assert.equal(discovery.status, 200, "configured owner BYOK key makes model discovery answer");
+  const discovered = discovery.body.result?.models ?? discovery.body.models;
+  assert.ok(Array.isArray(discovered) && discovered.length > 0, "configured discovery returned no models");
+}
 
 // Host tasks: create an after-schedule that targets a new reserved Session;
 // the alarm engine must deliver it, create/insert the Session, run the turn,
@@ -754,15 +809,21 @@ const settingsRemoteStale = await officialRequest("settings/mutate", {
 assert.equal(settingsRemoteStale.ok, false);
 assert.equal(settingsRemoteStale.error?.code, "settings/conflict");
 const capabilityCatalog = await officialRpc("session/modelCatalog", {});
-const flash = capabilityCatalog.groups.flatMap(group => group.models).find(option => option.id === "deepseek-flash");
+const catalogModels = capabilityCatalog.groups.flatMap(group => group.models);
+// The rc.6+ catalog publishes provider-qualified ids (cloudflare-ai-gateway/…,
+// deepseek-official/…); a bare id may not exist in either state.
+const flash = catalogModels.find(option => option.id === model)
+  ?? catalogModels.find(option => option.id === `cloudflare-ai-gateway/${model}`)
+  ?? catalogModels.find(option => option.id === `deepseek-official/${model}`)
+  ?? catalogModels.find(option => option.id.endsWith(`/${model}`));
 assert.ok(flash && flash.unavailable !== true, "deployment acceptance requires a configured real provider");
 assert.notEqual(flash.reasoning?.unavailable, true);
 assert.deepEqual(flash.reasoning.efforts.map(option => option.id), ["off", "low", "high", "max"]);
-assert.ok(capabilityCatalog.groups.flatMap(group => group.models).some(option => option.id === "deepseek-v4-pro"), "canonical Pro model is absent");
+assert.ok(capabilityCatalog.groups.flatMap(group => group.models).some(option => option.id === proModel), `canonical Pro model is absent: ${proModel}`);
 for (const reasoningEffort of ["off", "low", "high", "max"]) {
-  const effortAttempt = await officialRequest("session/selectModel", { request: { sessionId: generatedSessionId, provider: "deepseek-official", model, reasoningEffort } });
+  const effortAttempt = await officialRequest("session/selectModel", { request: { sessionId: generatedSessionId, provider, model, reasoningEffort } });
   assert.equal(effortAttempt.ok, true);
-  assert.deepEqual(effortAttempt.value.selected, { provider: "deepseek-official", model, reasoningEffort });
+  assert.deepEqual(effortAttempt.value.selected, { provider, model, reasoningEffort });
   assert.equal((await hostResult("state", { sessionId: generatedSessionId })).reasoningEffort, reasoningEffort);
   assert.equal((await hostResult("projections", { sessionId: generatedSessionId })).modelSelection.next.reasoningEffort, reasoningEffort);
 }
@@ -807,7 +868,7 @@ assert.equal(typeof systemPrompt.text, "string");
 assert.equal(systemPrompt.error, undefined, `official prompt registry failed: ${systemPrompt.error}`);
 assert.match(systemPrompt.text, /You are an AI agent powered by DeepSeek Harness\./u);
 assert.match(systemPrompt.text, /You are dsh-base/u);
-assert.match(systemPrompt.text, /model id deepseek-flash/u);
+assert.match(systemPrompt.text, /model id (?:cloudflare-ai-gateway\/)?deepseek-flash/u);
 assert.match(systemPrompt.text, /untrusted page content/u);
 assert.match(systemPrompt.text, /Cloudflare Workers/u);
 // Working directory and workspace instruction files are read from the Session
@@ -979,17 +1040,20 @@ assert.equal(sitemapResponse.headers.get("x-robots-tag"), "noindex");
 assert.match(sitemapResponse.headers.get("cache-control") ?? "", /s-maxage=86400/u);
 const sitemapText = await sitemapResponse.text();
 assert.match(sitemapText, /<urlset xmlns="http:\/\/www\.sitemaps\.org\/schemas\/sitemap\/0\.9"/u);
-assert.equal((sitemapText.match(/<url>/gu) ?? []).length, 2);
+assert.equal((sitemapText.match(/<url>/gu) ?? []).length, LOCALE_IDS.length);
 assert.ok(sitemapText.includes(`<loc>${base}/</loc>`));
-assert.ok(sitemapText.includes(`<loc>${base}/zh-CN</loc>`));
-assert.equal((sitemapText.match(/hreflang="en"/gu) ?? []).length, 2);
-assert.equal((sitemapText.match(/hreflang="zh-CN"/gu) ?? []).length, 2);
-assert.equal((sitemapText.match(/hreflang="x-default"/gu) ?? []).length, 2);
+for (const locale of LOCALE_IDS.filter(id => id !== "en")) {
+  assert.ok(sitemapText.includes(`<loc>${base}${localizePath("/", locale)}</loc>`), `sitemap lists ${locale}`);
+}
+assert.equal((sitemapText.match(/hreflang="en"/gu) ?? []).length, LOCALE_IDS.length);
+assert.equal((sitemapText.match(/hreflang="zh-CN"/gu) ?? []).length, LOCALE_IDS.length);
+assert.equal((sitemapText.match(/hreflang="x-default"/gu) ?? []).length, LOCALE_IDS.length);
 assert.ok(!sitemapText.includes("/login"), "login must not be advertised in the sitemap");
 const robotsText = await (await fetch(`${base}/robots.txt`, { signal: AbortSignal.timeout(30_000) })).text();
 assert.match(robotsText, /^User-agent: \*/u);
 assert.match(robotsText, /Disallow: \/api\//u);
-assert.match(robotsText, /Disallow: \/zh-CN\/api\//u);
+assert.match(robotsText, new RegExp(`Disallow: ${localizePath("/api/", "zh").replaceAll("/", "\\/")}`, "u"));
+assert.match(robotsText, new RegExp(`Disallow: ${localizePath("/api/", "ja").replaceAll("/", "\\/")}`, "u"));
 assert.match(robotsText, /Disallow: \/login/u);
 assert.match(robotsText, new RegExp(`Sitemap: ${base.replace(/[.*+?^${}()|[\]\\]/gu, "\\$&")}\\/sitemap\\.xml`, "u"));
 const sitemapHead = await fetch(`${base}/sitemap.xml`, { method: "HEAD", signal: AbortSignal.timeout(30_000) });
@@ -1013,9 +1077,17 @@ assert.match(siteConfigResponse.headers.get("cache-control") ?? "", /public/u);
 const followController = new AbortController();
 const followResponse = await stream(`/follow?sessionId=${encodeURIComponent(sourceId)}&after=0`, followController.signal);
 const followReader = followResponse.body.getReader();
-const followChunk = new TextDecoder().decode((await followReader.read()).value);
-assert.match(followChunk, /event: session/);
-assert.match(followChunk, /submission\.(queued|completed)/);
+const followDecoder = new TextDecoder();
+let followText = "";
+const followDeadline = Date.now() + 15_000;
+while (Date.now() < followDeadline) {
+  const { value, done } = await followReader.read();
+  if (done) break;
+  followText += followDecoder.decode(value, { stream: true });
+  if (/event: session/u.test(followText) && /submission\.(queued|completed)/u.test(followText)) break;
+}
+assert.match(followText, /event: session/);
+assert.match(followText, /submission\.(queued|completed)/, `follow stream did not deliver a submission event: ${followText.slice(0, 400)}`);
 followController.abort();
 await followReader.cancel().catch(() => {});
 
@@ -1069,5 +1141,7 @@ console.log(JSON.stringify({
   forkId,
   modelEvidence,
   failureEvidence,
+  credentialEvidence,
+  platformAi: platformMode,
   checked: ["login", "create", "list", "state", "selectModel", "upload_attachment", "prompt", "page", "claim_think", "alarm_claim", "official_prompt", "official_queue", "official_approval", "official_fork_atseq", "official_workspace", "official_permission_catalog", "permission_durable_command_receipt", "real_effort_persistence", "permission_session_isolation", "permission_default_not_retroactive", "public_agent_write_rejected", "truthful_image_subagent_availability", "official_workspace_files", "host_settings", "host_credentials", "byok_runtime", "llm_discovery", "official_schedule", "official_schedule_daily", "official_settings_remote", "official_system_prompt", "maintenance_jobs", "retry_event_pipeline", "compaction_events", "site_config", "sitemap_robots", "session_workspace_ids", "usage_projection", "cancel", "follow_sse", "control_sse", "rename", "official_rename_projection_revision", "fork", "not_found"],
 }, null, 2));

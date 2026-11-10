@@ -92,6 +92,16 @@ export async function dispatchSessionHost(
         }) };
       case "history":
         return { ...(request.id === undefined ? {} : { id: request.id }), result: await host.history({ sessionId: String(params.sessionId) }) };
+      case "logExportSnapshot":
+        return { result: await host.logExportSnapshot({ sessionId: workspaceSessionId(params) }) };
+      case "logExportFile": {
+        const file = params.file as { attachmentId?: unknown; name?: unknown; bytes?: unknown } | undefined;
+        if (!file || typeof file.attachmentId !== 'string' || !/^sha256:[a-f0-9]{64}$/u.test(file.attachmentId)
+          || typeof file.name !== 'string' || typeof file.bytes !== 'number' || !Number.isSafeInteger(file.bytes) || file.bytes < 0) {
+          throw new Error('Invalid export file reference');
+        }
+        return { result: await host.logExportFile({ sessionId: workspaceSessionId(params), file: { attachmentId: file.attachmentId, name: file.name, bytes: file.bytes } }) };
+      }
       case "projections":
         return { ...(request.id === undefined ? {} : { id: request.id }), result: await host.projections({ sessionId: String(params.sessionId) }) };
       case "rename":
@@ -106,6 +116,11 @@ export async function dispatchSessionHost(
         return { ...(request.id === undefined ? {} : { id: request.id }), result: await host.selectModel({ sessionId: String(params.sessionId), model: String(params.model), ...(params.reasoningEffort === undefined ? {} : { reasoningEffort: String(params.reasoningEffort) }) }) };
       case "models":
         return { ...(request.id === undefined ? {} : { id: request.id }), result: await host.models() };
+      case "exportCommandDescriptor":
+        return { ...(request.id === undefined ? {} : { id: request.id }), result: await host.exportCommandDescriptor({ sessionId: workspaceSessionId(params) }) };
+      case "executeExportCommand":
+        if (typeof params.line !== 'string' || !Array.isArray(params.attachments) || typeof params.rpcId !== 'string' || params.rpcId === '') throw new WorkspaceFileError('gateway/bad-request', 'Invalid export command invocation');
+        return { ...(request.id === undefined ? {} : { id: request.id }), result: await host.executeExportCommand({ sessionId: workspaceSessionId(params), line: params.line, attachments: params.attachments, rpcId: params.rpcId }) };
       case "permissionCatalog":
         return { ...(request.id === undefined ? {} : { id: request.id }), result: await host.permissionCatalog() };
       case "permissionCommands":

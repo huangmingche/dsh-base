@@ -1,0 +1,51 @@
+{
+  "name": "@dsh-base/cloudflare-worker-session-export",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./runtime": "./src/runtime.ts"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-session-log-export": "*",
+    "@deepseek-ai/dsh-session": "*",
+    "@deepseek-ai/dsh-session-persistence": "*",
+    "@deepseek-ai/dsh-commands": "*",
+    "@deepseek-ai/dsh-attachment": "*",
+    "@dsh-base/cloudflare-worker-http": "workspace:*",
+    "@dsh-base/cloudflare-worker-session-host": "workspace:*",
+    "@dsh-base/session-wire": "workspace:*",
+    "@deepseek-ai/dsh-session-format-catalog": "*"
+  },
+  "dshBase": {
+    "worker": {
+      "id": "cloudflare:worker:session-export",
+      "origin": "custom",
+      "order": 26
+    },
+    "reuse": {
+      "mode": "seam",
+      "official": [
+        "@deepseek-ai/dsh-session-log-export",
+        "@deepseek-ai/dsh-session",
+        "@deepseek-ai/dsh-session-persistence",
+        "@deepseek-ai/dsh-commands",
+        "@deepseek-ai/dsh-attachment",
+        "@deepseek-ai/dsh-session-format-catalog"
+      ],
+      "reason": "Mounts the unchanged pinned official Session export server plugin in a request-scoped Cordis context. Its original Markdown formatter, streaming ZIP writer, routes and command definition are retained. Minimal read-only sessionQuery, persistence, attachment, connection and command-registry ports adapt the authenticated owner's existing durable Session Host. No Node filesystem, native Agent, external service or source fork is introduced. Each request scopes every read to one owner Session, reuses one committed metadata/transcript cut, and authenticates independently before any Host access.",
+      "gaps": [
+        "Export reflects the same complete committed Think-to-DSH event projection used by the conversation UI, not an unimplemented native DSH execution journal. Native runtime/system/permission events absent from that projection are not invented. In-progress uncommitted model tokens are omitted, and legacy events without durable timestamps retain the existing projection's timestamp semantics. ZIP HEAD and GET validate the serialized artifact with the official current-format codec and fail explicitly when legacy lifecycle evidence cannot form a valid archive; Markdown remains readable. Exported title metadata reflects the current owner label, not a fabricated historic rename event.",
+        "This deployment cannot create subagent Sessions, so there are no subagent descendants to archive. Ordinary forks export their inherited prefix once and never pull sibling or source Sessions into the ZIP.",
+        "Generic files require real owner/Session admission and integrity checks; each file is bounded by the existing 8 MiB upload limit before the official ZIP writer streams its chunks. Normalized image attachments remain unavailable and cause an explicit failed download rather than silent omission.",
+        "The official /export handler runs through a rawInput-only, no-Agent Host port with durable idempotent receipts and lifecycle records. Like permission commands, these records are not yet merged into the canonical chat event projection."
+      ],
+      "for": [
+        "@deepseek-ai/dsh-session-log-export"
+      ]
+    }
+  }
+}

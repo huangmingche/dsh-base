@@ -8,7 +8,8 @@
     "./src/*": "./src/*"
   },
   "peerDependencies": {
-    "@deepseek-ai/cordis": "*"
+    "@deepseek-ai/cordis": "*",
+    "@dsh-base/cloudflare-worker-public-pages": "workspace:*"
   },
   "dshBase": {
     "worker": {

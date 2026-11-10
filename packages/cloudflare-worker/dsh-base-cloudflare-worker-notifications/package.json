@@ -1,0 +1,6 @@
+{
+  "name":"@dsh-base/cloudflare-worker-notifications","version":"0.0.0","private":true,"type":"module","license":"MIT",
+  "exports":{".":"./src/index.ts"},
+  "peerDependencies":{"@deepseek-ai/cordis":"*","@dsh-base/cloudflare-worker-http":"workspace:*","@dsh-base/cloudflare-worker-auth":"workspace:*","@dsh-base/cloudflare-worker-site-config":"workspace:*"},
+  "dshBase":{"worker":{"id":"cloudflare:worker:notifications","origin":"custom","order":36},"reuse":{"mode":"custom","official":["@deepseek-ai/dsh-webhook","@deepseek-ai/dsh-webhook-github"],"reason":"The initialized pinned official webhook packages accept inbound triggers and launch Workspace-backed agent sessions. Their product behavior and Host dependencies do not provide outbound operational notifications; mounting or forking them through a Host-only seam cannot implement Discord/Feishu delivery. This independent Worker plugin uses official webhook protocols, the existing D1 database and a transactionally persisted outbox, without starting agent sessions.","gaps":["Delivery acceptance is not an exactly-once guarantee. Ambiguous or interrupted sends require explicit administrator review before retry. No automatic retry queue, cron, arbitrary public relay or real provider delivery verification is supplied."]}}
+}

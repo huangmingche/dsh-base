@@ -1,0 +1,60 @@
+{
+  "name": "@dsh-base/client-google-analytics",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/client/index.ts",
+    "./client": "./src/client/index.ts",
+    "./consent": "./src/client/consent.ts"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@dsh-base/client-site-config": "workspace:*",
+    "@dsh-base/site-config": "workspace:*",
+    "@dsh-base/locale-path": "workspace:*",
+    "@dsh-base/public-pages": "workspace:*",
+    "zod": "*",
+    "@deepseek-ai/dsh-client-ui-primitives": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*",
+    "@deepseek-ai/dsh-client-ui-settings": "*",
+    "@deepseek-ai/dsh-client-ui-renderer": "*",
+    "@deepseek-ai/dsh-client-locale": "*",
+    "react": "*"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@dsh-base/client-site-config"
+      ]
+    }
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:google-analytics",
+      "origin": "custom",
+      "order": 112
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-client-product-analytics",
+        "@deepseek-ai/dsh-client-ui-primitives",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "reason": "The pinned official product-analytics plugin is Desktop-only, requires the Desktop authenticated analytics RPC and includes Session/Message identifiers. It has no website GA4 provider or exported public-page measurement component to mount or fork. This custom plugin observes native browser navigation without changing it and posts only a canonical registered public path to the independent Workers Measurement Protocol provider. No third-party SDK is loaded into the DSH document, so Enhanced Measurement cannot observe private Session titles, URLs or content. No official UI is replaced. The optional conversion-consent preference uses the unchanged official General item slot, Switch and settings field classes; the pin has no website conversion consent feature to mount or fork. Explicit grants live only in the mounted plugin memory, reset on refresh/unload, and are attached only to account/payment requests.",
+      "gaps": [
+        "Public page views remain unlinked. Conversion consent is per tab and resets on refresh. No cookies, persistent visitors, third-party scripts or user-level attribution are added. Trusted backend events own conversions; browsers cannot submit a purchase."
+      ],
+      "sourceEntries": [
+        "@deepseek-ai/dsh-client-ui-primitives/src/settings-form/fields.module.css",
+        "@deepseek-ai/dsh-client-ui-theme/src/client/styles.ts",
+        "@deepseek-ai/dsh-client-ui-theme/src/styles/brand-font.css",
+        "@deepseek-ai/dsh-client-web/src/base.css"
+      ]
+    }
+  }
+}

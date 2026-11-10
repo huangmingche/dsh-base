@@ -1,7 +1,8 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { test } from "node:test";
 import { repoRoot } from "../lib.mjs";
 import { canonicalAgentRows, canonicalClientRows, canonicalWorkerRows } from "../canonical-roster.mjs";
@@ -48,8 +49,9 @@ test("pack manifests reproduce the canonical rosters row for row", () => {
   assert.equal(generateClientComposition(readClientRows()), generateClientComposition(canonical.client));
 });
 
-test("the production client composition is pack-derived at the repository root", () => {
-  assert.deepEqual(readClientComposition(), readClientRows());
+test("the production client composition follows metadata/profile and agrees with pack coverage", () => {
+  assert.deepEqual(readClientComposition(), canonical.client);
+  assert.deepEqual(readClientRows(), readClientComposition());
 });
 
 test("roster order is stable: explicit order, then id; repeated reads agree", () => {
@@ -78,7 +80,7 @@ test("audit passes on the repository but detects coverage drift", () => {
   const phantom = { name: "@fixture/phantom", id: "client:phantom", origin: "custom", order: 1, module: "@fixture/phantom" };
   const covered = auditPacks(repoRoot, { ...canonical, client: [...canonical.client, phantom].sort((left, right) => (left.order ?? 100) - (right.order ?? 100) || left.id.localeCompare(right.id)) });
   assert.equal(covered.ok, false);
-  assert.ok(covered.errors.some(error => error === `client: canonical member @fixture/phantom is absent from the pack rosters (packs: ai-chat-core, base, plugin-management)`), covered.errors.join("\n"));
+  assert.ok(covered.errors.some(error => /^client: canonical member @fixture\/phantom is absent from the pack rosters \(packs: .+\)$/u.test(error)), covered.errors.join("\n"));
 
   const orderDrift = canonical.client.map((row, index) => index === 0 ? { ...row, order: 999 } : row).sort((left, right) => (left.order ?? 100) - (right.order ?? 100) || left.id.localeCompare(right.id));
   const drift = auditPacks(repoRoot, { ...canonical, client: orderDrift });
@@ -96,6 +98,20 @@ test("an L1 pack may not contain a CLIENT_PLUGIN_POLICY.required member", () => 
   const optionalOnly = auditToggleablePacks([manifest("optional", { planes: { client: ["@dsh-base/client-gateway-provider"] }, toggleable: "L1" })], required);
   assert.deepEqual(optionalOnly, []);
   assert.deepEqual(auditToggleablePacks([manifest("core", { planes: { client: required } })], required), []);
+});
+
+test("the loader rejects an L1 pack that declares Worker members", t => {
+  const workerOnly = fixture(t, { "l1-worker": manifest("l1-worker", { planes: { worker: ["@dsh-base/cloudflare-worker-http"] }, toggleable: "L1" }) });
+  assert.throws(() => readPackManifests(workerOnly), /an L1 pack cannot declare worker members/u);
+
+  const mixed = fixture(t, {
+    "l1-mixed": manifest("l1-mixed", { planes: { client: ["@dsh-base/client-gateway-provider"], worker: ["@dsh-base/cloudflare-worker-http"] }, toggleable: "L1" }),
+  });
+  assert.throws(() => readPackManifests(mixed), /l1-mixed: an L1 pack cannot declare worker members/u);
+
+  // Deployment-owned packs with Worker members stay legal; the rule only binds L1.
+  const deployment = fixture(t, { deployment: manifest("deployment", { planes: { worker: ["@dsh-base/cloudflare-worker-http"] } }) });
+  assert.deepEqual(readPackManifests(deployment).map(pack => pack.id), ["deployment"]);
 });
 
 test("the loader fails closed on missing, duplicate, empty and broken packs", async t => {
@@ -161,4 +177,50 @@ test("the loader fails closed on missing, duplicate, empty and broken packs", as
     const root = fixture(t, { pack: manifest("pack", { planes: { client: [{ name: "@fixture/unknown", id: "client:unknown", order: "first" }] } }) });
     assert.throws(() => readClientRows(root), /order must be a finite number/u);
   });
+});
+
+test("check:packs fails when an L1 pack contains a required client module", t => {
+  // End-to-end gate: copy packs/, move one required client member into a new L1
+  // pack, and run the real script. It must exit non-zero and must not print the
+  // success sentence, or the gate is again vouching for a check it did not run.
+  const fixtureRoot = mkdtempSync(join(tmpdir(), "dsh-packs-l1-"));
+  t.after(() => rmSync(fixtureRoot, { recursive: true, force: true }));
+  const packsRoot = join(fixtureRoot, "packs");
+  cpSync(resolve(repoRoot, "packs"), packsRoot, { recursive: true });
+  // Package metadata stays the repository's own (the oracle), so the fixture
+  // only replaces the pack rosters under test.
+  symlinkSync(resolve(repoRoot, "packages"), join(fixtureRoot, "packages"));
+  // The member currently lives in ai-chat-core; remove it there so the new L1
+  // pack is the only claimant and the required-module audit is what fails.
+  for (const entry of readdirSync(packsRoot, { withFileTypes: true })) {
+    if (!entry.isDirectory()) continue;
+    const directory = entry.name;
+    const packPath = join(packsRoot, directory, "pack.json");
+    const pack = JSON.parse(readFileSync(packPath, "utf8"));
+    const client = pack.planes.client;
+    if (!Array.isArray(client)) continue;
+    pack.planes.client = client.filter(row => (typeof row === "string" ? row : row.name) !== "@dsh-base/client-commands");
+    writeFileSync(packPath, JSON.stringify(pack, null, 2));
+  }
+  mkdirSync(join(packsRoot, "l1-required"));
+  writeFileSync(join(packsRoot, "l1-required/pack.json"), JSON.stringify(manifest("l1-required", {
+    planes: { client: [{ name: "@dsh-base/client-commands", id: "client:commands", origin: "custom", order: 50, module: "@dsh-base/client-commands" }] },
+    toggleable: "L1",
+  }), null, 2));
+  const result = spawnSync(process.execPath, [resolve(repoRoot, "scripts/conformance/check-packs.mjs")], {
+    cwd: repoRoot, env: { ...process.env, PACKS_CHECK_ROOT: fixtureRoot }, encoding: "utf8",
+  });
+  assert.notEqual(result.status, 0, `check:packs must exit non-zero; stdout=${result.stdout}`);
+  assert.match(result.stderr, /l1-required: L1 pack cannot include required client module @dsh-base\/client-commands/u);
+  assert.doesNotMatch(result.stdout, /no L1 required-module overlap/u, "the success sentence must not print when the audit fails");
+});
+
+test("the generated allowlist equals the L1 pack members (single source)", async () => {
+  const policy = await import("../../../packages/boot/dsh-base-plugin-management/src/index.ts");
+  const packs = readPackManifests();
+  const l1 = packs.filter(pack => pack.toggleable === "L1");
+  const nameOf = entry => typeof entry === "string" ? entry : entry.name;
+  assert.deepEqual([...policy.MANAGEABLE_CLIENT_MODULES], l1.flatMap(pack => (pack.planes.client ?? []).map(nameOf)));
+  assert.deepEqual([...policy.MANAGEABLE_THINK_MODULES], l1.flatMap(pack => (pack.planes.think ?? []).map(nameOf)));
+  assert.ok(l1.some(pack => pack.id === "optional-think") && l1.some(pack => pack.id === "gateway-provider"), `L1 packs: ${l1.map(pack => pack.id).join(", ")}`);
 });

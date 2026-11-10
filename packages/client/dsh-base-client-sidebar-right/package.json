@@ -51,7 +51,7 @@
   "dshBase": {
     "client": {
       "id": "client:sidebar-right",
-      "origin": "custom",
+      "origin": "fork",
       "order": 66,
       "replaces": "@deepseek-ai/dsh-client-ui-sidebar-right"
     },

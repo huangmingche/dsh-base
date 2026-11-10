@@ -1,0 +1,9 @@
+/* Anonymous agent-presets page: the official section owns its own type scale
+   and 720px width; this wrapper only gives it the settings pane's width. */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  min-width: 0;
+}

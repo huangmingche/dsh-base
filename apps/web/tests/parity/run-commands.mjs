@@ -6,12 +6,13 @@ import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { settle, stableCompare, stableScreenshot } from "./stability.mjs";
 const app = resolve(import.meta.dirname, "../..");
 const requireFromApp = createRequire(resolve(app, "package.json"));
 const puppeteer = requireFromApp("puppeteer-core").default;
 const vite = await import(requireFromApp.resolve("vite"));
 const configFile = resolve(app, "vite.parity.config.ts");
-const output = resolve(app, "dist/parity-evidence");
+const output = resolve(process.env.DSH_PARITY_OUTPUT ?? resolve(app, "dist/parity-evidence"));
 let server, browser;
 const cases = [];
 const snapshot = page => page.evaluate(() => ({ text: document.querySelector("#root").innerText, controls: [...document.querySelectorAll("input,[role='option']")].map(element => { const b=element.getBoundingClientRect(); return { tag:element.tagName, label:element.getAttribute("aria-label"), selected:element.getAttribute("aria-selected"), disabled:element.getAttribute("aria-disabled"), text:element.textContent, rect:[b.x,b.y,b.width,b.height].map(n=>Math.round(n*100)/100) }; }) }));
@@ -34,8 +35,8 @@ try {
     const reference=await open(locale,"standard","reference"), adapted=await open(locale,"standard","adapted");
     for(const target of [reference,adapted]) await target.page.evaluate(()=>document.activeElement?.blur());
     assert.deepEqual(await snapshot(adapted.page),await snapshot(reference.page),`${locale}: normal command rows changed`);
-    const a=await reference.page.screenshot({path:resolve(output,`commands-${locale}-official.png`),captureBeyondViewport:false}),b=await adapted.page.screenshot({path:resolve(output,`commands-${locale}-adapted.png`),captureBeyondViewport:false});
-    assert.ok(Buffer.from(a).equals(Buffer.from(b)),`${locale}: normal popup differs from pinned official pixels`);
+    const pair=await stableCompare(`${locale}/commands`,()=>stableScreenshot(reference.page,{path:resolve(output,`commands-${locale}-official.png`),captureBeyondViewport:false}),()=>stableScreenshot(adapted.page,{path:resolve(output,`commands-${locale}-adapted.png`),captureBeyondViewport:false}));const {a,b}=pair;
+    assert.ok(pair.equal,`${locale}: normal popup differs from pinned official pixels (attempts ${pair.attempts})`);
     assert.deepEqual(reference.errors,[]);assert.deepEqual(adapted.errors,[]);
     cases.push({locale,state:"reference-comparison",screenshotSha256:createHash("sha256").update(a).digest("hex")});
     await reference.page.close();await adapted.page.close();
@@ -76,4 +77,7 @@ try {
   const lock=JSON.parse(await readFile(resolve(app,"../../dsh-source.lock.json"),"utf8"));
   await writeFile(resolve(output,"commands-report.json"),JSON.stringify({ok:true,upstream:lock.commit,scope:"Pinned official command popup normal-state pixel/DOM comparison; actual /model options stay visible disabled with localized reasons; pointer, Enter/Tab and arrow navigation reject disabled rows.",cases},null,2));
   console.log(`command availability reference: ${cases.length} Chromium cases passed`);
-} finally {await closeAcceptanceBrowser(browser);await server?.close();}
+} finally {
+  try { await closeAcceptanceBrowser(browser); }
+  finally { await server?.close(); }
+}

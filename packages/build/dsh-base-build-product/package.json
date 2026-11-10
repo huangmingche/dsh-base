@@ -1,0 +1,23 @@
+{
+  "name": "@dsh-base/build-product",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./vite": "./src/vite.mjs",
+    "./cloudflare": "./src/cloudflare.mjs"
+  },
+  "dshBase": {
+    "build": {
+      "kind": "vite-plugin"
+    },
+    "reuse": {
+      "mode": "seam",
+      "official": [
+        "@deepseek-ai/dsh-client-web"
+      ],
+      "reason": "Build-only compatibility for registered Web applications consuming pinned official sources read-only. Resolves declared exports and application-scoped generated data, profiles and deployment configuration; provides no runtime behavior or roster entries. The official client-web boot kernel remains reused unchanged. Official app-boot profile resolution uses Node worker_threads and does not expose a Workers multi-application build interface."
+    }
+  },
+  "license": "MIT"
+}

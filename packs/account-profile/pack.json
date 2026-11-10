@@ -1,0 +1,26 @@
+{
+  "$schema": "../../scripts/composition/pack.schema.json",
+  "id": "account-profile",
+  "planes": {
+    "client": [
+      "@dsh-base/client-account-profile"
+    ],
+    "worker": [
+      "@dsh-base/cloudflare-worker-account-profile"
+    ]
+  },
+  "requires": [
+    "plugin-management",
+    "files"
+  ],
+  "config": {},
+  "toggleable": "none",
+  "uninstallImpact": "Deployment-owned capability. Removing this pack removes account profile and its companion interface; persisted data is not automatically deleted.",
+  "reuse": {
+    "mode": "custom",
+    "official": [
+      "@deepseek-ai/dsh-client-ui-plugin-manager"
+    ],
+    "reason": "Groups the independently composed SaaS service and its official-slot companion. The package metadata selects production components; the pack only groups their display and permissions."
+  }
+}

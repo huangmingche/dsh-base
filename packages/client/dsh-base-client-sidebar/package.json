@@ -1,0 +1,85 @@
+{
+  "name": "@dsh-base/client-sidebar",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/client/entry.ts",
+    "./client": "./src/client/entry.ts",
+    "./src/*": "./src/*",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-api-workspace-controller",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-session",
+        "@deepseek-ai/dsh-client-ui-workspace",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-shortcuts",
+        "@dsh-base/client-session-adapter"
+      ],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-api-workspace-controller": "*",
+    "@deepseek-ai/dsh-client-locale": "*",
+    "@deepseek-ai/dsh-client-store": "*",
+    "@deepseek-ai/dsh-client-ui-layout": "*",
+    "@deepseek-ai/dsh-client-ui-primitives": "*",
+    "@deepseek-ai/dsh-client-ui-renderer": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*",
+    "@deepseek-ai/dsh-client-ui-session": "*",
+    "@deepseek-ai/dsh-client-ui-workspace": "*",
+    "react": "*",
+    "clsx": "*",
+    "@deepseek-ai/dsh-client-shortcuts": "*",
+    "@deepseek-ai/dsh-client-product-analytics": "*",
+    "zod": "*",
+    "@deepseek-ai/dsh-client-ui-sidebar": "*",
+    "@dsh-base/client-session-adapter": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-plugin-manager": "*",
+    "@deepseek-ai/dsh-client-ui-schedule": "*",
+    "@dsh-base/client-auth-login": "workspace:*"
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:sidebar-navigation",
+      "origin": "fork",
+      "order": 60,
+      "replaces": "@deepseek-ai/dsh-client-ui-sidebar"
+    },
+    "forkOf": {
+      "package": "@deepseek-ai/dsh-client-ui-sidebar",
+      "path": "packages/client/ui-sidebar",
+      "commit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "license": "MIT"
+    },
+    "reuse": {
+      "mode": "fork",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-plugin-manager",
+        "@deepseek-ai/dsh-client-ui-schedule"
+      ],
+      "reason": "The pinned official SidebarRoot hides New Session when session/create is denied and cannot separate anonymous navigation from account operations. This complete pinned runtime fork adds an optional checked-account hook and login action seam while preserving official geometry, styles, slots and dictionaries. Anonymous New Session opens the account login dialog. Plugins and Automation tasks navigate whenever their real public or authenticated panel registration exists; priority-1 inventory placeholders remain disabled when no panel is mounted. Real RemoteAccess and private Gateway authorization are unchanged.",
+      "gaps": [
+        "Anonymous New Session remains clickable and opens the login dialog. Public Plugins and Automation tasks can be browsed without sign-in; required account actions gate at execution. Checking/error states and genuinely missing Host capabilities remain disabled with localized reasons.",
+        "The optional Host hook leaves the unadapted official rendering contract intact. Official layout, collapsed rail, drawer, keyboard hints, icons, slots and dictionaries are retained.",
+        "This revision limits the workbench to authenticated accounts. The anonymous homepage uses the isolated sign-in and consent document providers."
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "sourceEntries": [
+        "@deepseek-ai/dsh-client-ui-plugin-manager/src/client/PluginsPanelIcon.tsx",
+        "@deepseek-ai/dsh-client-ui-plugin-manager/src/client/locales.ts",
+        "@deepseek-ai/dsh-client-ui-schedule/src/client/TaskManagerIcon.tsx",
+        "@deepseek-ai/dsh-client-ui-schedule/src/client/task-manager-locales.ts"
+      ]
+    }
+  }
+}

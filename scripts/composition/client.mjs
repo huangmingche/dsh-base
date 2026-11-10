@@ -1,14 +1,13 @@
 import { repoRoot } from "../conformance/lib.mjs";
-import { readClientRows } from "./packs.mjs";
+import { readClientMetadataRows } from "./metadata-roster.mjs";
 
 export const compositionVirtualId = "virtual:dsh-composition";
 const compositionResolvedId = "\0" + compositionVirtualId;
 
-/** Build and conformance read the same pack-derived roster. Disabled rows remain
+/** Build reads package metadata/profile and the pinned official inventory. Disabled rows remain
  * inventory only and never receive a bundled module resolver. */
-export function readClientComposition(root = repoRoot) {
-  // Resolved exclusively from `packs/`; a missing or invalid pack fails closed.
-  return readClientRows(root);
+export function readClientComposition(root = repoRoot, options = {}) {
+  return readClientMetadataRows(root, options);
 }
 
 /** Literal imports let Vite bundle exactly the enabled plugin namespaces. */
@@ -35,13 +34,13 @@ export function generateClientComposition(rows) {
 }
 
 /** @returns {import('vite').Plugin} */
-export function dshComposition({ root = repoRoot } = {}) {
+export function dshComposition({ root = repoRoot, app } = {}) {
   return {
     name: "dsh-base:composition",
     enforce: "pre",
     resolveId(id) { return id === compositionVirtualId ? compositionResolvedId : null; },
     load(id) {
-      return id === compositionResolvedId ? generateClientComposition(readClientComposition(root)) : null;
+      return id === compositionResolvedId ? generateClientComposition(readClientComposition(root, { app })) : null;
     },
   };
 }

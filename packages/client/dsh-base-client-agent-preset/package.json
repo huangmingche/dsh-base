@@ -48,7 +48,7 @@
   "dshBase": {
     "client": {
       "id": "client:agent-preset",
-      "origin": "custom",
+      "origin": "fork",
       "order": 72,
       "replaces": "@deepseek-ai/dsh-client-ui-agent-preset"
     },
@@ -67,7 +67,8 @@
       "gaps": [
         "The four official modes remain visible-but-disabled because this Workers-native deployment cannot start their Host Node/filesystem/terminal/Cordis compositions. The canonical fixed composition is dsh-base-think and has no official Cordis declaration to read.",
         "Preset switching remains unavailable in this fixed runtime; selection/creation of official ids is refused in the client, Remote, Host and legacy create paths rather than silently aliased.",
-        "The four declaration documents are generated from pinned @deepseek-ai/dsh-web-app package exports by build plumbing and verified by check:preset-declarations."
+        "The four declaration documents are generated from pinned @deepseek-ai/dsh-web-app package exports by build plumbing and verified by check:preset-declarations.",
+        "The section controller and component are exported for the anonymous settings shell (P12): the controller accepts an optional explicit `remote.agentPresets` face because that shell's context carries no `remote` injection, while official registration keeps resolving the service itself."
       ]
     }
   }

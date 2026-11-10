@@ -2,6 +2,7 @@
 import assert from "node:assert/strict";
 import { deleteMessageFeedback, listMessageFeedback, putMessageFeedback, type FeedbackTransport } from "../src/client/chat-feedback.ts";
 import { createCredentialsRemote, createMessageFeedbackRemote } from "../src/client/persistence-remotes.ts";
+import { createAccountSession } from "../src/client/account-session.ts";
 
 let values: Record<string, unknown> = {};
 let revision = 0;
@@ -80,4 +81,31 @@ assert.equal((await credentials.describe(["test"])).ok, true);
 assert.equal((await credentials.set("test", "secret")).ok, true);
 assert.equal((await credentials.unset("test")).ok, true);
 assert.deepEqual(calls.map((call: any) => call[0]), ["credentialsDescribe", "credentialsSet", "credentialsUnset"]);
+
+// The official provider settings eagerly describes credentials on anonymous
+// home pages. Its real Host seam must return an auth failure before private I/O.
+let user: { id: string; username: string; email: string } | null = null;
+let authFailure: Error | undefined;
+let authReads = 0;
+const account = createAccountSession(async () => { authReads++; if (authFailure) throw authFailure; return user; });
+const privateCalls: string[] = [];
+const guarded = createCredentialsRemote({ async request(method) { privateCalls.push(method); return { entries: { test: { configured: true, writable: true } } }; } }, account.read);
+for (const result of await Promise.all([guarded.describe(['test']), guarded.set('test', 'secret'), guarded.unset('test')])) {
+  assert.equal(result.ok, false);
+  if (!result.ok) assert.equal(result.error.code, 'auth/required');
+  assert.equal('value' in result, false, 'anonymous credentials never become an empty successful directory');
+}
+assert.deepEqual(privateCalls, []);
+assert.equal(authReads, 1, 'eager credential calls reuse the shared account snapshot');
+authFailure = Object.assign(new Error('auth service unavailable'), { code: 'auth/offline', details: { retryable: true } });
+await assert.rejects(account.refresh(), /auth service unavailable/);
+assert.deepEqual(await guarded.describe(), { ok: false, error: { code: 'auth/offline', message: 'auth service unavailable', details: { retryable: true } } });
+assert.deepEqual(privateCalls, []);
+authFailure = undefined;
+user = { id: 'owner', username: 'Owner', email: 'owner@example.test' };
+await account.refresh();
+assert.equal((await guarded.describe(['test'])).ok, true);
+assert.equal((await guarded.set('test', 'secret')).ok, true);
+assert.equal((await guarded.unset('test')).ok, true);
+assert.deepEqual(privateCalls, ['credentialsDescribe', 'credentialsSet', 'credentialsUnset']);
 console.log("client persistence: durable feedback, CAS races, carrier/business envelopes and honest Host failures passed");

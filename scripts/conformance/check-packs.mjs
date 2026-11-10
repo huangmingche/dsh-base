@@ -13,15 +13,19 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { auditPacks, auditToggleablePacks, readPackManifests } from "../composition/packs.mjs";
 import { canonicalAgentRows, canonicalClientRows, canonicalWorkerRows } from "./canonical-roster.mjs";
+import { CLIENT_PLUGIN_POLICY } from "../../packages/boot/dsh-base-plugin-management/src/index.ts";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "../..");
-const packs = readPackManifests(repoRoot);
+// Test seam only: a copy of packs/ can be audited without mutating the repository.
+// The canonical oracle always comes from the repository, never from the fixture.
+const packsRoot = process.env.PACKS_CHECK_ROOT ?? repoRoot;
+const packs = readPackManifests(packsRoot);
 const audit = auditPacks(repoRoot, {
   client: canonicalClientRows(repoRoot),
   worker: canonicalWorkerRows(repoRoot),
   agent: canonicalAgentRows(repoRoot),
-});
-const errors = [...audit.errors];
+}, packsRoot);
+const errors = [...audit.errors, ...auditToggleablePacks(packs, CLIENT_PLUGIN_POLICY.required)];
 
 if (errors.length > 0) {
   console.error(`capability packs: ${errors.length} violation(s)`);

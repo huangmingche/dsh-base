@@ -1,0 +1,35 @@
+import {createElement,useState,useSyncExternalStore} from 'react';
+import {createRoot} from 'react-dom/client';
+import {Context} from '@deepseek-ai/cordis';
+import {Button,Input} from '@deepseek-ai/dsh-client-ui-primitives';
+import {installThemeStyles} from '@deepseek-ai/dsh-client-ui-theme/src/client/styles.ts';
+import {installIconSprite} from '@deepseek-ai/dsh-client-ui-theme/src/client/icon-sprite.ts';
+import '@deepseek-ai/dsh-client-ui-theme/src/styles/brand-font.css';
+import '@deepseek-ai/dsh-client-web/src/base.css';
+import {translator} from '../../src/locales.ts';
+import {createPublicPluginConfigurations} from '../../../../client/dsh-base-client-public-navigation/src/client/public-configurations.ts';
+import {apply as apply0} from "../../../../client/dsh-base-client-waffo/src/client/index.ts";
+import {apply as apply1} from "../../../../client/dsh-base-client-email/src/client/index.ts";
+import {apply as apply2} from "../../../../client/dsh-base-client-google-auth/src/client/index.ts";
+import {apply as apply3} from "../../../../client/dsh-base-client-account-profile/src/client/index.ts";
+import {apply as apply4} from "../../../../client/dsh-base-client-user-admin/src/client/index.ts";
+import {apply as apply5} from "../../../../client/dsh-base-client-api-keys/src/client/index.ts";
+import {apply as apply6} from "../../../../client/dsh-base-client-entitlements/src/client/index.ts";
+import {apply as apply7} from "../../../../client/dsh-base-client-files/src/client/index.ts";
+import {apply as apply8} from "../../../../client/dsh-base-client-newsletter/src/client/index.ts";
+import {apply as apply9} from "../../../../client/dsh-base-client-contact/src/client/index.ts";
+import {apply as apply10} from "../../../../client/dsh-base-client-notifications/src/client/index.ts";
+import {apply as apply11} from "../../../../client/dsh-base-client-crisp/src/client/index.ts";
+import {apply as apply12} from "../../../../client/dsh-base-client-cache/src/client/index.ts";
+import {apply as apply13} from "../../../../client/dsh-base-client-dashboard/src/client/index.ts";
+const params=new URL(location.href).searchParams,language=params.get('locale')??'en',snapshot={active:language};
+const lifetime=new Context();installThemeStyles(lifetime);installIconSprite(lifetime);
+document.documentElement.lang=language;document.body.toggleAttribute('data-ds-dark-theme',params.get('theme')==='dark');
+const style=document.createElement('style');style.textContent='html,body,#root{margin:0;min-height:100%;width:100%}body{background:var(--dsw-alias-bg-base);color:var(--dsw-alias-label-primary);font-size:13px}*{animation:none!important;transition:none!important;caret-color:transparent!important}main{box-sizing:border-box;max-width:720px;margin:auto;padding:24px}#reference{position:fixed;z-index:99;display:none;pointer-events:none}';document.head.append(style);
+const dictionaries=new Map(),entries=[];
+const publicPluginConfigurations=createPublicPluginConfigurations();
+const ctx={publicPluginConfigurations,effect:(setup)=>setup(),locale:{getSnapshot:()=>snapshot,subscribe:()=>()=>{},register:(name,dict)=>{dictionaries.set(name,dict);return()=>{};}},slots:{inject:(_name,setup)=>setup(),register:(options,component)=>{entries.push({options,component});return()=>{};}}};
+apply0(ctx as never);apply1(ctx as never);apply2(ctx as never);apply3(ctx as never);apply4(ctx as never);apply5(ctx as never);apply6(ctx as never);apply7(ctx as never);apply8(ctx as never);apply9(ctx as never);apply10(ctx as never);apply11(ctx as never);apply12(ctx as never);apply13(ctx as never);
+function Content({entry}){const face=entry.options.inject(),hooks={};for(const[key,store]of Object.entries(face.hooks??{})){hooks['use'+key[0].toUpperCase()+key.slice(1)]=(select)=>select(useSyncExternalStore(store.subscribe,store.getSnapshot,store.getSnapshot));}const dictionary=dictionaries.get(entry.options.locale)?.[language];return createElement(entry.component,{...face,...hooks,view:'page',t:key=>dictionary?.[key]??key});}
+function Fixture(){const [selected,setSelected]=useState(params.get('panel')??'waffo'),entry=entries.find(row=>row.options.key==='dsh-base:'+selected);window.__SAAS_FIXTURE__={select:setSelected,keys:entries.map(row=>row.options.key)};return <><main key={selected} data-fixture-panel={selected}>{entry?<Content entry={entry}/>:<p>Missing panel</p>}</main><div id="reference"><Button size="sm" variant="outline">{translator(language)('refresh')}</Button><Input aria-label="reference" value="" onChange={()=>{}}/></div></>;}
+createRoot(document.getElementById('root')!).render(<Fixture/>);

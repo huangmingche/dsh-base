@@ -53,7 +53,7 @@
   "dshBase": {
     "client": {
       "id": "client:settings-navigation",
-      "origin": "custom",
+      "origin": "fork",
       "order": 65,
       "replaces": "@deepseek-ai/dsh-client-ui-settings-general"
     },
@@ -68,11 +68,12 @@
       "official": [
         "@deepseek-ai/dsh-client-ui-settings-general"
       ],
-      "reason": "The official shell reads the raw settings slot ledger for navigation, so public priority shadows produce duplicate navigation entries even though section rendering elects only one winner. Exported SettingsRoot cannot replace the shell registration because the original owns its child-slot declarations. Fork the complete official browser implementation and change only the section/onboarding projections to the public entriesOfSlot winner view; preserve all rendering, controllers, CSS, localization and interactions. The General version row is adapted only to append the build-injected upstream tag from dsh-source.lock.json beside the app version from apps/web/package.json; the official row/template remains and no official component is rewritten. The General version row appends a native-linked, localized upstream DeepSeek Harness name and pinned release tag; repository/release URLs are derived at build time from dsh-source.lock.json and injected, so the component contains no URL/version constants.",
+      "reason": "The official shell reads the raw settings slot ledger for navigation, so public priority shadows produce duplicate navigation entries even though section rendering elects only one winner. Exported SettingsRoot cannot replace the shell registration because the original owns its child-slot declarations. Fork the complete official browser implementation and change only the section/onboarding projections to the public entriesOfSlot winner view; preserve all rendering, controllers, CSS, localization and interactions. The General version row is adapted only to append the build-injected upstream tag from dsh-source.lock.json beside the app version from apps/web/package.json; the official row/template remains and no official component is rewritten. The General version row appends a native-linked, localized upstream DeepSeek Harness name and pinned release tag; repository/release URLs are derived at build time from dsh-source.lock.json and injected, so the component contains no URL/version constants. The internal SettingsPanel is also exported with optional row fields (disabled/disabledReason/icon) used by the anonymous account launcher; official registrations never set them, so the signed-in render path, attributes and activation are unchanged (unit-tested projection).",
       "gaps": [
         "Navigation projects the same winning list-slot entries as the official renderer; shadowed originals remain inspectable in the raw registry without duplicate navigation.",
         "The version row appends the pinned upstream release tag injected from dsh-source.lock.json; the app version is read from apps/web/package.json and is never replaced by the upstream version. No latest-version tracking or sidebar version is added.",
-        "The version row links `DeepSeek Harness` to the pinned repository and the tag to the derived `/releases/tag/<encodedTag>` URL; no live GitHub query, latest tracking, or sidebar version is added."
+        "The version row links `DeepSeek Harness` to the pinned repository and the tag to the derived `/releases/tag/<encodedTag>` URL; no live GitHub query, latest tracking, or sidebar version is added.",
+        "The exported panel accepts optional disabled/disabledReason/icon row fields for the anonymous settings panel; official sections omit them, so their nav cells keep the exact previous attributes, styling and activation path."
       ]
     }
   }

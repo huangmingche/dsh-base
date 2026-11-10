@@ -1,0 +1,37 @@
+{
+  "name": "@dsh-base/client-locale-url",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/client/index.ts",
+    "./client": "./src/client/index.ts"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "zod": "*"
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:locale-url",
+      "origin": "custom",
+      "order": 66
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-client-locale"
+      ],
+      "reason": "The official locale plugin owns the runtime, dictionaries, settings row and Host preference, but it has no address strategy: switching the language would not update the URL. This plugin composes the official locale service and adds the prefix synchronization without forking the official runtime. Prefix rules come only from @dsh-base/locale-path: Chinese is /zh-CN, the other six languages use their bare id, English is unprefixed. A canonical prefix at boot selects that language; a bare address keeps the saved preference instead of forcing English."
+    }
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale"
+      ]
+    }
+  }
+}

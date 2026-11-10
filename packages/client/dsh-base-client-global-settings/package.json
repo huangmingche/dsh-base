@@ -1,0 +1,64 @@
+{
+  "name": "@dsh-base/client-global-settings",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/client/index.ts",
+    "./client": "./src/client/index.ts",
+    "./src/*": "./src/*"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-client-locale": "*",
+    "@deepseek-ai/dsh-client-ui-plugin-manager": "*",
+    "@deepseek-ai/dsh-client-ui-primitives": "*",
+    "@deepseek-ai/dsh-client-ui-renderer": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*",
+    "@dsh-base/client-site-config": "workspace:*",
+    "@dsh-base/site-config": "workspace:*",
+    "react": "*",
+    "zod": "*",
+    "@deepseek-ai/dsh-client-ui-settings-models": "*"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-plugin-manager",
+        "@dsh-base/client-site-config"
+      ]
+    }
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:global-settings",
+      "origin": "custom",
+      "order": 111
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-plugin-manager",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-settings-shell",
+        "@deepseek-ai/dsh-client-ui-primitives",
+        "@deepseek-ai/dsh-client-ui-settings-models"
+      ],
+      "reason": "The pinned official packages have no site identity, SEO, discovery-file, analytics or deployment-wide site administrator editor. Mounting or forking the shell/settings feature would retain unrelated Host configuration namespaces and would not supply this site-document contract. This plugin mounts the public plugins.bundle.config and plugins.row.config slots unchanged and reuses the stable SettingsForm, SettingsValueField, Button and Switch primitives. Capability scopes edit the same administrator-authorized CAS document without new navigation. No official implementation is copied or forked. Native enum controls reuse the exported official ModelsSection input/selectInput styles because stable primitives do not export a select field; the model settings feature itself owns unrelated provider state and is not mounted as a site editor. The regression test consumes the exported official rowConfigKey helper to verify the keyed registration contract against the pin.",
+      "sourceEntries": [
+        "@deepseek-ai/dsh-client-ui-primitives/src/settings-form/fields.module.css",
+        "@deepseek-ai/dsh-client-ui-settings-models/src/client/ModelsSection.module.css",
+        "@deepseek-ai/dsh-client-ui-plugin-manager/src/client/config-ledger.ts"
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "gaps": [
+        "User-approved site capability editors: the pinned official plugins have no SaaS site SEO, sitemap, robots, manifest, llms.txt or Google Analytics settings namespace. New schema-specific fields appear inside the unchanged official bundle and row configuration sections; the official detail layout and save/read-only controls remain in use. Each row shows only its capability fields, with a compatible complete-document bundle editor.",
+        "The stable value-field primitive only renders a single-line input. Multi-line text/list fields reuse its exported CSS; native selects reuse the exported ModelsSection input/selectInput variant, preserving official arrow spacing, sizing, focus and disabled styling. No upload workflow is provided. Re-audit these source exports when the upstream pin changes."
+      ]
+    }
+  }
+}

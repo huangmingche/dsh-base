@@ -1,15 +1,13 @@
-body[data-dsh-login="true"] { overflow: hidden; }
-body[data-dsh-login="true"] #root { display: none !important; }
-#dsh-base-login { position: fixed; inset: 0; z-index: 2147483000; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--dsw-alias-bg-base); color: var(--dsw-alias-label-primary); overflow-y: auto; box-sizing: border-box; }
-.dsh-login { display: flex; justify-content: center; width: 100%; }
-.dsh-login-card { width: 100%; max-width: 380px; display: flex; flex-direction: column; gap: 10px; box-sizing: border-box; }
-.dsh-login-form input { box-sizing: border-box; height: 36px; min-height: 36px; padding: 0 12px; width: 100%; }
-.dsh-login-brand { display: flex; justify-content: center; margin-bottom: 8px; }
-.dsh-login-title { margin: 0; text-align: center; font-size: 22px; line-height: 30px; font-weight: 600; }
-.dsh-login-intro { margin: 0 0 8px; text-align: center; color: var(--dsw-alias-label-secondary); font-size: 13px; line-height: 20px; }
-.dsh-login-form { display: flex; flex-direction: column; gap: 8px; }
-.dsh-login-label { color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; margin-top: 6px; }
-.dsh-login-hint { color: var(--dsw-alias-label-tertiary); font-size: 11px; line-height: 16px; }
-.dsh-login-error { color: var(--dsw-alias-label-error); font-size: 12px; line-height: 18px; margin: 4px 0 0; }
-.dsh-login-submit { margin-top: 12px; width: 100%; justify-content: center; }
-.dsh-login-switch { margin-top: 2px; width: 100%; justify-content: center; }
+/* The official Modal, Button and Input own their appearance and interactions.
+   This plugin only arranges the local-account flow inside those primitives. */
+.dsh-auth-dialog { max-height: 100%; }
+.dsh-auth-scroll { min-height: 0; overflow-y: auto; overflow-wrap: anywhere; }
+.dsh-auth-content, .dsh-auth-form, .dsh-auth-providers { display: flex; flex-direction: column; gap: 12px; }
+.dsh-auth-divider { display: flex; align-items: center; gap: 12px; color: var(--dsw-alias-label-secondary); font-size: 12px; line-height: 18px; }
+.dsh-auth-divider span { height: 1px; background: var(--dsw-alias-border-l4); flex: 1; }
+.dsh-auth-hint { margin: 0; font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-secondary); }
+.dsh-auth-error { margin: 0; color: var(--dsw-alias-state-error-primary); font-size: 14px; line-height: 22px; }
+.dsh-auth-sr { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+
+body[data-dsh-login="true"] #root { display: none; }
+body[data-dsh-login="true"] { background: var(--dsw-alias-bg-base); }

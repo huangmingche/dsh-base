@@ -13,6 +13,23 @@ const configFile = resolve(import.meta.dirname, "vite.config.mjs");
 let browser, server;
 const cases = [];
 const evidence = resolve(root, ".artifacts/browser-compat-evidence");
+const modal = '[role="dialog"]:has([data-auth-dialog])';
+async function clickText(page, text) {
+  const handle = await page.evaluateHandle(({ selector, text }) => [...document.querySelectorAll(`${selector} button`)].find(element => element.textContent.trim() === text), { selector: modal, text });
+  const button = handle.asElement(); assert.ok(button, `missing login action: ${text}`);
+  try { await button.click(); } finally { await handle.dispose(); }
+}
+async function waitForLogin(page, locale) {
+  await page.waitForSelector(`${modal} [data-auth-step="identifier"]`, { visible: true });
+  const unavailable = locale === "zh" ? "本站暂未启用邮箱验证和密码找回。" : "Email verification and password recovery are unavailable on this site.";
+  // Every policy fixture disables email. These titles change from checkingPolicy
+  // only after readAuthPolicy resolves and LoginSurface renders the final policy.
+  await page.waitForFunction(({ selector, unavailable }) => {
+    const buttons = [...document.querySelectorAll(`${selector} [data-auth-email]`)];
+    return buttons.length === 2 && buttons.every(button => button.disabled && button.title === unavailable);
+  }, {}, { selector: modal, unavailable });
+  assert.equal(await page.$eval(`${modal} [role="status"]`, node => node.textContent), unavailable, "unavailable email actions have a localized explanation");
+}
 const luminance = ([red, green, blue]) => [red, green, blue].map(value => {
   const channel = value / 255; return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;
 }).reduce((total, channel, index) => total + channel * [0.2126, 0.7152, 0.0722][index], 0);
@@ -81,28 +98,44 @@ try {
     await p.setRequestInterception(true);
     p.on("request", request => {
       const path = new URL(request.url()).pathname;
-      if (path === "/api/auth-policy") return void request.respond({ status: policy === "failed" ? 503 : 200, contentType: "application/json", body: JSON.stringify({ signUpEnabled: policy === "enabled" }) });
+      if (path === "/api/auth-policy") return void request.respond({ status: policy === "failed" ? 503 : 200, contentType: "application/json", body: JSON.stringify({ signUpEnabled: policy === "enabled", email: { enabled: false, ready: false, provider: null }, passwordResetEnabled: false, emailVerificationEnabled: false, emailVerificationRequired: false, googleEnabled: false }) });
       if (path.startsWith("/api/auth/")) { calls.push(path); return void request.respond({ status: 200, contentType: "application/json", body: JSON.stringify({ user: { id: "fixture", username: "test", email: "test@example.com" } }) }); }
       void request.continue();
     });
     await p.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "light" }]);
     await p.goto(`${origin}/?surface=login&locale=${locale}`);
-    await p.waitForFunction(() => !document.querySelector('[role="status"]')?.textContent.includes("…"));
-    const disabled = await p.$eval(".dsh-login-switch", button => button.disabled);
+    await waitForLogin(p, locale);
+    assert.equal(await p.$$eval(`${modal} .dsh-auth-providers button`, buttons => buttons.length === 3 && buttons.every(button => button.disabled)), true, "unavailable social controls stay visible and disabled");
+    assert.equal(await p.$$eval(`${modal} [data-auth-email]`, buttons => buttons.length === 2 && buttons.every(button => button.disabled)), true, "unconfigured email controls stay visible and disabled");
+    await clickText(p, locale === "zh" ? "创建账户" : "Create an account");
+    await p.waitForSelector(`${modal} [data-auth-step="register"]`, { visible: true });
+    const disabled = await p.$eval(`${modal} button[type="submit"]`, button => button.disabled);
     assert.equal(disabled, policy !== "enabled");
+    await p.type(`${modal} input[name="username"]`, "newuser");
+    await p.type(`${modal} input[name="email"]`, "new@example.test");
+    await p.type(`${modal} input[name="password"]`, "test-password");
+    await p.click(`${modal} button[type="submit"]`);
     if (policy !== "enabled") {
-      assert.match(await p.$eval('[role="status"]', el => el.textContent), locale === "zh" ? /注册/ : /registration|Registration/);
-      await p.click(".dsh-login-switch");
-      assert.equal(await p.$('input[name="email"]'), null);
+      assert.match(await p.$eval(modal, el => el.textContent), locale === "zh" ? /注册/ : /registration|Registration/);
+      assert.deepEqual(calls, [], "closed or failed policy never submits registration");
+      assert.ok(await p.$(`${modal} [data-auth-step="register"]`));
+      await clickText(p, locale === "zh" ? "已有账户，去登录" : "I already have an account");
+    } else {
+      await p.waitForFunction(() => location.pathname === "/signed-in-fixture");
+      assert.deepEqual(calls, ["/api/auth/sign-up/email"], "enabled registration sends the real signup request");
+      await p.goto(`${origin}/?surface=login&locale=${locale}`);
     }
+    await waitForLogin(p, locale);
+    assert.equal(await p.$(`${modal} input[name="email"]`), null);
+    assert.equal(await p.$(`${modal} input[name="password"]`), null, "identifier step never exposes a password input");
     const palettes = [];
     for (const scheme of ["light", "dark", "light"]) {
       await p.emulateMediaFeatures([{ name: "prefers-color-scheme", value: scheme }]);
       await p.waitForFunction(expected => document.documentElement.style.colorScheme === expected, {}, scheme);
       const palette = await p.evaluate(() => {
-        const surface = document.querySelector("#dsh-base-login"), title = document.querySelector(".dsh-login-title");
+        const surface = document.querySelector('[role="dialog"]:has([data-auth-dialog])'), title = surface.querySelector("h2");
         const probe = document.createElement("span");
-        probe.style.backgroundColor = "var(--dsw-alias-bg-base)";
+        probe.style.backgroundColor = "var(--dsw-alias-bg-layer-2)";
         probe.style.color = "var(--dsw-alias-label-primary)";
         document.body.append(probe);
         const canvas = document.createElement("canvas"); canvas.width = 1; canvas.height = 1;
@@ -117,9 +150,13 @@ try {
           source: document.documentElement.getAttribute("data-ds-theme-source"),
           fontSize: document.body.style.getPropertyValue("--dsh-content-font-size"),
         };
+        probe.style.backgroundColor = "var(--dsw-alias-bg-base)";
+        result.documentBackground = rgba(getComputedStyle(document.body).backgroundColor);
+        result.expectedDocumentBackground = rgba(getComputedStyle(probe).backgroundColor);
         probe.remove(); return result;
       });
-      assert.deepEqual(palette.background, palette.expectedBackground, "login background must use the real official palette token");
+      assert.deepEqual(palette.background, palette.expectedBackground, "login Modal background must use the real official layer token");
+      assert.deepEqual(palette.documentBackground, palette.expectedDocumentBackground, "public document background must use the official base token");
       assert.deepEqual(palette.foreground, palette.expectedForeground, "title must follow the official foreground token");
       assert.equal(palette.background[3], 255, "login surface must have an opaque official background");
       assert.ok(contrast(palette.foreground, palette.background) >= 7, "primary title must be readable on its actual background");
@@ -128,10 +165,14 @@ try {
       palettes.push({ scheme, primaryContrast: contrast(palette.foreground, palette.background), ...palette });
       await p.screenshot({ path: resolve(evidence, `login-${locale}-${policy}-${scheme}.png`) });
     }
-    await p.type('input[name="username"]', "test"); await p.type('input[name="password"]', "test-password");
-    await p.click('.dsh-login-submit'); await p.waitForFunction(() => location.pathname === "/signed-in-fixture");
-    assert.deepEqual(calls, ["/api/auth/sign-in/username"]); assert.deepEqual(failures, []);
-    cases.push({ surface: "login", locale, policy, registerVisible: true, registerDisabled: disabled, realSignInRequest: true, actualPluginApply: true, palettes });
+    const beforeSignIn = [...calls];
+    await p.type(`${modal} input[name="username"]`, "test"); await p.click(`${modal} button[type="submit"]`);
+    await p.waitForSelector(`${modal} [data-auth-step="password"]`, { visible: true });
+    assert.deepEqual(calls, beforeSignIn, "identifier step does not send credentials");
+    await p.type(`${modal} input[name="password"]`, "test-password");
+    await p.click(`${modal} button[type="submit"]`); await p.waitForFunction(() => location.pathname === "/signed-in-fixture");
+    assert.deepEqual(calls, [...beforeSignIn, "/api/auth/sign-in/username"]); assert.deepEqual(failures, []);
+    cases.push({ surface: "login", locale, policy, registerVisible: true, registerSubmitDisabled: disabled, realRegistrationRequest: policy === "enabled", realSignInRequest: true, twoStepSignIn: true, unavailableControlsDisabled: true, actualPluginApply: true, palettes });
     await p.close();
   }
   await writeFile(resolve(root, ".artifacts/browser-compat-report.json"), JSON.stringify({ ok: true, cases }, null, 2));

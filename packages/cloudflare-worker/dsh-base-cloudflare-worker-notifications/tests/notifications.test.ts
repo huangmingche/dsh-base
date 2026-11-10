@@ -1,0 +1,42 @@
+import assert from 'node:assert/strict';
+import {test} from 'node:test';
+import {destination,notificationConfig} from '../src/config.ts';
+import {createNotificationTransport} from '../src/provider.ts';
+import {createNotifications} from '../src/service.ts';
+import {createNotificationsHandler} from '../src/index.ts';
+const discord=destination('discord','https://discord.com/api/webhooks/123456/test_token')!;
+const feishu=destination('feishu','https://open.feishu.cn/open-apis/bot/v2/hook/test-token')!;
+const notice={eventType:'order.completed',orderId:'ORD_test',planId:'pro',status:'completed',refunded:false};
+test('destinations are explicit official-host HTTPS and disabled by default',()=>{
+ assert.ok(discord);assert.ok(feishu);assert.equal(notificationConfig({}),undefined);
+ for(const url of ['http://discord.com/api/webhooks/1/token','https://discord.com.evil.test/api/webhooks/1/token','https://user@discord.com/api/webhooks/1/token','https://discord.com/api/webhooks/1/token?wait=true','https://127.0.0.1/api/webhooks/1/token']) assert.equal(destination('discord',url),undefined);
+ assert.equal(destination('feishu','https://open.feishu.cn.evil.test/open-apis/bot/v2/hook/id'),undefined);
+ assert.deepEqual(createNotifications().status({DISCORD_WEBHOOK_URL:discord.url}),{enabled:false,ready:false,channels:{discord:false,feishu:false}});
+});
+test('provider acceptance, business rejection and ambiguous transport are distinct',async()=>{
+ let observed:unknown;
+ const accepted=createNotificationTransport(async(input,init)=>{observed={url:String(input),body:JSON.parse(String(init?.body)),redirect:init?.redirect};return Response.json({id:'123456'});});
+ assert.equal(await accepted(discord,notice),'accepted');
+ assert.deepEqual((observed as {body:{allowed_mentions:unknown}}).body.allowed_mentions,{parse:[]});
+ assert.equal((observed as {redirect:string}).redirect,'manual');
+ assert.ok((observed as {url:string}).url.endsWith('?wait=true'));
+ const outcome=(response:Response)=>createNotificationTransport(async()=>response);
+ assert.equal(await outcome(Response.json({code:0}))(feishu,notice),'accepted');
+ assert.equal(await outcome(Response.json({StatusCode:0}))(feishu,notice),'accepted');
+ assert.equal(await outcome(Response.json({code:19024}))(feishu,notice),'rejected');
+ assert.equal(await outcome(new Response('limited',{status:429}))(discord,notice),'rejected');
+ assert.equal(await outcome(new Response('error',{status:500}))(discord,notice),'uncertain');
+ assert.equal(await outcome(new Response('timeout',{status:408}))(discord,notice),'uncertain');
+ assert.equal(await outcome(new Response('not JSON'))(feishu,notice),'uncertain');
+ assert.equal(await outcome(new Response(null,{status:204}))(discord,notice),'uncertain','wait=true requires the provider message receipt');
+ assert.equal(await createNotificationTransport(async()=>{throw new Error('network');})(discord,notice),'uncertain');
+});
+test('notification records and retries require administrator auth and same origin',async()=>{
+ const service=createNotifications();
+ const anonymous=createNotificationsHandler({async session(){return undefined;}},service);
+ assert.equal((await anonymous(new Request('https://app.example/api/saas/notifications'),{}))!.status,401);
+ assert.equal((await anonymous(new Request('https://app.example/api/saas/notifications/status'),{}))!.status,200);
+ const handler=createNotificationsHandler({async session(){return {id:'admin',email:'private@example.test',username:'admin'};}},service);
+ assert.equal((await handler(new Request('https://app.example/api/saas/notifications'),{SITE_ADMIN_USER_IDS:'[]'}))!.status,403);
+ assert.equal((await handler(new Request('https://app.example/api/saas/notifications/retry',{method:'POST',headers:{origin:'https://evil.test','content-type':'application/json'},body:'{}'}),{SITE_ADMIN_USER_IDS:'["admin"]',AUTH_BASE_URL:'https://app.example'}))!.status,403);
+});

@@ -1,0 +1,55 @@
+{
+  "name": "@dsh-base/client-open-in-app-availability",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/client/index.tsx",
+    "./client": "./src/client/index.tsx",
+    "./availability": "./src/availability.ts"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-open-in-app",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-locale"
+      ],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-client-ui-open-in-app": "*",
+    "@deepseek-ai/dsh-client-ui-conversation": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*",
+    "@deepseek-ai/dsh-client-ui-renderer": "*",
+    "@deepseek-ai/dsh-client-locale": "*",
+    "react": "*",
+    "zod": "*"
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:open-in-app-availability",
+      "origin": "custom",
+      "order": 106
+    },
+    "reuse": {
+      "mode": "seam",
+      "for": ["@deepseek-ai/dsh-client-ui-open-in-app"],
+      "official": ["@deepseek-ai/dsh-client-ui-open-in-app"],
+      "reason": "The unchanged official plugin owns native-open controllers and slots. This compatibility seam reuses its exported OpenInAppAction and OpenTargetButton with the original injected controller. An absent workspace directory or eligible Host application keeps the original header utility visible and disabled instead of returning null. Stable entries export types but not these components. No native applications, paths, successful launches or desktop services are fabricated.",
+      "sourceEntries": [
+        "@deepseek-ai/dsh-client-ui-open-in-app/src/client/OpenInAppAction.tsx",
+        "@deepseek-ai/dsh-client-ui-open-in-app/src/client/OpenTargetButton.tsx",
+        "@deepseek-ai/dsh-client-ui-open-in-app/src/client/applications.ts",
+        "@deepseek-ai/dsh-client-ui-open-in-app/src/client/controller.ts",
+        "@deepseek-ai/dsh-client-ui-open-in-app/src/client/locales.ts"
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "gaps": [
+        "Workers has no local desktop application launcher. The pinned rc1 separate header utility is kept visible and disabled with a localized reason using official components; it is not moved into a newer-release combined menu. The disabled wrapper uses the official primitive Button opacity of 0.4."
+      ]
+    }
+  }
+}

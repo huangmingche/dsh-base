@@ -11,8 +11,7 @@
     "agent": {
       "id": "cloudflare:think:deepseek",
       "order": 5,
-      "export": "deepSeek",
-      "presetRow": false
+      "export": "deepSeek"
     },
     "reuse": {
       "mode": "custom",

@@ -8,7 +8,7 @@
  *   - `@` opens the session/file reference menu with candidates,
  *   - the `+` button opens the composer action menu.
  */
-import { remoteAcceptanceConfig, chromeExecutable, closeAcceptanceBrowser, openSavedSession } from "./acceptance-config.mjs";
+import { remoteAcceptanceConfig, chromeExecutable, closeAcceptanceBrowser } from "./acceptance-config.mjs";
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -69,9 +69,9 @@ page.on("pageerror", (error) => errors.push(String(error?.message ?? error).slic
 page.on("console", (message) => { if (message.type() === "error") errors.push(message.text().slice(0, 200)); });
 
 try {
-await openSavedSession(page, base, sessionId, 120_000);
+await page.goto(`${base}/app/session/${encodeURIComponent(sessionId)}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
 await page.waitForSelector('[contenteditable="true"]', { visible: true, timeout: 90_000 });
-// Restoring the saved selection makes this new blank Session current (official workspace
+// Direct navigation makes this new blank Session current (official workspace
 // hides non-current blank Sessions). Its exact row identity excludes workspace treeitems and
 // unrelated titles are never mistaken for an opened Session.
 const sessionSelector = `[data-row-key="session:${sessionId}"]`;

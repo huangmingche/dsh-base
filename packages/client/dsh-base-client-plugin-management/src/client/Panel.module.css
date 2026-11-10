@@ -1,0 +1,20 @@
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-top: 4px;
+  padding: 12px 14px;
+  border: 0.5px solid var(--dsw-alias-settings-card-stroke);
+  border-radius: var(--dsw-radius-lg);
+  background: var(--dsw-alias-settings-card-fill);
+}
+.title { margin: 0; font-size: 13px; line-height: 20px; font-weight: 500; color: var(--dsw-alias-label-primary); }
+.body { margin: 0; font-size: 12px; line-height: 18px; color: var(--dsw-alias-label-tertiary); }
+
+.config { display: grid; gap: 10px; padding: 14px 0; border-top: 1px solid var(--dsh-border-subtle, rgba(127,127,127,.2)); }
+.configInput { min-height: 92px; resize: vertical; border-radius: 8px; border: 1px solid var(--dsh-border, rgba(127,127,127,.35)); background: var(--dsh-bg-panel, transparent); color: inherit; padding: 8px 10px; font: inherit; }
+.configActions { display: flex; gap: 8px; }
+.configButton, .configButtonSecondary { border: 1px solid var(--dsh-border, rgba(127,127,127,.35)); border-radius: 8px; padding: 6px 12px; font: inherit; color: inherit; cursor: pointer; background: var(--dsh-bg-primary, rgba(127,127,127,.12)); }
+.configButtonSecondary { background: transparent; }
+.configOk { color: var(--dsh-success, #1f8f4e); font-size: 13px; }
+.configError { color: var(--dsh-danger, #c9302c); font-size: 13px; }

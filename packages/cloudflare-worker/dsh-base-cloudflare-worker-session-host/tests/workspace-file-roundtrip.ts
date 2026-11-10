@@ -3,7 +3,7 @@ import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { pathToFileURL } from "node:url";
 import type { WireHandler } from "@dsh-base/cloudflare-worker-wire-rpc";
-import { createOfficialWorkspaceFilesGateway } from "../../../client/dsh-base-client-session-host/src/workspace-files-gateway.ts";
+import { createOfficialWorkspaceFilesGateway } from "../../../boot/dsh-base-client-session-host/src/workspace-files-gateway.ts";
 import { createDurableObjectSessionHost } from "../src/durable-object.ts";
 import { SESSION_HOST_STORAGE_ID } from "../src/migration.ts";
 import { registerWorkspaceFilesRemoteEndpoints } from "../src/remote-workspace-files.ts";

@@ -1,0 +1,7 @@
+/* Only multiline geometry; official field typography, borders and states remain unchanged. */
+.multiline {
+  min-height: 96px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  resize: vertical;
+}

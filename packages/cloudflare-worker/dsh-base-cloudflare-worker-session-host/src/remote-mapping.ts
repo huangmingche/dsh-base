@@ -190,7 +190,7 @@ export function toOfficialModelCatalog(
     id: gatewayModelId(model.id),
     name: model.label,
     reasoning: DEEPSEEK_REASONING,
-    ...(gatewayAvailable ? {} : { unavailable: true, unavailableReason: "Cloudflare AI Gateway is not enabled for this deployment." }),
+    ...(gatewayAvailable ? {} : { unavailable: true, unavailableReason: "Cloudflare AI Gateway is disabled for this deployment or account." }),
   }));
   const routableProviders = [
     ...deepseekAvailable ? [DEEPSEEK_PROVIDER_ID] : [],

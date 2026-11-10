@@ -1,0 +1,106 @@
+diff --git a/lib/constants.js b/lib/constants.js
+--- a/lib/constants.js
++++ b/lib/constants.js
+@@ -81,7 +81,7 @@
+   graph: '\\x21-\\x7E',
+   lower: 'a-z',
+   print: '\\x20-\\x7E ',
+-  punct: '\\-!"#$%&\'()\\*+,./:;<=>?@[\\\\\\]^_`{|}~',
++  punct: '\\-!"#$%&\'()\\*+,./:;<=>?@[\\]^_`{|}~',
+   space: ' \\t\\r\\n\\v\\f',
+   upper: 'A-Z',
+   word: 'A-Za-z0-9_',
+diff --git a/lib/parse.js b/lib/parse.js
+--- a/lib/parse.js
++++ b/lib/parse.js
+@@ -353,16 +353,26 @@
+ };
+ 
+ const analyzeRepeatedExtglob = (body, options) => {
++  const branches = splitTopLevel(body).map(branch => branch.trim());
++  const singleBranch = () => {
++    if (branches.length === 1) {
++      const branch = analyzeStarBranch(branches[0]);
++      if (branch.star) {
++        return branch.collapsible ? { risky: false, collapse: true } : { risky: true };
++      }
++    }
++
++    return { risky: false };
++  };
++
+   if (options.maxExtglobRecursion === false) {
+-    return { risky: false };
++    return singleBranch();
+   }
+ 
+   const max =
+     typeof options.maxExtglobRecursion === 'number'
+       ? options.maxExtglobRecursion
+       : constants.DEFAULT_MAX_EXTGLOB_RECURSION;
+-
+-  const branches = splitTopLevel(body).map(branch => branch.trim());
+ 
+   if (branches.length > 1) {
+     if (
+@@ -411,14 +421,7 @@
+       : { risky: true };
+   }
+ 
+-  if (branches.length === 1) {
+-    const branch = analyzeStarBranch(branches[0]);
+-    if (branch.star) {
+-      return branch.collapsible ? { risky: false, collapse: true } : { risky: true };
+-    }
+-  }
+-
+-  return { risky: false };
++  return singleBranch();
+ };
+ 
+ /**
+@@ -468,7 +471,7 @@
+   } = PLATFORM_CHARS;
+ 
+   const globstar = opts => {
+-    return `(${capture}(?:(?!${START_ANCHOR}${opts.dot ? DOTS_SLASH : DOT_LITERAL})[\\s\\S])*?)`;
++    return `(${capture}(?:(?!${START_ANCHOR}${opts.dot ? DOTS_SLASH : DOT_LITERAL}).)*?)`;
+   };
+ 
+   const nodot = opts.dot ? '' : NO_DOT;
+@@ -829,12 +832,8 @@
+         value = `\\${value}`;
+       }
+ 
+-      if (value === '!' && prev.value === '[' && opts.literalBrackets !== true) {
+-        const isLoneNegation = peek() === ']' && !remaining().slice(1).includes(']');
+-        if (!isLoneNegation) {
+-          // POSIX bracket negation: [!abc] is equivalent to [^abc]
+-          value = '^';
+-        }
++      if (opts.posix === true && value === '!' && prev.value === '[') {
++        value = '^';
+       }
+ 
+       prev.value += value;
+@@ -1456,7 +1455,7 @@
+ 
+   const globstar = opts => {
+     if (opts.noglobstar === true) return star;
+-    return `(${capture}(?:(?!${START_ANCHOR}${opts.dot ? DOTS_SLASH : DOT_LITERAL})[\\s\\S])*?)`;
++    return `(${capture}(?:(?!${START_ANCHOR}${opts.dot ? DOTS_SLASH : DOT_LITERAL}).)*?)`;
+   };
+ 
+   const create = str => {
+@@ -1489,11 +1488,6 @@
+         const match = /^(.*?)\.(\w+)$/.exec(str);
+         if (!match) return;
+ 
+-        // A bare `**` here is adjacent to a literal extension in the same path
+-        // segment (e.g. `**.js`), so it must act as a single star rather than a
+-        // globstar. Bail out of the fast path and let the full parser handle it.
+-        if (match[1] === '**') return;
+-
+         const source = create(match[1]);
+         if (!source) return;
+ 

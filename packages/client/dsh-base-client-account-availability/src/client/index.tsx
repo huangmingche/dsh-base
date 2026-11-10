@@ -2,8 +2,8 @@
 import type { Context } from "@deepseek-ai/cordis";
 import type { SyntheticEvent, KeyboardEvent } from "react";
 import type { StoredEntry } from "@deepseek-ai/dsh-client-ui-slots";
-import type { AccountSectionProps } from "@deepseek-ai/dsh-client-ui-settings-account/client";
-import { AccountSection } from "@deepseek-ai/dsh-client-ui-settings-account/src/client/AccountSection.tsx";
+import type { AccountSectionProps } from "@dsh-base/client-settings-account/client";
+import { AccountSection } from "@dsh-base/client-settings-account/client";
 import { z } from "zod";
 import { billingUnavailableReason } from "../availability.ts";
 import "./availability.css";

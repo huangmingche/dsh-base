@@ -1,0 +1,31 @@
+{
+  "name": "@dsh-base/cloudflare-worker-account-profile",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@dsh-base/cloudflare-worker-http": "workspace:*",
+    "@dsh-base/cloudflare-worker-auth": "workspace:*"
+  },
+  "dshBase": {
+    "worker": {
+      "id": "cloudflare:worker:account-profile",
+      "origin": "custom",
+      "order": 24
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-api-account-controller",
+        "@deepseek-ai/dsh-deepseek-account"
+      ],
+      "reason": "Inspected the pinned official DSH account services: they manage DeepSeek Platform accounts, not SaaS product accounts or merchant infrastructure. Their Host contracts cannot implement product-account profile and password changes. No corresponding official implementation can be mounted or forked. This independently authored Workers plugin composes existing HTTP and authentication services; it does not copy the purchased template or add app-entry behavior.",
+      "gaps": []
+    }
+  }
+}

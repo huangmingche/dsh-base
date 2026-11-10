@@ -6,7 +6,7 @@ import { randomBytes } from 'node:crypto'
 import { mkdirSync } from 'node:fs'
 import { request as httpRequest } from 'node:http'
 import { join, resolve } from 'node:path'
-import { chromeExecutable, closeAcceptanceBrowser, openSavedSession } from './acceptance-config.mjs'
+import { chromeExecutable, closeAcceptanceBrowser } from './acceptance-config.mjs'
 import puppeteer from 'puppeteer-core'
 const app = resolve(import.meta.dirname, '..')
 const port = 5191
@@ -59,7 +59,7 @@ try {
   const errors = []
   page.on('pageerror', error => errors.push(String(error)))
   page.on('console', message => { if (message.type() === 'error') errors.push(message.text()) })
-  await openSavedSession(page, base, sessionId, 60_000)
+  await page.goto(`${base}/app/session/${sessionId}`, { waitUntil: 'domcontentloaded', timeout: 60_000 })
   await page.waitForSelector('[contenteditable="true"]', { timeout: 60_000 })
   const click = async pattern => {
     await page.waitForFunction(source => {

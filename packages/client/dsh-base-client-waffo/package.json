@@ -1,0 +1,79 @@
+{
+  "name": "@dsh-base/client-waffo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/client/index.ts",
+    "./client": "./src/client/index.ts"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-client-locale": "*",
+    "@deepseek-ai/dsh-client-ui-renderer": "*",
+    "@deepseek-ai/dsh-client-ui-plugin-manager": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*",
+    "@deepseek-ai/dsh-client-ui-primitives": "*",
+    "@dsh-base/client-auth-login": "workspace:*",
+    "@dsh-base/client-google-analytics": "workspace:*",
+    "react": "*",
+    "zod": "*",
+    "@dsh-base/client-public-navigation": "workspace:*",
+    "@deepseek-ai/dsh-client-web": "*",
+    "@deepseek-ai/dsh-client-ui-theme": "*",
+    "@deepseek-ai/dsh-client-ui-layout": "*"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-plugin-manager",
+        "@dsh-base/client-public-navigation"
+      ]
+    }
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:waffo",
+      "origin": "custom",
+      "order": 112
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-settings-account",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-plugin-manager",
+        "@deepseek-ai/dsh-client-ui-primitives"
+      ],
+      "reason": "The official DeepSeek Platform account plugin provides wallets and billing for its own service. Waffo Pancake merchant payments require a separate checkout and account contract. This plugin contributes plans, orders and billing to the official plugins.bundle.config slot using the official Button and settings fields.",
+      "sourceEntries": [
+        "@deepseek-ai/dsh-client-ui-primitives/src/settings-form/fields.module.css",
+        "@deepseek-ai/dsh-client-web/src/base.css",
+        "@deepseek-ai/dsh-client-ui-theme/src/client/styles.ts",
+        "@deepseek-ai/dsh-client-ui-layout/src/client/theme-presenter.ts",
+        "@deepseek-ai/dsh-client-ui-theme/src/theme-settings.ts"
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "gaps": [
+        "User-requested SaaS Waffo Pancake capability adds localized catalog and billing content inside the existing plugin detail configuration seat. The official pin has no corresponding Waffo Pancake surface; the official detail layout, title, sections and controls remain in use."
+      ]
+    },
+    "reference": {
+      "repository": "user-purchased mkfast-template",
+      "commit": "b101976ed1aa6d4fd39ca5a1e7f0b95a7c4777d7",
+      "license": "TanStarter commercial license; retained by the purchased template",
+      "paths": [
+        "src/components/pricing/pricing-card.tsx",
+        "src/components/pricing/create-checkout-button.tsx",
+        "src/config/payment.ts",
+        "src/payment/provider/waffo.ts",
+        "src/payment/waffo-query.ts",
+        "docs/others/implementation-decisions.md"
+      ],
+      "adaptation": "Workflow and reconciliation behavior reference only; independently written source, no commercial source copied. This package license does not relicense the referenced template."
+    }
+  }
+}

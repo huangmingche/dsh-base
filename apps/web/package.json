@@ -1,21 +1,25 @@
 {
   "name": "@dsh-base/web",
-  "version": "0.1.2",
+  "version": "0.2.0",
   "private": true,
   "type": "module",
   "scripts": {
     "build": "pnpm --dir ../.. check && node ../../scripts/composition/generate-worker-composition.mjs && node ../../scripts/composition/generate-agent-composition.mjs && node ../../scripts/template/generate-notices.mjs && cf build && node ../../packages/build/dsh-base-build-browser-compat/src/check-worker-output.mjs .cloudflare/output/v0",
     "dev": "pnpm --dir ../.. check:types && node ../../scripts/composition/generate-worker-composition.mjs && node ../../scripts/composition/generate-agent-composition.mjs && cf dev",
-    "deploy": "node scripts/verify-deployment.mjs && pnpm verify:release && cf deploy --prebuilt",
+    "deploy": "node scripts/verify-deployment.mjs && pnpm verify:release && node ../../scripts/project/deploy-prebuilt.mjs --apply-web-schema",
+    "deploy:prebuilt": "node ../../scripts/project/deploy-prebuilt.mjs",
     "check": "pnpm build",
     "compose": "node ../../scripts/composition/generate-worker-composition.mjs && node ../../scripts/composition/generate-agent-composition.mjs",
     "acceptance:session-host": "node scripts/acceptance-session-host.mjs",
     "acceptance:session-host-image": "node scripts/acceptance-session-host-image.mjs",
     "acceptance:official-ui": "node scripts/acceptance-official-ui.mjs",
-    "verify:release": "pnpm build && pnpm --dir ../.. acceptance:local && pnpm --dir ../.. acceptance:parity && pnpm --dir ../.. acceptance:browser-compat"
+    "verify:release": "pnpm build && pnpm --dir ../.. acceptance:local && pnpm --dir ../.. acceptance:auth-modal-local && pnpm --dir ../.. acceptance:account-launcher && pnpm --dir ../.. acceptance:global-settings-local && pnpm --dir ../.. acceptance:parity && pnpm --dir ../.. acceptance:browser-compat && pnpm --dir ../.. acceptance:saas && pnpm --dir ../.. acceptance:seo-local",
+    "schema:site-settings": "node scripts/apply-site-settings-schema.mjs",
+    "schema:plugins": "node scripts/apply-plugin-schemas.mjs"
   },
   "dependencies": {
-    "@ai-sdk/openai-compatible": "^3.0.84",
+    "@ai-sdk/openai-compatible": "^3.0.85",
+    "@better-auth/api-key": "1.7.18",
     "@dsh-base/build-server-dependencies": "workspace:*",
     "@fortune-sheet/core": "1.0.4",
     "@fortune-sheet/react": "1.0.4",
@@ -29,11 +33,12 @@
     "@shikijs/langs": "^4.6.0",
     "@standard-schema/spec": "^1.1.0",
     "@tanstack/react-virtual": "3.14.10",
+    "@waffo/pancake-ts": "0.28.0",
     "@xterm/addon-fit": "^0.11.0",
     "@xterm/xterm": "^6.0.0",
-    "ai": "^7.0.162",
+    "ai": "^7.0.163",
     "anser": "^2.3.5",
-    "better-auth": "1.7.16",
+    "better-auth": "1.7.18",
     "big.js": "^7.0.1",
     "clsx": "^2.1.1",
     "diff": "^9.0.0",
@@ -63,7 +68,7 @@
     "mime": "^4.1.2",
     "papaparse": "5.7.0",
     "pdfjs-dist": "6.3.289",
-    "picomatch": "4.0.7",
+    "picomatch": "npm:@ryotsu/picomatch@4.0.7-a",
     "react": "18.3.1",
     "react-dom": "18.3.1",
     "rrule": "^2.8.1",
@@ -79,6 +84,7 @@
     "@cloudflare/vite-plugin": "2.0.0-beta.v.8",
     "@cloudflare/workers-types": "^5.20261104.1",
     "@jridgewell/gen-mapping": "0.3.13",
+    "@types/big.js": "6.2.2",
     "@types/node": "26.6.6",
     "@types/react": "18.3.31",
     "@types/react-dom": "18.3.7",
@@ -88,7 +94,7 @@
     "js-yaml": "^4.3.2",
     "puppeteer-core": "^25.16.0",
     "typescript": "6.0.3",
-    "vite": "^8.3.5"
+    "vite": "^8.3.6"
   },
   "dshBase": {
     "reuse": {
@@ -96,8 +102,9 @@
       "official": [
         "@deepseek-ai/dsh-client-web"
       ],
-      "reason": "App entry only boots generated composition; source entry imports below belong to the local rendered comparison fixture and load pinned official reference components unchanged. The build-only preset declaration extractor reuses the pinned official definitionComposition projection from that source entry instead of reimplementing enabled/conditional/group semantics; the runtime bundle does not import it.",
+      "reason": "App entry only boots generated composition; source entry imports below belong to the local rendered comparison fixture and load pinned official reference components unchanged. The build-only preset declaration extractor reuses the pinned official definitionComposition projection from that source entry instead of reimplementing enabled/conditional/group semantics; the runtime bundle does not import it. Category-count browser acceptance uses the exported source configLedgerSource because the stable client entry exports its types but not this value. This test-only reader connects real official configuration slots to the page ledger; it does not copy or replace the official implementation. Account fixtures use the pinned AccountAvatar and unchanged AccountSection stylesheet to specify the user-approved anonymous full layout independently; default fork states are compared directly with the original component. Session-menu fixtures render the pinned HeaderAction and CopyToast as an independent visual reference against the unchanged plugin registrations; these components are not exported by the stable client entry. Browser controllers stay official and use controlled HTTP, clipboard and download carriers. Native-open fixtures compare the availability wrapper with the original OpenInAppAction and exported OpenTargetButton, because stable entrypoints export their types but not the implementations; the deployment-only disabled fieldset is recorded separately from upstream available-state equivalence.",
       "sourceEntries": [
+        "@deepseek-ai/dsh-client-ui-primitives/src/settings-form/fields.module.css",
         "@deepseek-ai/dsh-api-remote-access/src/client/mount.ts",
         "@deepseek-ai/dsh-api-session-controller/src/client/sessions/service.ts",
         "@deepseek-ai/dsh-client-connection/src/client/rpc.ts",
@@ -147,7 +154,31 @@
         "@deepseek-ai/dsh-client-ui-settings/src/client/schema.ts",
         "@deepseek-ai/dsh-client-ui-settings-models/src/client/ModelsSection.module.css",
         "@deepseek-ai/dsh-client-ui-settings-models/src/client/ModelsSection.tsx",
-        "@deepseek-ai/dsh-client-ui-settings-models/src/client/locales.ts"
+        "@deepseek-ai/dsh-client-ui-settings-models/src/client/locales.ts",
+        "@deepseek-ai/dsh-client-ui-settings-shell/src/client/ShellCard.tsx",
+        "@deepseek-ai/dsh-client-ui-settings-shell/src/client/locales.ts",
+        "@deepseek-ai/dsh-client-ui-settings-agent-loop/src/client/AgentLoopCard.tsx",
+        "@deepseek-ai/dsh-client-ui-settings-agent-loop/src/client/locales.ts",
+        "@deepseek-ai/dsh-client-ui-settings-web-search/src/client/WebSearchCard.tsx",
+        "@deepseek-ai/dsh-client-ui-settings-web-search/src/client/locales.ts",
+        "@deepseek-ai/dsh-client-ui-settings-subagent/src/client/SubagentCard.tsx",
+        "@deepseek-ai/dsh-client-ui-settings-subagent/src/client/locales.ts",
+        "@deepseek-ai/dsh-client-ui-entry-customization/src/client/locales.ts",
+        "@deepseek-ai/dsh-client-ui-plugin-manager/src/client/config-ledger.ts",
+        "@deepseek-ai/dsh-client-ui-workspace/src/client/locales.ts",
+        "@deepseek-ai/dsh-client-ui-schedule/src/client/task-manager-locales.ts",
+        "@deepseek-ai/dsh-client-ui-workspace/src/client/rows/WorkspaceBrowser.tsx",
+        "@deepseek-ai/dsh-client-ui-workspace/src/client/stores.ts",
+        "@deepseek-ai/dsh-client-ui-workspace/src/client/shortcuts.ts",
+        "@deepseek-ai/dsh-client-ui-settings-account/src/client/AccountAvatar.tsx",
+        "@deepseek-ai/dsh-client-ui-settings-account/src/client/AccountSection.module.css",
+        "@deepseek-ai/dsh-client-ui-settings-models/src/client/schema-operations.ts",
+        "@deepseek-ai/dsh-client-ui-settings-models/src/client/ProviderEditor.tsx",
+        "@deepseek-ai/dsh-session-log-export/src/client/HeaderAction.tsx",
+        "@deepseek-ai/dsh-session-log-export/src/client/CopyToast.tsx",
+        "@deepseek-ai/dsh-client-ui-open-in-app/src/client/OpenInAppAction.tsx",
+        "@deepseek-ai/dsh-client-ui-open-in-app/src/client/OpenTargetButton.tsx",
+        "@deepseek-ai/dsh-client-ui-open-in-app/src/client/locales.ts"
       ],
       "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db"
     }

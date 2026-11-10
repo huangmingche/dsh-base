@@ -1,0 +1,7 @@
+{
+  "version": 1,
+  "default": "web",
+  "apps": [
+    { "id": "web", "path": "apps/web", "platform": "web" }
+  ]
+}

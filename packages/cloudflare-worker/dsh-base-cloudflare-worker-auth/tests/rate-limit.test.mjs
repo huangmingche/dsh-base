@@ -24,16 +24,32 @@ test('database auth limits are atomic, persistent, trusted-IP scoped and fail cl
   // fixture-specific endpoint injects a D1 outage; it never exists in product code.
   const built = await build({
     stdin: { contents: `import { apply } from ${JSON.stringify(resolve(root, 'packages/cloudflare-worker/dsh-base-cloudflare-worker-auth/src/index.ts'))};
-      let handler;
-      const ctx = { http: { use(value) { handler = value; return () => {}; } }, effect(fn) { fn(); }, provide() {} };
+      import { apply as applyHttp } from ${JSON.stringify(resolve(root, 'packages/cloudflare-worker/dsh-base-cloudflare-worker-http/src/index.ts'))};
+    import { createPublicPages } from ${JSON.stringify(resolve(root, 'packages/cloudflare-worker/dsh-base-cloudflare-worker-public-pages/src/index.ts'))};
+      const reads = new WeakMap();
+      const ctx = { publicPages: createPublicPages(), inject(names, setup) { if (names.every(name => this[name])) setup(this); }, effect(fn) { fn(); }, provide(name, value) { this[name] = value; }, get(name) { return this[name]; } };
+      applyHttp(ctx);
       apply(ctx);
+      ctx.http.use(async (request, env) => {
+        if (!['/api/session-host', '/api/test/session-reader'].includes(new URL(request.url).pathname)) return;
+        const [first, second] = await Promise.all([ctx.auth.session(request, env), ctx.auth.session(request, env)]);
+        if (!first) return Response.json({ error: 'unauthenticated' }, { status: 401 });
+        return Response.json({ id: first.id, sameIdentity: first.id === second?.id, sessionReads: reads.get(request) });
+      });
       export default { async fetch(request, env) {
-        if (request.headers.get('x-test-d1-outage') === 'true') env = { ...env, AUTH_DB: { prepare() { throw new Error('injected D1 outage'); }, batch: env.AUTH_DB.batch.bind(env.AUTH_DB), exec: env.AUTH_DB.exec.bind(env.AUTH_DB) } };
-        return await handler(request, env) ?? new Response('fixture not found', { status: 404 });
+        let sessionReads = 0;
+        reads.set(request, 0);
+        const db = env.AUTH_DB;
+        if (['/api/session-host', '/api/test/session-reader'].includes(new URL(request.url).pathname) || request.headers.get('x-test-d1-outage') === 'true') env = { ...env, AUTH_DB: { prepare(sql) {
+          if (/from "session"/i.test(sql)) reads.set(request, ++sessionReads);
+          if (request.headers.get('x-test-d1-outage') === 'true' || request.headers.get('x-test-single-session-read') === 'true' && sessionReads > 1) throw new Error('injected D1 outage');
+          return db.prepare(sql);
+        }, batch: db.batch.bind(db), exec: db.exec.bind(db) } };
+        return ctx.http.dispatch(request, env);
       } };`, resolveDir: app, loader: 'ts' },
     bundle: true, write: false, format: 'esm', platform: 'neutral', target: 'es2022',
     conditions: ['workerd', 'worker', 'browser'], mainFields: ['module', 'main'],
-    nodePaths: [join(app, 'node_modules')], external: ['node:*'],
+    nodePaths: [join(app, 'node_modules')], external: ['node:*', 'cloudflare:workers'],
     define: { 'process.env.NODE_ENV': '"production"' }, logLevel: 'silent',
   });
   writeFileSync(bundle, built.outputFiles[0].text);
@@ -92,7 +108,7 @@ test('database auth limits are atomic, persistent, trusted-IP scoped and fail cl
       assert.equal(responses.filter(response => response.status === 401).length, 20);
       assert.equal(responses.filter(response => response.status === 429).length, 4);
     });
-    await t.test('stored limits survive real signup, login, cookie sessions and pruning', async () => {
+    await t.test('stored limits survive real signup, login, cookie sessions and pruning', async t => {
       const user = { username: 'persisteduser', email: 'persisted@example.test', name: 'Persisted', password: randomBytes(24).toString('base64url') };
       assert.equal((await a.fetch(request('/sign-up/email', user, '192.0.2.51'))).status, 403);
       const registered = await a.fetch(request('/sign-up/email', user, '192.0.2.51', { 'x-dsh-registration-token': registration }));
@@ -108,6 +124,44 @@ test('database auth limits are atomic, persistent, trusted-IP scoped and fail cl
       database = await mf.getD1Database('AUTH_DB', 'auth-a'); [a, b] = await workers();
       const restored = await b.fetch(request('/get-session', undefined, '192.0.2.51', { cookie }));
       assert.equal(restored.status, 200); assert.equal((await restored.json()).user.id, identity);
+      await t.test('same-request authorization uses one read, leaves renewal to HTTP, and distinguishes outages from anonymous sessions', async () => {
+        const protectedRequest = (headers = {}) => new Request(origin + '/api/session-host', {
+          method: 'POST', headers: { origin, cookie, 'content-type': 'application/json', ...headers },
+          body: JSON.stringify({ method: 'permissionSnapshot', params: {} }),
+        });
+        const older = new Date(Date.now() - 2 * 86400_000).toISOString();
+        const expires = new Date(Date.now() + 5 * 86400_000).toISOString();
+        await database.prepare('UPDATE "session" SET "updatedAt"=?,"expiresAt"=? WHERE "userId"=?').bind(older, expires, identity).run();
+        const before = await database.prepare('SELECT "updatedAt","expiresAt" FROM "session" WHERE "userId"=?').bind(identity).first();
+        const checked = await a.fetch(protectedRequest({ 'x-test-single-session-read': 'true' }));
+        assert.equal(checked.status, 200, await checked.clone().text());
+        assert.deepEqual(await checked.json(), { id: identity, sameIdentity: true, sessionReads: 1 });
+        assert.equal(checked.headers.get('set-cookie'), null);
+        assert.deepEqual(await database.prepare('SELECT "updatedAt","expiresAt" FROM "session" WHERE "userId"=?').bind(identity).first(), before,
+          'server authorization must not refresh a session without returning its cookie');
+        const failed = await a.fetch(protectedRequest({ 'x-test-d1-outage': 'true' }));
+        assert.equal(failed.status, 503);
+        assert.deepEqual(await failed.json(), { error: 'auth_unavailable' });
+        assert.equal(failed.headers.get('set-cookie'), null);
+        const unguarded = await a.fetch(new Request(origin + '/api/test/session-reader', {
+          headers: { cookie, 'x-test-d1-outage': 'true' },
+        }));
+        assert.equal(unguarded.status, 503, 'the real HTTP dispatcher preserves typed auth failures outside the protected gate');
+        assert.deepEqual(await unguarded.json(), { error: 'auth_unavailable' });
+        const publicFailure = await a.fetch(request('/get-session', undefined, '192.0.2.51', { cookie, 'x-test-d1-outage': 'true' }));
+        assert.equal(publicFailure.status, 503, 'auth transport failures are service failures, not rate-limit 429 or invalid credentials');
+        assert.deepEqual(await publicFailure.json(), { error: 'auth_unavailable' });
+        assert.equal(publicFailure.headers.get('retry-after'), null, 'no unproven retry advice is invented for a backend outage');
+        const recovered = await a.fetch(protectedRequest());
+        assert.equal(recovered.status, 200, 'a new request rereads the database after failure');
+        assert.equal((await recovered.json()).id, identity);
+        const renewed = await a.fetch(request('/get-session', undefined, '192.0.2.51', { cookie }));
+        assert.equal(renewed.status, 200);
+        assert.ok(renewed.headers.get('set-cookie'), 'the real auth HTTP endpoint still refreshes due cookies');
+        await database.prepare('DELETE FROM "session" WHERE "userId"=?').bind(identity).run();
+        assert.equal((await a.fetch(protectedRequest())).status, 401, 'revocation is authoritative on the next request');
+        assert.equal((await a.fetch(protectedRequest({ cookie: '' }))).status, 401, 'actual anonymous calls remain unauthorized');
+      });
     });
     await t.test('D1 outage and missing schema never bypass credential admission', async () => {
       const outage = await a.fetch(badLogin('192.0.2.61', { 'x-test-d1-outage': 'true' }));

@@ -1,0 +1,11 @@
+{
+  "name": "@dsh-base/site-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./src/*": "./src/*",
+    "./settings": "./src/settings.ts"
+  }
+}

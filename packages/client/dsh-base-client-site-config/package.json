@@ -1,0 +1,41 @@
+{
+  "name": "@dsh-base/client-site-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/client/index.ts",
+    "./client": "./src/client/index.ts",
+    "./title-face": "./src/client/title-face.ts"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@dsh-base/site-config": "workspace:*",
+    "zod": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*"
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:site-config",
+      "origin": "custom",
+      "order": 54
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-brand-official",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-slots"
+      ],
+      "reason": "No official public site identity service exists. This minimal observable reads the existing public site-config endpoint once at app startup and refreshes only after an explicit saved site edit. The exported title-face adapter implements the stable official LocaleFace contract for the locale-label fork installation seam: only common/brand.localBuild projects published localized document titles, while all other translations delegate to the original locale service. Official DocumentTitle alone retains browser title and session-prefix behavior; no dictionary, layout or DOM ownership is replaced."
+    }
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": []
+    }
+  }
+}

@@ -8,6 +8,7 @@ import { apply as adaptedApply } from "../../../../packages/client/dsh-base-clie
 import * as accountCopy from "@deepseek-ai/dsh-client-ui-settings-account/src/client/locales.ts";
 import * as presetCopy from "@deepseek-ai/dsh-client-ui-agent-preset/src/client/locales.ts";
 import { AccountSection } from "@deepseek-ai/dsh-client-ui-settings-account/src/client/AccountSection.tsx";
+import { AccountSection as ForkAccountSection } from "@dsh-base/client-settings-account/client";
 import { AgentPresetSection } from "@deepseek-ai/dsh-client-ui-agent-preset/src/client/AgentPresetSection.tsx";
 import { apply as accountAvailability, UnavailableBillingSection } from "../../../../packages/client/dsh-base-client-account-availability/src/client/index.tsx";
 import { AgentPresetSection as ForkAgentPresetSection } from "../../../../packages/client/dsh-base-client-agent-preset/src/client/AgentPresetSection.tsx";
@@ -39,7 +40,8 @@ export function SettingsNavigationFixture({ locale, adapted }: { locale: "en" | 
     (adapted ? adaptedApply : officialApply)(ctx);
     const labels = { account: accountCopy[locale].nav, presets: presetCopy[locale].nav };
     const accountOptions = { name: "settings.section", id: "account", order: -10, label: () => labels.account, locale: "settings.account", inject: () => ({}) };
-    let accountDisposer = slots.register(accountOptions as never, AccountSection as never);
+    const accountSection = adapted ? ForkAccountSection : AccountSection;
+    let accountDisposer = slots.register(accountOptions as never, accountSection as never);
     const presetSection = adapted ? ForkAgentPresetSection : AgentPresetSection;
     slots.register({ name: "settings.section", id: "agent-presets", order: 20, label: () => labels.presets, locale: "settings.agentPreset",
       inject: () => adapted ? ({ viewUnavailableReason: () => "unavailable", creatorUnavailableReason: "unavailable" } as never) : ({} as never) } as never, presetSection as never);
@@ -59,7 +61,7 @@ export function SettingsNavigationFixture({ locale, adapted }: { locale: "en" | 
       rawSections: () => slots.entries("settings.section").map(entry => entry.options.id),
       rawOnboarding: () => slots.entries("settings.onboarding").map(entry => entry.options.id),
       removeAccount: () => { accountDisposer(); },
-      restoreAccount: () => { accountDisposer = slots.register(accountOptions as never, AccountSection as never); },
+      restoreAccount: () => { accountDisposer = slots.register(accountOptions as never, accountSection as never); },
     };
     return { ctx, slots, registration, injected, shell, source, onboarding, t: localeFace.bind(registration.locale!) };
   }, [locale, adapted]);

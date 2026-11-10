@@ -1,0 +1,26 @@
+{
+  "$schema": "../../scripts/composition/pack.schema.json",
+  "id": "notifications",
+  "planes": {
+    "client": [
+      "@dsh-base/client-notifications"
+    ],
+    "worker": [
+      "@dsh-base/cloudflare-worker-notifications"
+    ]
+  },
+  "requires": [
+    "plugin-management",
+    "waffo"
+  ],
+  "config": {},
+  "toggleable": "none",
+  "uninstallImpact": "Deployment-owned capability. Removing this pack removes notifications and its companion interface; persisted data is not automatically deleted.",
+  "reuse": {
+    "mode": "custom",
+    "official": [
+      "@deepseek-ai/dsh-client-ui-plugin-manager"
+    ],
+    "reason": "Groups the independently composed SaaS service and its official-slot companion. The package metadata selects production components; the pack only groups their display and permissions."
+  }
+}

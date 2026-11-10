@@ -6,7 +6,7 @@ import { resolve } from 'node:path';
 import { acceptanceLaunchOptions, closeAcceptanceBrowser } from '../../scripts/acceptance-config.mjs';
 const app=resolve(import.meta.dirname,'../..'),requireFromApp=createRequire(resolve(app,'package.json'));
 const vite=await import(requireFromApp.resolve('vite')),puppeteer=requireFromApp('puppeteer-core').default;
-const configFile=resolve(app,'vite.parity.config.ts'),output=resolve(app,'dist/parity-evidence');
+const configFile=resolve(app,'vite.parity.config.ts'),output=resolve(process.env.DSH_PARITY_OUTPUT??resolve(app,'dist/parity-evidence'));
 let browser,server;
 try {
  await vite.build({configFile,logLevel:'error'});server=await vite.preview({configFile,logLevel:'error',preview:{host:'127.0.0.1',port:0,strictPort:true}});

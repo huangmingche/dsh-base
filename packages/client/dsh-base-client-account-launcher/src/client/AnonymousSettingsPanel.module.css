@@ -1,0 +1,41 @@
+/* Anonymous panel container: the official shell owns the 800×800 geometry;
+   these rules only stack the rows and dim controls that cannot be used. */
+
+.general {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+}
+
+.rowGroup,
+.disabledGroup {
+  display: block;
+  min-width: 0;
+  border: 0;
+  margin: 0;
+  padding: 0;
+}
+
+.disabledGroup {
+  cursor: default;
+}
+
+/* The fieldset disables every form control it contains; dim them so the row
+   reads as unavailable without changing the official row layout. */
+.disabledGroup :disabled {
+  opacity: 0.5;
+}
+
+/* Localized reason for assistive technology; hover copy comes from the
+   official Tooltip wrapping the row. */
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

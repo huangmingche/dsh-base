@@ -1,0 +1,25 @@
+{
+  "$schema": "../../scripts/composition/pack.schema.json",
+  "id": "cache",
+  "planes": {
+    "client": [
+      "@dsh-base/client-cache"
+    ],
+    "worker": [
+      "@dsh-base/cloudflare-worker-cache"
+    ]
+  },
+  "requires": [
+    "plugin-management"
+  ],
+  "config": {},
+  "toggleable": "none",
+  "uninstallImpact": "Deployment-owned capability. Removing this pack removes kv cache and its companion interface; persisted data is not automatically deleted.",
+  "reuse": {
+    "mode": "custom",
+    "official": [
+      "@deepseek-ai/dsh-client-ui-plugin-manager"
+    ],
+    "reason": "Groups the independently composed SaaS service and its official-slot companion. The package metadata selects production components; the pack only groups their display and permissions."
+  }
+}

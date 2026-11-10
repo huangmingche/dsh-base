@@ -168,9 +168,10 @@ storage.messages.set("a", Array.from({ length: 45 }, (_, index) => ({
   parts: [{ type: "text", text: `message ${index + 1}` }],
 })));
 storage.projections.set("a", { usage: { input: 10, output: 2 } });
+let completedTurns = 0;
 const host = new SessionHost(storage, [
   { id: "deepseek-official/deepseek-flash", label: "DeepSeek-V4.1-Flash", contextWindow: 1_048_576 },
-]);
+], undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined, () => { completedTurns++; throw new Error("statistics failure must not fail a committed turn"); });
 
 const first = await host.list({});
 assert.deepEqual(first.sessions.map((row) => row.sessionId), ["b", "a"]);
@@ -259,6 +260,7 @@ await host.cancel({ sessionId: "created" });
 assert.equal((await host.state({ sessionId: "created" })).running, false);
 assert.equal((await storage.listSubmissions("created"))[0]?.status, "cancelled");
 assert.equal((await storage.listEvents("created", 0, 10)).at(-1)?.type, "submission.cancelled");
+assert.equal(completedTurns, 0, "creating, prompting and cancelling are not activation");
 console.log("session-host: read/create/fork/prompt/cancel/follow contract passed");
 
 {
@@ -284,6 +286,7 @@ await assert.rejects(host.runSubmission({ sessionId: "recovery", submissionId: f
   throw new Error("RPC response lost after durable agent execution");
 }), /RPC response lost/);
 assert.equal((await storage.getSubmission(first.submissionId))?.status, "running");
+assert.equal(completedTurns, 0, "transport failure cannot activate an account");
 assert.equal((await host.queuedSubmissions()).some((row) => row.submissionId === first.submissionId), true);
 
 // A recovered final transcript cannot erase an input queued during execution.
@@ -294,6 +297,7 @@ await host.runSubmission({ sessionId: "recovery", submissionId: first.submission
   secondId = second.submissionId;
   return { messages: [message("request-1", "user", "first"), message("answer-1", "assistant", "done")] };
 });
+assert.equal(completedTurns, 1, "only a durable completed turn invokes the trusted activation hook");
 assert.deepEqual((await storage.readAllMessages("recovery")).map((row) => row.id), ["request-1", "answer-1", "request-2"]);
 assert.equal((await host.state({ sessionId: "recovery" })).running, true);
 assert.deepEqual((await host.executionHistory("recovery")).map((row) => row.id), ["request-1", "answer-1"]);
@@ -306,6 +310,7 @@ const cancelled = await host.runSubmission({ sessionId: "recovery", submissionId
   return { messages: [message("request-1", "user", "first"), message("answer-1", "assistant", "done"), message("request-2", "user", "second")] };
 });
 assert.equal(cancelled.status, "cancelled");
+assert.equal(completedTurns, 1, "a late completion after cancellation must not activate");
 assert.equal((await storage.getSubmission(secondId))?.status, "cancelled");
 assert.equal((await host.state({ sessionId: "recovery" })).running, false);
 console.log("session-host: execution authority, durable resume, queue preservation and cancellation passed");

@@ -7,7 +7,7 @@ import { resolve } from "node:path";
 import { acceptanceLaunchOptions, closeAcceptanceBrowser } from "../../scripts/acceptance-config.mjs";
 const app = resolve(import.meta.dirname, "../.."), require = createRequire(resolve(app, "package.json"));
 const vite = await import(require.resolve("vite")), puppeteer = require("puppeteer-core").default;
-const configFile = resolve(app, "vite.parity.config.ts"), output = resolve(app, "dist/parity-evidence");
+const configFile = resolve(app, "vite.parity.config.ts"), output = resolve(process.env.DSH_PARITY_OUTPUT ?? resolve(app, "dist/parity-evidence"));
 const text = "trace-editor: Please call fetch_url exactly once for https://developers.cloudflare.com/ and then reply with only the page title.";
 let server, browser; const results = [];
 try {

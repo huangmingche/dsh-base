@@ -5,13 +5,16 @@
   "type": "module",
   "exports": {
     ".": "./src/client/index.tsx",
-    "./client": "./src/client/index.tsx"
+    "./client": "./src/client/index.tsx",
+    "./request": "./src/client/request.ts"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "*",
     "@deepseek-ai/dsh-client-ui-primitives": "*",
     "react": "*",
-    "react-dom": "*"
+    "react-dom": "*",
+    "@dsh-base/locale-path": "workspace:*",
+    "@dsh-base/client-google-analytics": "workspace:*"
   },
   "dshBase": {
     "client": {
@@ -19,7 +22,8 @@
       "origin": "custom",
       "order": 5,
       "documentRoutes": [
-        "/login"
+        "/login",
+        "/"
       ]
     },
     "reuse": {
@@ -27,16 +31,21 @@
       "official": [
         "@deepseek-ai/dsh-client-ui-primitives",
         "@deepseek-ai/dsh-client-ui-theme",
-        "@deepseek-ai/dsh-client-ui-layout"
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-settings-account",
+        "@deepseek-ai/dsh-client-ui-settings-models"
       ],
-      "reason": "The official DSH account UI is mounted for the signed-in Account surface. No official package provides a local-product sign-in screen; this plugin renders the product account form with the official DSH primitives and theme tokens, matching createbuddy's AccountLogin approach.",
+      "reason": "The pinned official AccountSection and SignInDialog use a Platform browser authorization attempt, not local Better Auth username/email/password authentication. Mounting or forking that flow retains the incompatible Platform account contract; the Models ApiKeyInput and SettingsSecretField manage provider credentials rather than local-account sign-in. This custom local-account plugin therefore owns only the account flow and composes unchanged Modal, Button, Input and icons from the stable ui-primitives export. The default official Modal header, description, close control, mask, focus lifecycle and theme tokens provide the presentation; local CSS only arranges the flow and semantic messages. The existing reviewed theme presenter supports standalone /login. Authentication policy is enforced by the Worker.",
       "sourceEntries": [
         "@deepseek-ai/dsh-client-ui-theme/src/client/styles.ts",
         "@deepseek-ai/dsh-client-ui-theme/src/client/icon-sprite.ts",
         "@deepseek-ai/dsh-client-ui-theme/src/theme-settings.ts",
         "@deepseek-ai/dsh-client-ui-layout/src/client/theme-presenter.ts"
       ],
-      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db"
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "gaps": [
+        "This revision limits the workbench to authenticated accounts. The anonymous homepage uses the isolated sign-in and consent document providers."
+      ]
     }
   },
   "dsh": {

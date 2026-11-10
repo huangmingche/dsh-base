@@ -1,0 +1,30 @@
+{
+  "name": "@dsh-base/cloudflare-worker-llms",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@dsh-base/cloudflare-worker-site-config": "workspace:*",
+    "@dsh-base/cloudflare-worker-public-pages": "workspace:*"
+  },
+  "dshBase": {
+    "worker": {
+      "id": "cloudflare:worker:llms",
+      "origin": "custom",
+      "order": 15
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-plugin-manager"
+      ],
+      "reason": "The pinned official packages provide browser locale and plugin configuration contracts, but no public llms document producer. Mounting or forking either would preserve unrelated browser/Host behavior and cannot serve this Workers HTTP resource. This plugin owns only its exact public resource route and reads the existing shared siteSettings service; it adds no UI, persistence or background service."
+    }
+  }
+}

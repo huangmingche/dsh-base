@@ -1,21 +1,25 @@
 #!/usr/bin/env node
 /** Enforce declared official exports and auditable package reuse decisions. */
 import { checkClientContract } from "./client-contracts.mjs";
+import { checkPluginOrigin } from "./plugin-origin.mjs";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { clientRows, importsIn, isMain, isPackageExported, localPackages, officialPackages, packageName, printResult, readJson, repoRoot, runtimeGroups, walk } from "./lib.mjs";
+import { projectContext } from "../composition/project-context.mjs";
 
 const nonempty = (value) => typeof value === "string" && value.trim() !== "";
 const stringList = (value) => Array.isArray(value) && value.every(nonempty);
 
-export function checkOfficialReuse(root) {
+export function checkOfficialReuse(root, options = {}) {
   const failures = [];
-  const lock = readJson(join(root, "dsh-source.lock.json"));
+  const context = projectContext(root);
+  const lock = readJson(join(context.baseRoot, "dsh-source.lock.json"));
   const official = officialPackages(root);
   const packages = localPackages(root);
-  const sourceRoot = join(root, ".submodules/deepseek-harness");
-  const active = new Set(clientRows(root).filter((row) => row.disabled !== true).map((row) => row.name));
+  const sourceRoot = context.upstreamRoot;
+  const clients = clientRows(root, options);
+  const active = new Set(clients.filter((row) => row.disabled !== true).map((row) => row.name));
   let imports = 0;
   if (official.size === 0) failures.push("no pinned official packages found; initialize the reference submodule");
 
@@ -38,6 +42,16 @@ export function checkOfficialReuse(root) {
     if (group === "client") failures.push(...checkClientContract({ manifest, path }));
     const fork = manifest.dshBase?.forkOf;
     const reuse = manifest.dshBase?.reuse;
+    for (const plane of ["client", "worker", "agent"]) {
+      const declaration = manifest.dshBase?.[plane];
+      if (declaration === undefined) continue;
+      failures.push(...checkPluginOrigin(manifest, declaration.origin, `dshBase.${plane}.origin`));
+      // A profile owns its complete row and can override package metadata,
+      // including disabled inventory. Audit that effective value as well.
+      if (plane === "client") for (const row of clients.filter(row => row.name === manifest.name)) {
+        failures.push(...checkPluginOrigin(manifest, row.origin, "client composition origin"));
+      }
+    }
     if (fork === undefined) walk(join(dirname(path), "src"), (file) => {
       if (!/\.(?:[cm]?[jt]sx?|css)$/.test(file)) return;
       const source = readFileSync(file);
@@ -73,7 +87,8 @@ export function checkOfficialReuse(root) {
     }
   }
 
-  for (const plane of ["packages", "apps"]) walk(join(root, plane), (file) => {
+  const roots = context.consumer ? [context.baseRoot, context.productRoot] : [context.baseRoot];
+  for (const scanRoot of roots) for (const plane of ["packages", "apps"]) walk(join(scanRoot, plane), (file) => {
     if (!/\.(?:[cm]?[jt]sx?|css)$/.test(file)) return;
     const source = readFileSync(file, "utf8");
     for (const { specifier, line } of importsIn(source)) {
@@ -88,14 +103,14 @@ export function checkOfficialReuse(root) {
       if (!upstream || !isPackageExported(upstream.manifest, subpath === "" ? "." : `.${subpath}`)) failures.push(`${label}: ${specifier} is not exported by a pinned official package`);
       if (!subpath.startsWith("/src/")) continue;
       let owner = dirname(file);
-      while (owner !== root && !existsSync(join(owner, "package.json"))) owner = dirname(owner);
+      while (owner !== scanRoot && !existsSync(join(owner, "package.json"))) owner = dirname(owner);
       const manifest = existsSync(join(owner, "package.json")) ? readJson(join(owner, "package.json")) : {};
       const reuse = manifest.dshBase?.reuse;
       if (!Array.isArray(reuse?.sourceEntries) || !reuse.sourceEntries.includes(specifier)) failures.push(`${label}: record ${specifier} in the owning package's dshBase.reuse.sourceEntries`);
       if (reuse?.sourceReviewCommit !== lock.commit) failures.push(`${label}: source-entry review is missing or stale; set sourceReviewCommit only after reviewing the pinned exports`);
     }
   });
-  return { failures, summary: `${imports} official imports use declared exports; every runtime package records reuse, composed clients expose loader contracts, and source-entry reviews match the pin` };
+  return { failures, summary: `${imports} official imports use declared exports; runtime origins match reuse provenance, composed clients expose loader contracts, and source-entry reviews match the pin` };
 }
 
 if (isMain(import.meta.url)) printResult("official reuse", checkOfficialReuse(repoRoot));

@@ -5,10 +5,11 @@ import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { mkdir, writeFile } from "node:fs/promises";
+import { settle, stableCompare, stableScreenshot } from "./stability.mjs";
 import { resolve } from "node:path";
 const app=resolve(import.meta.dirname,"../.."),requireFromApp=createRequire(resolve(app,"package.json"));
 const puppeteer=requireFromApp("puppeteer-core").default,vite=await import(requireFromApp.resolve("vite"));
-const configFile=resolve(app,"vite.parity.config.ts"),output=resolve(app,"dist/parity-evidence");
+const configFile=resolve(app,"vite.parity.config.ts"),output=resolve(process.env.DSH_PARITY_OUTPUT ?? resolve(app,"dist/parity-evidence"));
 let browser,server;const cases=[];
 const snapshot=page=>page.evaluate(()=>({text:document.body.innerText,nav:[...document.querySelectorAll('[role="dialog"] nav button')].map(button=>{const b=button.getBoundingClientRect();return {text:button.textContent,current:button.getAttribute("aria-current"),rect:[b.x,b.y,b.width,b.height].map(n=>Math.round(n*100)/100)};})}));
 try{
@@ -27,7 +28,7 @@ try{
       if(section!=="account")for(const target of [reference,adapted])await target.page.evaluate(()=>[...document.querySelectorAll('[role="dialog"] nav button')].find(button=>button.textContent.trim()===window.__NAV_PARITY__.labels.presets).click());
       for(const target of [reference,adapted]){await target.page.waitForSelector(`[data-settings-content="${section}"]`);await target.page.evaluate(()=>document.activeElement?.blur());}
       assert.deepEqual(await snapshot(adapted.page),await snapshot(reference.page),`${locale}/${section}: official settings navigation and layout differ`);
-      const a=await reference.page.screenshot({path:resolve(output,`settings-${locale}-${section}-official.png`),captureBeyondViewport:false}),b=await adapted.page.screenshot({path:resolve(output,`settings-${locale}-${section}-adapted.png`),captureBeyondViewport:false});assert.ok(Buffer.from(a).equals(Buffer.from(b)),`${locale}/${section}: official settings pixels differ`);
+      const pair=await stableCompare(`${locale}/${section}`,()=>stableScreenshot(reference.page,{path:resolve(output,`settings-${locale}-${section}-official.png`),captureBeyondViewport:false}),()=>stableScreenshot(adapted.page,{path:resolve(output,`settings-${locale}-${section}-adapted.png`),captureBeyondViewport:false}));const {a,b}=pair;assert.ok(pair.equal,`${locale}/${section}: official settings pixels differ (attempts ${pair.attempts})`);
       cases.push({locale,section,uniqueNavigation:true,rawOriginalPreserved:true,screenshotSha256:createHash("sha256").update(a).digest("hex")});
     }
     await adapted.page.evaluate(()=>window.__NAV_PARITY__.removeAccount());

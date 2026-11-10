@@ -37,10 +37,13 @@ import { ProviderEditor, type ProviderEditorProps } from './ProviderEditor.tsx'
 import type { en } from './locales.ts'
 import styles from './ModelsSection.module.css'
 
+/** Minimal controller face consumed by the section; the Host owns its data source. */
+export type ModelsSectionController = Pick<ModelsSettingsStore, 'store' | 'load'>
+
 /** Injected dependencies of {@link ModelsSection} (slot `inject`). */
 export interface ModelsSectionInjected {
   /** The page store (loaded on mount, refreshed on pushed invalidations). */
-  controller: ModelsSettingsStore
+  controller: ModelsSectionController
   hooks: {
     /** Page snapshot bound by the UI renderer as useSnapshot. */
     snapshot: ModelsSettingsStore['store']
@@ -51,6 +54,10 @@ export interface ModelsSectionInjected {
   schema: SettingsSchemaOperations
   /** Section copy. */
   t: (key: keyof typeof en) => string
+  /** Show public provider declarations without claiming any owner configuration or credential state. */
+  presentation?: 'auto' | 'public-declarations'
+  /** Request account access before the Add provider action; absence keeps official behavior. */
+  onRequestAccess?: () => void
 }
 
 /**
@@ -158,7 +165,7 @@ function renderProviderEditor({ target, row, ...props }: ProviderEditorRenderPro
  */
 export async function removeProviderProfile(
   operations: ModelsOperations,
-  controller: ModelsSettingsStore,
+  controller: ModelsSectionController,
   target: { settingsNs: string; settingsPath: readonly string[]; credentialRef?: string },
 ): Promise<string | undefined> {
   if (target.credentialRef !== undefined) {
@@ -242,19 +249,27 @@ export function providerCopy(template: string, target: ProviderIdentity): string
  * @returns the section, or null while the shell has not injected yet.
  */
 export function ModelsSection(props: ModelsSectionProps): ReactNode {
-  const { controller, useSnapshot, operations, schema, t, renderSlot } = props
+  const { controller, useSnapshot, operations, schema, t, renderSlot, presentation, onRequestAccess } = props
   if (
     controller === undefined || useSnapshot === undefined || operations === undefined
     || schema === undefined || t === undefined
   ) return null
-  return <Loaded injected={{ controller, useSnapshot, operations, schema, t }} renderSlot={renderSlot} />
+  return <Loaded injected={{ controller, useSnapshot, operations, schema, t, presentation, onRequestAccess }} renderSlot={renderSlot} />
 }
 
 function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderSlot: ModelsRenderSlot }): ReactNode {
-  const { controller, operations, schema, t } = injected
+  const { controller, operations, schema, t, presentation, onRequestAccess } = injected
   const snapshot = injected.useSnapshot(value => value)
-  const state = { ...snapshot, rows: snapshot.rows.map(row => row.entry.provider === 'deepseek-account'
-    ? { ...row, entry: { ...row.entry, displayName: t('deepSeekAccount') } } : row) }
+  const publicDeclarations = presentation === 'public-declarations'
+  const state = { ...snapshot, writable: publicDeclarations ? false : snapshot.writable,
+    rows: snapshot.rows.map(row => {
+      // Public declarations never carry credential facts into either rows or editors.
+      const visible = publicDeclarations
+        ? { ...row, credential: undefined, derivedCredential: undefined, credentialChecks: undefined }
+        : row
+      return visible.entry.provider === 'deepseek-account'
+        ? { ...visible, entry: { ...visible.entry, displayName: t('deepSeekAccount') } } : visible
+    }) }
   /** A new or failed surface waits for a current snapshot; background refreshes preserve its drafts. */
   const [hasReadySnapshot, setHasReadySnapshot] = useState(state.status === 'ready')
   if (state.status === 'ready' && !hasReadySnapshot) setHasReadySnapshot(true)
@@ -371,7 +386,7 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
   // One fact decides both first-run postures on this page and the onboarding
   // step: whether the user already has a provider to talk to.
   const anyUsable = state.rows.some(providerUsable)
-  const configured = state.rows.filter(row => row.configured)
+  const configured = publicDeclarations ? state.rows : state.rows.filter(row => row.configured)
   const configurable = state.rows.filter(row => state.namespaces.has(row.entry.settingsNs))
   const addable: AddableRow[] = state.rows.flatMap((row) => {
     const namespace = state.namespaces.get(row.entry.settingsNs)
@@ -455,7 +470,8 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
               },
             }
             return (
-              <li key={row.entry.provider} className={styles['rowCard']} data-gateway-row>
+              <li key={row.entry.provider} className={styles['rowCard']} data-gateway-row
+                data-public-provider={publicDeclarations ? row.entry.provider : undefined}>
                 {error}
                 {renderSlot('settings.models.provider-card', owner, { entryKey: row.entry.settingsNs })}
               </li>
@@ -465,7 +481,8 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
             // First-run posture: the provider exists but has no key — the
             // setup card IS its presence on the page, until the user closes it.
             return (
-              <li key={row.entry.provider} className={styles['setupCard']}>
+              <li key={row.entry.provider} className={styles['setupCard']}
+                data-public-provider={publicDeclarations ? row.entry.provider : undefined}>
                 {error}
                 {renderProviderEditor({
                   target,
@@ -486,12 +503,13 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
             )
           }
           const open = !addOpen && editing?.provider === row.entry.provider
-          const credentialConfigured = row.credential?.configured === true
-          const credentialMissing = !credentialConfigured
+          const credentialConfigured = !publicDeclarations && row.credential?.configured === true
+          const credentialMissing = !publicDeclarations && !credentialConfigured
             && row.apiKeyEnv !== undefined
             && row.credential?.configured === false
           return (
-            <li key={row.entry.provider} className={styles['rowCard']}>
+            <li key={row.entry.provider} className={styles['rowCard']}
+              data-public-provider={publicDeclarations ? row.entry.provider : undefined}>
               <div className={styles['rowHead']}>
                 <span className={styles['rowIdentity']}>
                   <span className={styles['rowName']}>{row.entry.displayName}</span>
@@ -728,9 +746,10 @@ function Loaded({ injected, renderSlot }: { injected: ModelsSectionFace; renderS
                 <button
                   type="button"
                   className={styles['addButton']}
-                  disabled={!state.writable || state.status !== 'ready' || (!catalogEnabled && !customEnabled)}
+                  disabled={state.status !== 'ready' || (onRequestAccess === undefined && (!state.writable || (!catalogEnabled && !customEnabled)))}
                   onClick={() => {
                     if (controller.store.getSnapshot().status !== 'ready') return
+                    if (onRequestAccess !== undefined) { onRequestAccess(); return }
                     const first = addable[0]
                     const initial: AddMode = catalogEnabled ? 'catalog' : 'custom'
                     setSavedTarget(undefined)

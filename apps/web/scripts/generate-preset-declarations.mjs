@@ -1,4 +1,6 @@
 #!/usr/bin/env node
+import { createRequire } from "node:module";
+import { buildContext, cliProductRoot, outputPath } from "../../../scripts/build/product-paths.mjs";
 /**
  * Extract the four official Agent preset declarations from the pinned upstream
  * submodule into a build-generated client module. The extractor parses
@@ -12,7 +14,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
-import { load, dump, JSON_SCHEMA, Type } from "js-yaml";
 import { registerOfficialSourceHooks } from "../../../scripts/build/official-source-hook.mjs";
 import { readThinkPresetRows } from "../../../scripts/composition/think-composition.mjs";
 
@@ -22,6 +23,8 @@ const ROOT = resolve(import.meta.dirname, "../../..");
 const TARGET = "packages/client/dsh-base-client-session-adapter/src/client/official-preset-declarations.generated.ts";
 
 /** Loader expression nodes read back exactly as declared. */
+function presetYaml(root) {
+const { load, dump, JSON_SCHEMA, Type } = createRequire(resolve(buildContext(root).appRoot, "package.json"))("js-yaml");
 const JsExpr = new Type("tag:yaml.org,2002:js", {
   kind: "scalar",
   resolve: (data) => typeof data === "string",
@@ -30,13 +33,15 @@ const JsExpr = new Type("tag:yaml.org,2002:js", {
   represent: (value) => value.__jsExpr,
 });
 const schema = JSON_SCHEMA.extend(JsExpr);
+return { load, dump, schema };
+}
 
 
 let officialProjection;
 /** Load the official projection implementation from the pinned source once. */
-async function officialDefinitionComposition() {
+async function officialDefinitionComposition(root) {
   if (officialProjection !== undefined) return officialProjection;
-  registerOfficialSourceHooks();
+  registerOfficialSourceHooks(root);
   const module = await import("@deepseek-ai/dsh-agent-preset-registry/src/composition-inventory.ts");
   officialProjection = module.definitionComposition;
   return officialProjection;
@@ -53,8 +58,9 @@ function evaluateExpression(expression) {
  * @returns {Promise<{ lock: any, declarations: Record<string, { source: string, content: string }>, generated: string }>}.
  */
 export async function loadOfficialDeclarations(root = ROOT) {
-  const lock = JSON.parse(await readFile(resolve(root, "dsh-source.lock.json"), "utf8"));
-  const sourceRoot = resolve(root, lock.referencePath);
+  const { load, dump, schema } = presetYaml(root);
+  const lock = JSON.parse(await readFile(resolve(buildContext(root).baseRoot, "dsh-source.lock.json"), "utf8"));
+  const sourceRoot = resolve(buildContext(root).baseRoot, lock.referencePath);
   const webApp = resolve(sourceRoot, "packages/bundle/web-app");
   // The loader's own dialect lives in the pinned vendor source. Assert that
   // composition and options still match this extractor instead of silently
@@ -75,7 +81,7 @@ export async function loadOfficialDeclarations(root = ROOT) {
   }
   const declarations = {};
   const officialRows = {};
-  const definitionComposition = await officialDefinitionComposition();
+  const definitionComposition = await officialDefinitionComposition(root);
   for (const id of OFFICIAL_PRESET_IDS) {
     const file = resolve(webApp, "presets", `${id}.patch.yml`);
     const parsed = load(await readFile(file, "utf8"), { schema });
@@ -129,8 +135,8 @@ export const OFFICIAL_PRESET_IDS = ["standard", "ptc", "minimal", "cordis"] as c
 }
 
 async function main() {
-  const { lock, generated, officialRows, thinkRows } = await loadOfficialDeclarations();
-  const target = resolve(ROOT, TARGET);
+  const { lock, generated, officialRows, thinkRows } = await loadOfficialDeclarations(cliProductRoot());
+  const target = outputPath(cliProductRoot(), TARGET);
   if (process.argv.includes("--check")) {
     const current = await readFile(target, "utf8").catch(() => "");
     if (current !== generated) {

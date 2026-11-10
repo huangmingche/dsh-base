@@ -5,6 +5,7 @@ import type { ConnectionHandle } from "@deepseek-ai/dsh-client-connection/client
 import { createWebConnectionRpc } from "@deepseek-ai/dsh-client-connection/src/client/rpc.ts";
 import { installRemoteMount } from "./remote-mount.ts";
 import { createSettingsRemote } from "./settings-remote.ts";
+import { createLocalSettingsDocument } from "./local-settings-document.ts";
 import { createScheduleRemote } from "./schedule-remote.ts";
 import { createRemoteInvalidations } from "./remote-events.ts";
 import { subscribeOwnerInvalidations } from "./owner-invalidations.ts";
@@ -37,7 +38,9 @@ import { openWireStream, WireStreamFailure } from "@dsh-base/client-session-host
 import { createHostRemoteStream } from "@dsh-base/client-session-host/remote-stream";
 import type { RemoteStreamOptions } from "@deepseek-ai/dsh-api-gateway/client";
 import { fileReferenceCandidates, sessionReferenceCandidates } from "./chat-references.ts";
-import { readLocalAccount, signOutLocalAccount, type LocalAccountUser } from "./account-transport.ts";
+import { signOutLocalAccount, type LocalAccountUser } from "./account-transport.ts";
+import { accountSession } from "./account-session.ts";
+import { createNavigationAccess } from "./navigation-access.ts";
 import { createDirectoryRemote } from "./directory-remote.ts";
 import { createAttachmentRemotes } from "./attachment-remote.ts";
 import { createModelSelectionRemote, REASONING_UNAVAILABLE_REASON } from "./model-selection-remote.ts";
@@ -45,8 +48,9 @@ import { createFixedAgentPresets } from "./fixed-agent-presets.ts";
 import { agentPresetUnavailableReason, fixedAgentPresetCopy } from "../../../../boot/dsh-base-agent-presets/src/availability.ts";
 import { FIXED_AGENT_PRESET_ID } from "../../../../boot/dsh-base-agent-presets/src/index.ts";
 import { createWorkspaceFilesRemote } from "./workspace-files-remote.ts";
-import { createReadOnlyPluginRemotes } from "./plugin-inventory-readonly.ts";
+import { createPluginInventoryRemotes } from "./plugin-inventory.ts";
 import { buildFallbackModelCatalog } from "./model-catalog-fallback.ts";
+import { createSessionModelCatalog } from "./session-model-catalog.ts";
 import { createCredentialsRemote } from "./persistence-remotes.ts";
 import { feedbackUnavailableReason } from "@dsh-base/client-feedback-availability/availability";
 import { CHAT_SKILLS } from "@dsh-base/chat-skills";
@@ -55,6 +59,11 @@ import { buildSessionHistory, SessionWireSequencer, SessionLiveFrameSequencer, t
 export const name = "@dsh-base/client-session-adapter";
 export const Config = z.object({}).default({});
 export const inject = ["slots", "connection", "typert"];
+
+// Read-only declaration of the catalog the legacy transport reports. The
+// anonymous settings panel reuses it instead of adding a public model endpoint.
+export { buildFallbackModelCatalog } from "./model-catalog-fallback.ts";
+export type { FallbackModelAccess } from "./model-catalog-fallback.ts";
 
 const emptyObservable = <T>(value: T) => ({ getSnapshot: () => value, subscribe: () => () => {} });
 
@@ -554,7 +563,10 @@ interface LocalAccountView {
   };
 }
 
-const localAccountUser = readLocalAccount;
+const localAccountUser = accountSession.read;
+let signInPoll: ReturnType<typeof setInterval> | undefined;
+const stopSignInPoll = () => { clearInterval(signInPoll); signInPoll = undefined; };
+const refreshAccount = () => accountSession.refresh();
 
 function localAccountView(user: LocalAccountUser | null, attempt: LocalAccountView["attempt"] = null): LocalAccountView {
   return {
@@ -573,17 +585,13 @@ const remoteAccount = {
   },
   watch: async function* (signal: AbortSignal): AsyncGenerator<LocalAccountView> {
     let previous = "";
-    while (!signal.aborted) {
-      const view = localAccountView(await localAccountUser());
+    for await (const user of accountSession.watch(signal)) {
+      const view = localAccountView(user);
       const signature = JSON.stringify(view);
       if (signature !== previous) {
         previous = signature;
         yield view;
       }
-      await new Promise<void>((resolve) => {
-        const timer = setTimeout(resolve, 2000);
-        signal.addEventListener("abort", () => { clearTimeout(timer); resolve(); }, { once: true });
-      });
     }
   },
   getProfile: async () => {
@@ -609,20 +617,28 @@ const remoteAccount = {
       });
     }
   },
-  startSignIn: async () => ({ ok: true as const, value: localAccountView(null, {
+  startSignIn: async () => {
+    stopSignInPoll();
+    const expiresAt = Date.now() + 10 * 60 * 1000;
+    signInPoll = setInterval(() => {
+      if (Date.now() >= expiresAt) { stopSignInPoll(); return; }
+      void refreshAccount().then(user => { if (user !== null) stopSignInPoll(); }).catch(() => {});
+    }, 2000);
+    return { ok: true as const, value: localAccountView(null, {
     id: `local-${Date.now()}`,
     phase: "waiting-browser",
     authorizeUrl: `${location.origin}/login?popup=1`,
-    expiresAt: Date.now() + 10 * 60 * 1000,
-  }) }),
+    expiresAt,
+  }) }; },
   cancelSignIn: async () => {
-    try { return { ok: true as const, value: localAccountView(await localAccountUser()) }; }
+    stopSignInPoll();
+    try { return { ok: true as const, value: localAccountView(await refreshAccount()) }; }
     catch (error) { return hostError(error); }
   },
   signOut: async () => {
     try {
       await signOutLocalAccount();
-      return { ok: true as const, value: localAccountView(null) };
+      return { ok: true as const, value: localAccountView(await refreshAccount()) };
     } catch (error) { return hostError(error); }
   },
 };
@@ -630,20 +646,25 @@ const remoteAccount = {
 /** Workspace file reads are authoritative; a missing endpoint is never a transcript. */
 const remoteWorkspaceFiles = createWorkspaceFilesRemote(() => officialWorkspaceFilesGateway);
 
-const remoteDirectoryPicker = createDirectoryRemote(() => connectionRpc());
+const remoteDirectoryPicker = createDirectoryRemote(() => connectionRpc(), () => accountSession.status() === 'authenticated');
 const remoteAgentPresets = createFixedAgentPresets(
   () => fixedAgentPresetCopy(clientContext?.get("locale")?.getSnapshot().active),
 );
 
 const remotePermissionPresets = {
-  catalog: async () => withOfficialPermission(
+  catalog: async () => {
+    try {
+      if (await accountSession.read() === null) return hostError(Object.assign(new Error('Sign in to read the Host permission catalog.'), { code: 'auth/required' }));
+    } catch (error) { return hostError(error); }
+    return withOfficialPermission(
     () => officialPermissionGateway!.catalog(),
     async () => {
       if (hostTransport === undefined) return hostError(new Error("Host permission catalog is unavailable"));
       try { return { ok: true as const, value: await hostTransport.request<import("@deepseek-ai/dsh-permission-presets/client").PermissionCatalog>("permissionCatalog") }; }
       catch (error) { return hostError(error); }
     },
-  ),
+    );
+  },
 };
 
 /* ---------------------------------------------------------------------------
@@ -724,6 +745,15 @@ const remoteToolResults = {
   },
 };
 
+// Anonymous settings: only an explicit signed-out session answer enables the
+// local document; unknown or failed reads keep the Host RPC path (R10). The
+// document is constructed lazily so a signed-in page never touches localStorage.
+let anonymousSettingsDocument: ReturnType<typeof createLocalSettingsDocument> | undefined;
+const localSettingsDocument = (): ReturnType<typeof createLocalSettingsDocument> =>
+  (anonymousSettingsDocument ??= createLocalSettingsDocument());
+const isAnonymousSettingsSession = (): Promise<boolean> =>
+  localAccountUser().then(user => user === null);
+
 const remote = {
   $on: (event: string, listener: ApprovalListener) => {
     if (event !== "approval/request") return invalidations.on(event, listener as unknown as (...args: unknown[]) => void);
@@ -735,7 +765,15 @@ const remote = {
   $stream: <Item>(options: RemoteStreamOptions<Item>) => {
     const connection = clientContext?.get("connection");
     if (connection === undefined) throw new Error("Remote stream requires the official Connection service");
-    return createHostRemoteStream(connection, options);
+    return createHostRemoteStream(connection, {
+      ...options,
+      async *open(signal) {
+        // Some official controllers (notably Workspace) subscribe before the
+        // first Connection generation. Keep their real stream pending while
+        // signed out instead of probing private endpoints or inventing data.
+        yield* accountSession.openAuthenticated(signal, options.open);
+      },
+    });
   },
   workspace: remoteWorkspace,
   workspaceFiles: remoteWorkspaceFiles,
@@ -748,6 +786,7 @@ const remote = {
   settings: createSettingsRemote({
     rpc: connectionRpc,
     changed: (namespace) => invalidations.emit("settings/document-updated", namespace.ns, namespace.revision),
+    anonymous: { isAnonymous: isAnonymousSettingsSession, document: localSettingsDocument },
   }),
   session: {
     attachment: attachmentRemotes.attachment,
@@ -1012,7 +1051,11 @@ const remote = {
       ),
       () => refreshOfficialSessions(),
     ),
-    modelCatalog: async () => withOfficialSession<OfficialModelCatalog>(
+    modelCatalog: async () => {
+      try {
+        if (await accountSession.read() === null) return hostError(new Error("auth/required: Sign in to read the model catalog."));
+      } catch (error) { return hostError(error); }
+      return withOfficialSession<OfficialModelCatalog>(
       () => officialSessionGateway!.modelCatalog(),
       async () => {
         if (hostTransport === undefined) return hostError(new Error("host transport missing"));
@@ -1024,7 +1067,8 @@ const remote = {
           return hostError(error);
         }
       },
-    ),
+      );
+    },
     followLegacy: async function* (input: { address?: { sessionId?: string; childSessionId?: string } }, signal: AbortSignal) {
       const sessionId = input.address?.sessionId ?? input.address?.childSessionId;
       if (sessionId === undefined || hostTransport === undefined) return;
@@ -1375,6 +1419,29 @@ const modules = {
 
 export async function apply(ctx: Context): Promise<void> {
   clientContext = ctx;
+  ctx.provide('navigationAccess', createNavigationAccess(accountSession));
+  const initialAccount = accountSession.current();
+  let lastOwner: string | null | undefined = initialAccount === undefined ? undefined : initialAccount?.id ?? null;
+  ctx.effect(() => {
+    const refresh = () => { void refreshAccount().catch(error => ctx.logger.warn(`Account session read failed: ${error instanceof Error ? error.message : String(error)}`)); };
+    const visible = () => { if (document.visibilityState === 'visible') refresh(); };
+    const unsubscribe = accountSession.subscribe(() => {
+      const user = accountSession.current();
+      if (user === undefined) return; // Keep a real read error distinct from signed-out.
+      const owner = user?.id ?? null;
+      if (lastOwner !== undefined && owner !== lastOwner) {
+        // Official RemoteAccess preserves owner grants through carrier loss.
+        // Any confirmed identity transition needs a fresh access lifetime and
+        // composition, including first sign-in from the anonymous static rows.
+        location.reload();
+      }
+      lastOwner = owner;
+    });
+    window.addEventListener('focus', refresh);
+    document.addEventListener('visibilitychange', visible);
+    void accountSession.read().catch(error => ctx.logger.warn(`Account session read failed: ${error instanceof Error ? error.message : String(error)}`));
+    return () => { unsubscribe(); stopSignInPoll(); window.removeEventListener('focus', refresh); document.removeEventListener('visibilitychange', visible); };
+  }, 'dsh-base: checked account lifetime');
   const approvals = createApprovalBridge({
     call: createApprovalHostCall(location.origin), ready: () => approvalListeners.size > 0,
     present: presentApproval,
@@ -1396,14 +1463,23 @@ export async function apply(ctx: Context): Promise<void> {
     }), "dsh-base: approval reconnect");
   });
   ctx.effect(() => () => { invalidations.clear(); }, "dsh-base: remote invalidations");
-  ctx.effect(() => subscribeOwnerInvalidations({
+  ctx.effect(() => {
+    let close: (() => void) | undefined;
+    const update = () => {
+      if (accountSession.current() == null) { close?.(); close = undefined; return; }
+      close ??= subscribeOwnerInvalidations({
     url: "/api/session-host/changes",
     emit: invalidations.emit,
     changed: (topics, baseline) => { if (baseline || topics === undefined || topics.includes("sessions")) approvals.invalidate(); },
     error: error => ctx.logger.warn(`Owner change stream: ${error.message}`),
-  }), "dsh-base: owner change stream");
+      });
+    };
+    const unsubscribe = accountSession.subscribe(update);
+    update();
+    return () => { unsubscribe(); close?.(); };
+  }, "dsh-base: owner change stream");
   // The unchanged official api-session-controller owns the sessions service.
-  await installRemoteMount(ctx, remote);
+  await installRemoteMount(ctx, remote, { isAuthenticated: () => accountSession.current() != null, subscribe: accountSession.subscribe });
   ctx.provide("remote.commands", remote.commands);
   ctx.provide("remote.subagents", remote.subagents);
   ctx.provide("remote.settings", remote.settings);
@@ -1425,7 +1501,7 @@ export async function apply(ctx: Context): Promise<void> {
     resume: async () => unavailable("unavailable"),
     clear: async () => unavailable("unavailable"),
   };
-  const remoteCredentials = createCredentialsRemote(hostTransport);
+  const remoteCredentials = createCredentialsRemote(hostTransport, accountSession.read);
   const remoteUserQuestions = {
     attachWait: () => undefined,
     answer: async () => unavailable("unavailable"),
@@ -1474,6 +1550,7 @@ export async function apply(ctx: Context): Promise<void> {
     search: async () => unavailable("session-reference/unavailable"),
   };
   const remoteSchedule = createScheduleRemote({
+    isAuthenticated: () => accountSession.status() === "authenticated",
     rpc: connectionRpc,
     changed: () => invalidations.emit("schedule/changed"),
   });
@@ -1499,6 +1576,25 @@ export async function apply(ctx: Context): Promise<void> {
     report: async () => ({ ok: true as const, value: undefined }),
     watchPolicy: async function* () { return; },
   };
+  const pluginRemotes = createPluginInventoryRemotes({
+    isAuthenticated: () => accountSession.status() === "authenticated",
+    selectionChanged: name => { if (name === '@dsh-base/cloudflare-think-ai-gateway') invalidations.emit('llm/adapters-updated'); },
+    entries: () => typeof window === "undefined" ? undefined : window.__DSH_BASE_PLUGINS__,
+    locale: () => clientContext?.get("locale")?.getSnapshot().active ?? "en",
+    applyRuntime: async (moduleName, disabled) => {
+      const loader = clientContext?.get("loader") as unknown as { entries(): Iterable<{ options: { name: string }; update(options: { disabled: boolean }): Promise<void> }> } | undefined;
+      if (loader === undefined) throw new Error("The official Loader is unavailable.");
+      const entry = [...loader.entries()].find(candidate => candidate.options.name === moduleName);
+      if (entry === undefined) throw new Error("This bundled plugin has no live Loader entry in the current page; reload to apply it.");
+      await entry.update({ disabled })
+    },
+    runtimeDisabled: moduleName => {
+      const loader = clientContext?.get("loader") as unknown as { entries(): Iterable<{ options: { name: string }; disabled?: boolean }> } | undefined;
+      return loader === undefined ? undefined : [...loader.entries()].find(candidate => candidate.options.name === moduleName)?.disabled;
+    },
+  });
+  const remotePluginManager = pluginRemotes.manager;
+  const remotePluginRegistryProbe = pluginRemotes.registryProbe;
   interface DeploymentModelAccess {
     readonly platformEnabled: boolean;
     readonly ownerKeyConfigured: boolean;
@@ -1507,10 +1603,12 @@ export async function apply(ctx: Context): Promise<void> {
     readonly catalog: ReadonlyArray<{ readonly id: string; readonly label: string; readonly contextWindow: number }>;
     readonly providers?: Readonly<Record<string, { readonly available: boolean; readonly catalog: DeploymentModelAccess["catalog"] }>>;
   }
-  const readModelAccess = async (): Promise<DeploymentModelAccess> => {
+  const readModelAccess = async (sessionId?: string): Promise<DeploymentModelAccess> => {
+    if (await accountSession.read() === null) throw new Error("auth/required: Sign in to read model availability.");
     if (hostTransport === undefined) throw new Error("The Host transport is unavailable.");
-    return await hostTransport.request<DeploymentModelAccess>("modelAccess");
+    return await hostTransport.request<DeploymentModelAccess>("modelAccess", sessionId === undefined ? undefined : { sessionId });
   };
+  ctx.provide("sessionModelCatalog", createSessionModelCatalog({ account: accountSession.read, access: readModelAccess, locale: () => ctx.get("locale")?.getSnapshot().active ?? "en" }));
   const remoteLlm = {
     // The adapter registry is what the Host can actually route. Its presence is
     // derived from the Host's modelAccess, never from optimistic client state.
@@ -1560,10 +1658,7 @@ export async function apply(ctx: Context): Promise<void> {
     },
   };
   ctx.provide("modelAccess", { load: async () => await readModelAccess() });
-  const readOnlyPluginRemotes = createReadOnlyPluginRemotes({
-    entries: () => typeof window === "undefined" ? undefined : (window as unknown as { __DSH_BASE_PLUGINS__?: import("@dsh-base/plugin-loader-static").StaticPluginInspection[] }).__DSH_BASE_PLUGINS__,
-    locale: () => clientContext?.get("locale")?.getSnapshot().active ?? "en",
-  });
+  const remotePluginInventory = pluginRemotes.inventory;
   const feedbackUnavailable = async () => ({ ok: false as const, error: {
     code: "feedback/unavailable",
     message: feedbackUnavailableReason(clientContext?.get("locale")?.getSnapshot().active), details: {},
@@ -1577,11 +1672,11 @@ export async function apply(ctx: Context): Promise<void> {
     skills: remoteSkills,
     fileReferences: remoteFileReferences,
     sessionReferenceResolver: remoteSessionReferenceResolver,
-    pluginInventory: readOnlyPluginRemotes.inventory,
-    pluginManager: readOnlyPluginRemotes.manager,
-    pluginRegistryProbe: readOnlyPluginRemotes.registryProbe,
+    pluginInventory: remotePluginInventory,
     llm: remoteLlm,
     schedule: remoteSchedule,
+    pluginManager: remotePluginManager,
+    pluginRegistryProbe: remotePluginRegistryProbe,
     productAnalytics: remoteProductAnalytics,
     dynamicCordisRunner: remoteDynamicCordisRunner,
     messageFeedback: remoteMessageFeedback,
@@ -1593,11 +1688,11 @@ export async function apply(ctx: Context): Promise<void> {
   ctx.provide("remote.skills", remoteSkills);
   ctx.provide("remote.fileReferences", remoteFileReferences);
   ctx.provide("remote.sessionReferenceResolver", remoteSessionReferenceResolver);
-  ctx.provide("remote.pluginInventory", readOnlyPluginRemotes.inventory);
-  ctx.provide("remote.pluginManager", readOnlyPluginRemotes.manager);
-  ctx.provide("remote.pluginRegistryProbe", readOnlyPluginRemotes.registryProbe);
+  ctx.provide("remote.pluginInventory", remotePluginInventory);
   ctx.provide("remote.llm", remoteLlm);
   ctx.provide("remote.schedule", remoteSchedule);
+  ctx.provide("remote.pluginManager", remotePluginManager);
+  ctx.provide("remote.pluginRegistryProbe", remotePluginRegistryProbe);
   ctx.provide("remote.productAnalytics", remoteProductAnalytics);
   ctx.provide("remote.dynamicCordisRunner", remoteDynamicCordisRunner);
   ctx.provide("dynamicCordisRunner", dynamicCordisRunner);

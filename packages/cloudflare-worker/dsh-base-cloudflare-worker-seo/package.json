@@ -1,0 +1,36 @@
+{
+  "name": "@dsh-base/cloudflare-worker-seo",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@dsh-base/cloudflare-worker-site-config": "workspace:*",
+    "@dsh-base/cloudflare-worker-manifest": "workspace:*",
+    "@dsh-base/cloudflare-worker-public-pages": "workspace:*"
+  },
+  "dshBase": {
+    "worker": {
+      "id": "cloudflare:worker:seo",
+      "origin": "custom",
+      "order": 16
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-primitives",
+        "@deepseek-ai/dsh-client-ui-theme"
+      ],
+      "reason": "No official Worker plugin renders localized public HTML metadata in this composition. The official locale package is a browser runtime and cannot serve crawlable HTML; this worker plugin owns the public HTML locale boundary. Default site artwork is generated at development time from the pinned ui-primitives stable FISH_LOGO_PATH/FISH_LOGO_VIEWBOX exports; no client code enters the Worker. Bundled transparent black/white favicons follow the pinned official web app SVG-only link-media pattern, without competing default ICO/PNG candidates and separately from installation tiles. Content-versioned asset references preserve administrator overrides. The development-only social-image renderer reads exported ui-theme Montserrat font assets because no stable font entry exists; the declared source entries are asset provenance, never Worker imports.",
+      "sourceEntries": [
+        "@deepseek-ai/dsh-client-ui-theme/src/styles/montserrat-regular.woff2",
+        "@deepseek-ai/dsh-client-ui-theme/src/styles/montserrat-medium.woff2"
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db"
+    }
+  }
+}

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 
 /** Follow an anonymous private link through a real password login in a fresh browser context. */
-export async function assertLoginReturn(browser, account, target) {
+export async function assertLoginReturn(browser, account, target, selectedPath) {
   target.search = "?view=a%23b&filter=one%20two";
   target.hash = "#section%202";
   const context = await browser.createBrowserContext();
@@ -17,6 +17,8 @@ export async function assertLoginReturn(browser, account, target) {
 
     await page.waitForSelector('input[name="username"]', { visible: true });
     await page.type('input[name="username"]', account.username);
+    await page.click("button[type=submit]");
+    await page.waitForSelector('input[name="password"]', { visible: true });
     await page.type('input[name="password"]', account.password);
     const [signIn, document] = await Promise.all([
       page.waitForResponse(response => new URL(response.url()).pathname === "/api/auth/sign-in/username"
@@ -27,6 +29,12 @@ export async function assertLoginReturn(browser, account, target) {
     assert.equal(signIn.status(), 200);
     assert.equal(document?.status(), 200);
     assert.equal(await page.evaluate(() => window.__loginReturnEntry), target.href, "login restores the full original address");
+    // A Workspace opens its saved blank Session after the original document loads.
+    const selectedId = decodeURIComponent(selectedPath.split("/").at(-1));
+    await page.waitForFunction((path, id) => location.pathname === path
+      && Array.from(document.querySelectorAll("[data-conversation-session]")).some(node => node.dataset.conversationSession === id),
+    { timeout: 60000 }, selectedPath, selectedId);
+    assert.equal(page.url(), target.origin + selectedPath + target.search + target.hash, "selection keeps the query and fragment");
     return target.pathname;
   } finally {
     await context.close();

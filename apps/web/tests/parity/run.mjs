@@ -6,6 +6,7 @@ import { createHash } from "node:crypto";
 import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { resolve } from "node:path";
+import { settle, stableCompare, stableScreenshot } from "./stability.mjs";
 const appRoot = resolve(import.meta.dirname, "../..");
 const repoRoot = resolve(appRoot, "../..");
 const requireFromApp = createRequire(resolve(appRoot, "package.json"));
@@ -79,9 +80,11 @@ async function compare(surface, state, locale) {
     assert.deepEqual(b, a, `${name}: rendered text, controls or layout differ from official reference`);
     await reference.page.evaluate(() => document.activeElement?.blur());
     await adapted.page.evaluate(() => document.activeElement?.blur());
-    const before = await reference.page.screenshot({ path: resolve(output, `${name}-official.png`), captureBeyondViewport: false });
-    const after = await adapted.page.screenshot({ path: resolve(output, `${name}-adapted.png`), captureBeyondViewport: false });
-    assert.ok(Buffer.from(before).equals(Buffer.from(after)), `${name}: screenshot pixels differ from official reference`);
+    const pair = await stableCompare(name,
+      () => stableScreenshot(reference.page, { path: resolve(output, `${name}-official.png`), captureBeyondViewport: false }),
+      () => stableScreenshot(adapted.page, { path: resolve(output, `${name}-adapted.png`), captureBeyondViewport: false }));
+    const before = pair.a, after = pair.b;
+    assert.ok(pair.equal, `${name}: screenshot pixels differ from official reference (attempts ${pair.attempts})`);
     if (surface === "terminal" || surface === "session-log") {
       assert.ok(b.controls.length >= 1 && b.controls.every(control => control.disabled), `${surface}: every unavailable action stays visibly disabled`);
       assert.match(b.text, surface === "terminal" ? /PTY/ : locale === "zh" ? /上传服务/ : /upload service/);

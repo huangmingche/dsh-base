@@ -5,7 +5,7 @@ import { randomBytes } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { createServer } from "node:net";
-import { chromeExecutable, openSavedSession } from "./acceptance-config.mjs";
+import { chromeExecutable } from "./acceptance-config.mjs";
 import puppeteer from "puppeteer-core";
 
 const app = resolve(import.meta.dirname, "..");
@@ -35,7 +35,7 @@ try {
         const page = await browser.newPage();
         await page.setViewport({ width: 1440, height: 900 });
         await page.setCookie({ name: match[1], value: match[2], url: base, httpOnly: true, sameSite: "Lax" });
-        await openSavedSession(page, base, session.sessionId, 60000);
+        await page.goto(`${base}/app/session/${session.sessionId}`, { waitUntil: "domcontentloaded", timeout: 60000 });
         await page.waitForSelector('[contenteditable], textarea, [role="textbox"]', { timeout: 60000 });
         await page.waitForFunction(() => [...document.querySelectorAll("button, a")].some(element => (element.textContent ?? "").trim() === "Plugins" && element.getBoundingClientRect().width > 0), { timeout: 30000 });
         await new Promise(r => setTimeout(r, delay));

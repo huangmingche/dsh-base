@@ -1,0 +1,15 @@
+# Waffo Pancake payment interface
+
+Contributes plans, checkout and billing through the official `plugins.bundle.config` slot for `dsh-base:waffo`. The official plugin manager owns title, navigation and layout. This plugin uses unchanged official `Button` and exported settings field styles. It adds no settings sections and does not change DeepSeek Platform account, wallet or top-up controls. The pinned DSH has no Waffo Pancake SaaS payment UI, so this is an independent local plugin. The purchased template was a workflow reference only; no template or official source is copied here.
+
+Reads public `GET /api/payments` and session status; reads private `GET /api/payments/account` only when payments are configured and the session is genuinely authenticated. Guest actions open the existing login flow. Same-tab sessionStorage retains the purchase intent for at most 30 minutes and restores it only after a verified session. The intent freezes the plan ID, local return path, language and UUID idempotency key; a bound owner cannot resume under another account, and network retries preserve the key. The Waffo Pancake hosted page shows the final price, and redirects never grant access. Billing management uses only the real server-provided destination. Navigation allows only `https://pancake.waffo.ai`, rejects user information and nondefault ports, and preserves the provider signature fragment. A 401 clears private billing state; disposal aborts requests.
+
+All eight official languages distinguish incomplete configuration, loading errors, refunds and inactive access. Validation does not perform real payments.
+
+Checks: `node --experimental-strip-types --test packages/client/dsh-base-client-waffo/tests/*.test.ts`, `node --test packages/client/dsh-base-client-waffo/tests/*.test.mjs`. Covers actual slot registration, rendered comparison with official controls, guest/disabled request isolation, typed boundaries, redirect hosts, idempotent retries and request lifetime.
+
+The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. The default workbench requires sign-in. The panel and server authorize account and administrator actions. Unloading removes the registration and never exposes private row configuration.
+
+Browser check: `node packages/client/dsh-base-client-waffo/tests/payment-panel-browser.mjs`. The payment panel is tested in eight English/Chinese, light/dark and desktop/narrow-screen cases compare official button geometry/styles and exercise guest selection, login and restoration of the same intent. Local fixtures intercept hosted payment destinations, so no real payment occurs. Evidence is written to `.artifacts/waffo-payment-panel-browser/`.
+
+Pricing and post-login checkout flow also reference purchased-template commit `b101976ed1aa6d4fd39ca5a1e7f0b95a7c4777d7`: `src/components/pricing/pricing-card.tsx`, `src/components/pricing/create-checkout-button.tsx` and `src/config/payment.ts`. This is a behavior reference with no source copied; the original commercial license remains with the template. See `dshBase.reference` for provenance.

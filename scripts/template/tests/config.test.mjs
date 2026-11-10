@@ -29,6 +29,28 @@ test("explicit config/environment precedence and deployment requirements", () =>
   assert.throws(() => requireDeployableConfig(value), /real HTTPS/);
   assert.doesNotThrow(() => requireDeployableConfig({ ...value, authBaseUrl: "https://app.example.test" }));
 });
+test("indexing requires explicit production opt-in and one real canonical origin", () => {
+  assert.deepEqual(config().indexing, { environment: "staging", enabled: false });
+  const base = { authBaseUrl: "https://product.example.test", indexing: { environment: "production", enabled: true } };
+  assert.equal(config(base).indexing.enabled, true);
+  for (const indexing of [null, {}, { environment: "staging", enabled: true }, { environment: "production", enabled: "true" }]) {
+    assert.throws(() => config({ ...base, indexing }), /index|production/i);
+  }
+  for (const authBaseUrl of ["http://localhost:5173", "https://example.com", "https://sub.example.org"]) {
+    assert.throws(() => config({ ...base, authBaseUrl }), /index|production/i);
+  }
+  assert.throws(() => config({ ...base, seo: { site: { url: "https://different.example.test" } } }), /match authBaseUrl/);
+  assert.equal(config(base, { DSH_INDEXING_JSON: '{"environment":"staging","enabled":false}' }).indexing.enabled, false);
+});
+test("site administration is explicitly assigned to verified IDs, with no default access", () => {
+  assert.deepEqual(config().siteAdminUserIds, []);
+  assert.deepEqual(config({ siteAdminUserIds: ["verified-id"] }).siteAdminUserIds, ["verified-id"]);
+  assert.deepEqual(config({ siteAdminUserIds: ["old-id"] }, { DSH_SITE_ADMIN_USER_IDS: '["new-id"]' }).siteAdminUserIds, ["new-id"]);
+  for (const value of [null, {}, "admin", [""], [" spaced "], [42], ["same", "same"]]) assert.throws(() => config({ siteAdminUserIds: value }), /Invalid deployment value/);
+  assert.throws(() => config({}, { DSH_SITE_ADMIN_USER_IDS: "admin" }), /JSON array/);
+  const first = config(); first.siteAdminUserIds.push("local-test");
+  assert.deepEqual(config().siteAdminUserIds, [], "defaults are not mutated across builds");
+});
 test("remote acceptance never selects a deployment or public credentials implicitly", () => {
   assert.throws(() => remoteAcceptanceConfig({}), /explicitly/);
   assert.throws(() => remoteAcceptanceConfig({ DSH_BASE_URL: "https://app.example.test" }), /private/);
@@ -58,7 +80,7 @@ test("readiness waits only for old Host schema/version, never submits models or 
 test("template init validates before writing and never overwrites existing identities/secrets", () => {
   const root = mkdtempSync(join(tmpdir(), "dsh-template-test-"));
   try {
-    for (const file of ["scripts/template/init.mjs", "apps/web/scripts/deployment-config.mjs", "apps/web/deployment.example.json"]) {
+    for (const file of ["scripts/template/init.mjs", "scripts/build/product-paths.mjs", "scripts/composition/project-context.mjs", "scripts/composition/applications.mjs", "apps/web/scripts/deployment-config.mjs", "apps/web/scripts/saas-config.mjs", "packages/boot/dsh-base-payment-catalog/src/index.ts", "apps/web/deployment.example.json"]) {
       const target = join(root, file); mkdirSync(resolve(target, ".."), { recursive: true }); copyFileSync(file, target);
     }
     const run = (name) => spawnSync(process.execPath, [join(root, "scripts/template/init.mjs"), "--worker-name", name, "--auth-base-url", "https://app.example.test"], { cwd: root, encoding: "utf8" });

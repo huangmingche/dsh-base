@@ -10,5 +10,7 @@ export default defineConfig({
   resolve: { dedupe: ["react", "react-dom"] },
   server: { host: "127.0.0.1", fs: { allow: [fileURLToPath(new URL("../../", import.meta.url))] } },
   define: { "process.env.DSH_CLIENT_TITLE": JSON.stringify("DSH parity fixture") },
-  build: { outDir: fileURLToPath(new URL("./dist/parity", import.meta.url)), emptyOutDir: true },
+  // Independent acceptance processes may isolate generated bundles while keeping
+  // the same source fixture and all assertions unchanged.
+  build: { outDir: process.env.DSH_PARITY_BUILD_DIR || fileURLToPath(new URL("./dist/parity", import.meta.url)), emptyOutDir: true },
 });

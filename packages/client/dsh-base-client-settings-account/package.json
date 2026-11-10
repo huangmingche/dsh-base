@@ -1,0 +1,80 @@
+{
+  "name": "@dsh-base/client-settings-account",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/client/entry.ts",
+    "./client": "./src/client/entry.ts",
+    "./src/*": "./src/*",
+    "./assets/*": "./src/client/assets/*",
+    "./locale/*.json": "./locale/*.json",
+    "./package.json": "./package.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-chat",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-theme"
+      ],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/schemastery": "*",
+    "@deepseek-ai/dsh-api-remote-access": "*",
+    "@deepseek-ai/dsh-api-remotes": "*",
+    "@deepseek-ai/dsh-client-locale": "*",
+    "@deepseek-ai/dsh-client-store": "*",
+    "@deepseek-ai/dsh-client-test-runtime": "*",
+    "@deepseek-ai/dsh-client-ui-chat": "*",
+    "@deepseek-ai/dsh-client-ui-layout": "*",
+    "@deepseek-ai/dsh-client-ui-primitives": "*",
+    "@deepseek-ai/dsh-client-ui-renderer": "*",
+    "@deepseek-ai/dsh-client-ui-settings": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*",
+    "@deepseek-ai/dsh-client-ui-theme": "*",
+    "@deepseek-ai/dsh-deepseek-account": "*",
+    "@deepseek-ai/dsh-settings": "*",
+    "@types/big.js": "*",
+    "react": "*",
+    "react-dom": "*",
+    "@deepseek-ai/dsh-client-ui-settings-models": "*",
+    "@deepseek-ai/dsh-host-webserver": "*",
+    "big.js": "*",
+    "@deepseek-ai/dsh-client-product-analytics": "*",
+    "zod": "*",
+    "@dsh-base/client-deepseek-provider": "*"
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:settings-account",
+      "origin": "fork",
+      "order": 69,
+      "replaces": "@deepseek-ai/dsh-client-ui-settings-account"
+    },
+    "forkOf": {
+      "package": "@deepseek-ai/dsh-client-ui-settings-account",
+      "path": "packages/client/ui-settings-account",
+      "commit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "license": "MIT"
+    },
+    "reuse": {
+      "mode": "fork",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-settings-account"
+      ],
+      "reason": "The pinned AccountSection exports the official complete account cards only through its credential or active-attempt branches. Its genuine signed-out branch returns a centered sign-in prompt, with no exported presentation option for unavailable account cards. The user requested those complete cards remain visible while unavailable, with a separate Dsh-base sign-in action below. A complete runtime fork adds only optional presentation=full-unavailable for genuine signed-out state with no attempt. It retains the default auto behavior, original registration, dictionaries, assets and CSS; no credential or attempt is fabricated, no private read is added, and unavailable Platform anchors have no navigation target or Host click handler. The local sign-in extension remains in the separate account-launcher plugin. A type-only AccountOnboarding import follows the deployed client-deepseek-provider replacement to share its settings.models namespace, avoiding a duplicate augmentation from the disabled original.",
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "gaps": [
+        "This revision limits the workbench to authenticated accounts. The anonymous homepage uses the isolated sign-in and consent document providers."
+      ]
+    }
+  }
+}

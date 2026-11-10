@@ -1,0 +1,217 @@
+{
+  "upstreamCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+  "baseline": "Existing Gateway card, Loader Config export and locale adaptations; these predate this anonymous presentation change.",
+  "additions": [],
+  "files": [
+    {
+      "path": "src/client/ModelsSection.tsx",
+      "baselineChanges": [
+        {
+          "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
+          "line": 29,
+          "before": "// Type-only: pulls this package's SlotMap merge (the two Models child slots).\nimport type {} from './slot-contract.ts'\nimport { CustomProviderCard } from './CustomProviderCard.tsx'\n",
+          "after": "// Type-only: pulls this package's SlotMap merge (the two Models child slots).\nimport type { ProviderCardExtrasOwnerProps } from './slot-contract.ts'\nimport { CustomProviderCard } from './CustomProviderCard.tsx'\n"
+        },
+        {
+          "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
+          "line": 66,
+          "before": "type ModelsRenderSlot = PropsRenderSlots<ModelsChildSlots>['renderSlot']\n\n",
+          "after": "type ModelsRenderSlot = PropsRenderSlots<ModelsChildSlots>['renderSlot']\n\n/** Own adapter contract for the read-only Gateway provider-card seat. */\ninterface GatewayProviderCardOwnerProps extends ProviderCardExtrasOwnerProps {\n  gatewayOpen: boolean\n  onGatewayToggle: (open: boolean) => void\n}\n\n"
+        },
+        {
+          "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
+          "line": 439,
+          "before": "            : <p role=\"alert\" className={styles['error']}>{row.entry.error}</p>\n          if (needsSetup(row, anyUsable) && !dismissedSetup.has(row.entry.provider)) {\n",
+          "after": "            : <p role=\"alert\" className={styles['error']}>{row.entry.error}</p>\n          // The gateway provider is operator-managed: its plugin renders the\n          // same official compact row + expanded editor surface through the\n          // provider-card seat. No unknown-namespace editor/YAML hint is shown.\n          if (row.entry.settingsNs === 'llm-cloudflare-gateway') {\n            const gatewayOpen = !addOpen && editing?.provider === row.entry.provider\n            const owner: GatewayProviderCardOwnerProps = {\n              provider: row.entry, configured: row.configured, keyConfigured: keyConfiguredOf(row),\n              // Explicit own adapter contract: the Gateway slot is a controlled\n              // read-only card in the fork's one-open-card state, not an\n              // independent expander.\n              gatewayOpen,\n              onGatewayToggle: (open: boolean) => {\n                setSavedTarget(undefined)\n                setAddOpen(false)\n                setEditing(open ? target : undefined)\n              },\n            }\n            return (\n              <li key={row.entry.provider} className={styles['rowCard']} data-gateway-row>\n                {error}\n                {renderSlot('settings.models.provider-card', owner, { entryKey: row.entry.settingsNs })}\n              </li>\n            )\n          }\n          if (needsSetup(row, anyUsable) && !dismissedSetup.has(row.entry.provider)) {\n"
+        }
+      ],
+      "changes": [
+        {
+          "reason": "Use only the public controller methods the component consumes, allowing a local declaration snapshot without a private Remote controller.",
+          "before": "/** Injected dependencies of {@link ModelsSection} (slot `inject`). */\nexport interface ModelsSectionInjected {\n  /** The page store (loaded on mount, refreshed on pushed invalidations). */\n  controller: ModelsSettingsStore",
+          "after": "/** Minimal controller face consumed by the section; the Host owns its data source. */\nexport type ModelsSectionController = Pick<ModelsSettingsStore, 'store' | 'load'>\n\n/** Injected dependencies of {@link ModelsSection} (slot `inject`). */\nexport interface ModelsSectionInjected {\n  /** The page store (loaded on mount, refreshed on pushed invalidations). */\n  controller: ModelsSectionController"
+        },
+        {
+          "reason": "Declare public visibility and authentication action independently from Host writability.",
+          "before": "  /** Section copy. */\n  t: (key: keyof typeof en) => string\n}",
+          "after": "  /** Section copy. */\n  t: (key: keyof typeof en) => string\n  /** Show public provider declarations without claiming any owner configuration or credential state. */\n  presentation?: 'auto' | 'public-declarations'\n  /** Request account access before the Add provider action; absence keeps official behavior. */\n  onRequestAccess?: () => void\n}"
+        },
+        {
+          "reason": "Keep removal typed against the same minimal controller face.",
+          "before": "  controller: ModelsSettingsStore,\n  target:",
+          "after": "  controller: ModelsSectionController,\n  target:"
+        },
+        {
+          "reason": "Pass the optional Host presentation contract through the official section.",
+          "before": "  const { controller, useSnapshot, operations, schema, t, renderSlot } = props",
+          "after": "  const { controller, useSnapshot, operations, schema, t, renderSlot, presentation, onRequestAccess } = props"
+        },
+        {
+          "reason": "Preserve the original renderer while passing optional Host presentation controls.",
+          "before": "  return <Loaded injected={{ controller, useSnapshot, operations, schema, t }} renderSlot={renderSlot} />",
+          "after": "  return <Loaded injected={{ controller, useSnapshot, operations, schema, t, presentation, onRequestAccess }} renderSlot={renderSlot} />"
+        },
+        {
+          "reason": "Public declarations remain read-only even if a Host accidentally supplies a writable snapshot.",
+          "before": "  const { controller, operations, schema, t } = injected\n  const snapshot = injected.useSnapshot(value => value)\n  const state = { ...snapshot, rows: snapshot.rows.map(row => row.entry.provider === 'deepseek-account'\n    ? { ...row, entry: { ...row.entry, displayName: t('deepSeekAccount') } } : row) }",
+          "after": "  const { controller, operations, schema, t, presentation, onRequestAccess } = injected\n  const snapshot = injected.useSnapshot(value => value)\n  const publicDeclarations = presentation === 'public-declarations'\n  const state = { ...snapshot, writable: publicDeclarations ? false : snapshot.writable,\n    rows: snapshot.rows.map(row => row.entry.provider === 'deepseek-account'\n      ? { ...row, entry: { ...row.entry, displayName: t('deepSeekAccount') } } : row) }"
+        },
+        {
+          "reason": "Select publicly declared rows for visibility without setting configured or credential facts.",
+          "before": "  const configured = state.rows.filter(row => row.configured)",
+          "after": "  const configured = publicDeclarations ? state.rows : state.rows.filter(row => row.configured)"
+        },
+        {
+          "reason": "Keep the official Add provider control clickable only for an explicit Host login action while writes stay disabled.",
+          "before": "                  disabled={!state.writable || state.status !== 'ready' || (!catalogEnabled && !customEnabled)}\n                  onClick={() => {\n                    if (controller.store.getSnapshot().status !== 'ready') return\n                    const first = addable[0]",
+          "after": "                  disabled={state.status !== 'ready' || (onRequestAccess === undefined && (!state.writable || (!catalogEnabled && !customEnabled)))}\n                  onClick={() => {\n                    if (controller.store.getSnapshot().status !== 'ready') return\n                    if (onRequestAccess !== undefined) { onRequestAccess(); return }\n                    const first = addable[0]"
+        },
+        {
+          "reason": "Add a public-only provider marker for rendered acceptance without changing owner markup.",
+          "before": "<li key={row.entry.provider} className={styles['rowCard']} data-gateway-row>",
+          "after": "<li key={row.entry.provider} className={styles['rowCard']} data-gateway-row\n                data-public-provider={publicDeclarations ? row.entry.provider : undefined}>"
+        },
+        {
+          "reason": "Add a public-only setup-card provider marker; default rendering omits it.",
+          "before": "<li key={row.entry.provider} className={styles['setupCard']}>",
+          "after": "<li key={row.entry.provider} className={styles['setupCard']}\n                data-public-provider={publicDeclarations ? row.entry.provider : undefined}>"
+        },
+        {
+          "reason": "Add a public-only compact-row provider marker; default rendering omits it.",
+          "before": "<li key={row.entry.provider} className={styles['rowCard']}>",
+          "after": "<li key={row.entry.provider} className={styles['rowCard']}\n              data-public-provider={publicDeclarations ? row.entry.provider : undefined}>"
+        },
+        {
+          "reason": "Public declaration rows cannot disclose or infer credential state, even if a stale Host snapshot carries configured or missing credential facts. Live owner rows retain their official indicators.",
+          "before": "          const credentialConfigured = row.credential?.configured === true\n          const credentialMissing = !credentialConfigured",
+          "after": "          const credentialConfigured = !publicDeclarations && row.credential?.configured === true\n          const credentialMissing = !publicDeclarations && !credentialConfigured"
+        },
+        {
+          "reason": "Remove all credential enrichment from public declaration rows before either compact-row or editor rendering, including stale configured and missing facts; the default owner snapshot is preserved.",
+          "before": "  const state = { ...snapshot, writable: publicDeclarations ? false : snapshot.writable,\n    rows: snapshot.rows.map(row => row.entry.provider === 'deepseek-account'\n      ? { ...row, entry: { ...row.entry, displayName: t('deepSeekAccount') } } : row) }",
+          "after": "  const state = { ...snapshot, writable: publicDeclarations ? false : snapshot.writable,\n    rows: snapshot.rows.map(row => {\n      // Public declarations never carry credential facts into either rows or editors.\n      const visible = publicDeclarations\n        ? { ...row, credential: undefined, derivedCredential: undefined, credentialChecks: undefined }\n        : row\n      return visible.entry.provider === 'deepseek-account'\n        ? { ...visible, entry: { ...visible.entry, displayName: t('deepSeekAccount') } } : visible\n    }) }"
+        }
+      ]
+    },
+    {
+      "path": "src/client/index.ts",
+      "baselineChanges": [
+        {
+          "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
+          "line": 31,
+          "before": "import { Config, ONBOARDING_CONFIG_GLOBAL } from '../onboarding-config.ts'\n\n",
+          "after": "import { Config, ONBOARDING_CONFIG_GLOBAL } from '../onboarding-config.ts'\nexport { Config } from '../onboarding-config.ts'\n\n"
+        }
+      ],
+      "changes": [
+        {
+          "reason": "Expose stable component, controller and schema faces for direct anonymous Host composition.",
+          "before": "export type { ModelsSectionInjected, ModelsSectionProps } from './ModelsSection.tsx'",
+          "after": "export { ModelsSection } from './ModelsSection.tsx'\nexport type { ModelsSectionController, ModelsSectionInjected, ModelsSectionProps } from './ModelsSection.tsx'\nexport { createSettingsSchemaOperations } from './schema-operations.ts'\nexport type { SettingsSchemaOperations } from './schema-operations.ts'"
+        }
+      ]
+    },
+    {
+      "path": "src/client/locales.ts",
+      "baselineChanges": [
+        {
+          "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
+          "line": 5,
+          "before": "  nav: 'Models',\n  deepSeekAccount: 'DeepSeek Account',\n",
+          "after": "  nav: 'Models',\n  deepSeekBaseUrl: 'https://api.deepseek.com/v1',\n  deepSeekEndpointHint: 'Use an OpenAI-compatible Chat Completions API endpoint.',\n  deepSeekAccount: 'DeepSeek Account',\n"
+        },
+        {
+          "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
+          "line": 58,
+          "before": "  baseUrlPlaceholder: '{url}',\n  deepSeekBaseUrl: 'https://api.deepseek.com/anthropic (Default to use DEEPSEEK_BASE_URL)',\n  deepSeekEndpointHint: 'Use an API endpoint compatible with Anthropic Messages.',\n  models: 'Models',\n",
+          "after": "  baseUrlPlaceholder: '{url}',\n  deepSeekFixedEndpoint: 'The endpoint and model catalog are fixed by this deployment’s DeepSeek provider.',\n  deepSeekFixedEndpointUrl: 'https://api.deepseek.com/v1',\n  models: 'Models',\n"
+        },
+        {
+          "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
+          "line": 151,
+          "before": "  nav: '模型',\n  deepSeekAccount: 'DeepSeek 账号',\n",
+          "after": "  nav: '模型',\n  deepSeekBaseUrl: 'https://api.deepseek.com/v1',\n  deepSeekEndpointHint: '请填写兼容 OpenAI Chat Completions 的 API 地址。',\n  deepSeekAccount: 'DeepSeek 账号',\n"
+        },
+        {
+          "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
+          "line": 204,
+          "before": "  baseUrlPlaceholder: '{url}',\n  deepSeekBaseUrl: 'https://api.deepseek.com/anthropic（默认使用环境 DEEPSEEK_BASE_URL）',\n  deepSeekEndpointHint: '请填写兼容 Anthropic Messages 协议的 API 地址。',\n  models: '模型目录',\n",
+          "after": "  baseUrlPlaceholder: '{url}',\n  deepSeekFixedEndpoint: '当前部署的 DeepSeek 提供商固定端点与模型目录，不支持编辑。',\n  deepSeekFixedEndpointUrl: 'https://api.deepseek.com/v1',\n  models: '模型目录',\n"
+        },
+        {
+          "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
+          "line": 294,
+          "before": "  'nav': 'モデル',\n  'deepSeekAccount': 'DeepSeekアカウント',\n",
+          "after": "  'nav': 'モデル',\n  deepSeekBaseUrl: 'https://api.deepseek.com/v1',\n  deepSeekEndpointHint: 'OpenAI 互換 Chat Completions API エンドポイントを使用してください。',\n  'deepSeekAccount': 'DeepSeekアカウント',\n"
+        },
+        {
+          "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
+          "line": 347,
+          "before": "  'baseUrlPlaceholder': '{url}',\n  'deepSeekBaseUrl': 'https://api.deepseek.com/anthropic (デフォルトはDEEPSEEK_BASE_URLを使用)',\n  'deepSeekEndpointHint': 'Anthropic Messagesと互換性のあるAPIエンドポイントを使用してください。',\n  'models': 'モデル',\n",
+          "after": "  'baseUrlPlaceholder': '{url}',\n  deepSeekFixedEndpoint: 'The endpoint and model catalog are fixed by this deployment\\'s DeepSeek provider.',\n  deepSeekFixedEndpointUrl: 'https://api.deepseek.com/v1',\n  'models': 'モデル',\n"
+        },
+        {
+          "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
+          "line": 437,
+          "before": "  nav: 'Modelos',\n  deepSeekAccount: 'Cuenta DeepSeek',\n",
+          "after": "  nav: 'Modelos',\n  deepSeekBaseUrl: 'https://api.deepseek.com/v1',\n  deepSeekEndpointHint: 'Use un endpoint API compatible con OpenAI Chat Completions.',\n  deepSeekAccount: 'Cuenta DeepSeek',\n"
+        },
+        {
+          "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
+          "line": 490,
+          "before": "  baseUrlPlaceholder: '{url}',\n  deepSeekBaseUrl: 'https://api.deepseek.com/anthropic (Uso predeterminado DEEPSEEK_BASE_URL)',\n  deepSeekEndpointHint: 'Utilice un punto final API compatible con Anthropic Messages.',\n  models: 'Modelos',\n",
+          "after": "  baseUrlPlaceholder: '{url}',\n  deepSeekFixedEndpoint: 'The endpoint and model catalog are fixed by this deployment\\'s DeepSeek provider.',\n  deepSeekFixedEndpointUrl: 'https://api.deepseek.com/v1',\n  models: 'Modelos',\n"
+        },
+        {
+          "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
+          "line": 580,
+          "before": "  nav: 'Modèles',\n  deepSeekAccount: 'Compte DeepSeek',\n",
+          "after": "  nav: 'Modèles',\n  deepSeekBaseUrl: 'https://api.deepseek.com/v1',\n  deepSeekEndpointHint: 'Utilisez un point de terminaison API compatible OpenAI Chat Completions.',\n  deepSeekAccount: 'Compte DeepSeek',\n"
+        },
+        {
+          "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
+          "line": 633,
+          "before": "  baseUrlPlaceholder: '{url}',\n  deepSeekBaseUrl: 'https://api.deepseek.com/anthropic (par défaut, DEEPSEEK_BASE_URL est utilisé)',\n  deepSeekEndpointHint: 'Utilisez un point de terminaison API compatible avec Anthropic Messages.',\n  models: 'Modèles',\n",
+          "after": "  baseUrlPlaceholder: '{url}',\n  deepSeekFixedEndpoint: 'The endpoint and model catalog are fixed by this deployment\\'s DeepSeek provider.',\n  deepSeekFixedEndpointUrl: 'https://api.deepseek.com/v1',\n  models: 'Modèles',\n"
+        },
+        {
+          "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
+          "line": 723,
+          "before": "  nav: 'Modelle',\n  deepSeekAccount: 'DeepSeek-Konto',\n",
+          "after": "  nav: 'Modelle',\n  deepSeekBaseUrl: 'https://api.deepseek.com/v1',\n  deepSeekEndpointHint: 'Verwenden Sie einen OpenAI-kompatiblen Chat-Completions-API-Endpunkt.',\n  deepSeekAccount: 'DeepSeek-Konto',\n"
+        },
+        {
+          "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
+          "line": 776,
+          "before": "  baseUrlPlaceholder: '{url}',\n  deepSeekBaseUrl: 'https://api.deepseek.com/anthropic (Standardmäßig wird DEEPSEEK_BASE_URL verwendet)',\n  deepSeekEndpointHint: 'Verwenden Sie einen API-Endpunkt, der mit Anthropic Messages kompatibel ist.',\n  models: 'Modelle',\n",
+          "after": "  baseUrlPlaceholder: '{url}',\n  deepSeekFixedEndpoint: 'The endpoint and model catalog are fixed by this deployment\\'s DeepSeek provider.',\n  deepSeekFixedEndpointUrl: 'https://api.deepseek.com/v1',\n  models: 'Modelle',\n"
+        },
+        {
+          "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
+          "line": 866,
+          "before": "  nav: 'Модели',\n  deepSeekAccount: 'DeepSeek Аккаунт',\n",
+          "after": "  nav: 'Модели',\n  deepSeekBaseUrl: 'https://api.deepseek.com/v1',\n  deepSeekEndpointHint: 'Используйте конечную точку API, совместимую с OpenAI Chat Completions.',\n  deepSeekAccount: 'DeepSeek Аккаунт',\n"
+        },
+        {
+          "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
+          "line": 919,
+          "before": "  baseUrlPlaceholder: '{url}',\n  deepSeekBaseUrl: 'https://api.deepseek.com/anthropic (по умолчанию используется DEEPSEEK_BASE_URL)',\n  deepSeekEndpointHint: 'Используйте конечную точку API, совместимую с антропными сообщениями.',\n  models: 'Модели',\n",
+          "after": "  baseUrlPlaceholder: '{url}',\n  deepSeekFixedEndpoint: 'The endpoint and model catalog are fixed by this deployment\\'s DeepSeek provider.',\n  deepSeekFixedEndpointUrl: 'https://api.deepseek.com/v1',\n  models: 'Модели',\n"
+        },
+        {
+          "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
+          "line": 1009,
+          "before": "  nav: 'Modelos',\n  deepSeekAccount: 'DeepSeek Conta',\n",
+          "after": "  nav: 'Modelos',\n  deepSeekBaseUrl: 'https://api.deepseek.com/v1',\n  deepSeekEndpointHint: 'Use um endpoint de API compatível com OpenAI Chat Completions.',\n  deepSeekAccount: 'DeepSeek Conta',\n"
+        },
+        {
+          "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
+          "line": 1062,
+          "before": "  baseUrlPlaceholder: '{url}',\n  deepSeekBaseUrl: 'https://api.deepseek.com/anthropic (padrão para usar DEEPSEEK_BASE_URL)',\n  deepSeekEndpointHint: 'Use um endpoint API compatível com Anthropic Messages.',\n  models: 'Modelos',\n",
+          "after": "  baseUrlPlaceholder: '{url}',\n  deepSeekFixedEndpoint: 'The endpoint and model catalog are fixed by this deployment\\'s DeepSeek provider.',\n  deepSeekFixedEndpointUrl: 'https://api.deepseek.com/v1',\n  models: 'Modelos',\n"
+        }
+      ],
+      "changes": []
+    }
+  ]
+}

@@ -10,7 +10,7 @@
 import type { WireInvocation, WireRpc } from "@dsh-base/cloudflare-worker-wire-rpc";
 import { SessionRpcFault } from "./remote-contract.ts";
 import { createHostCall } from "./host-call.ts";
-import { DEPLOYMENT_MODELS } from "./model-catalog.ts";
+import { DEEPSEEK_SETTINGS_SCHEMA, DEEPSEEK_SETTINGS_DEFAULTS } from "../../../boot/dsh-base-model-declarations/src/index.ts";
 import { argsOf, isRecord } from "./remote.ts";
 import { PERMISSION_DEFAULT_OPTIONS, DEFAULT_PERMISSION_PRESET } from '@dsh-base/cloudflare-worker-permissions/settings';
 
@@ -37,27 +37,10 @@ const GENERAL_SCHEMA: SchemaEnvelope = {
     welcomeNoticeVersion: { type: "string" },
   },
 };
-const DEEPSEEK_MODEL_SCHEMA = {
-  type: "object",
-  dict: {
-    id: { type: "string", meta: { required: true } },
-    name: { type: "string" },
-    contextWindow: { type: "number" },
-  },
-} as const;
-const DEEPSEEK_SCHEMA: SchemaEnvelope = {
-  type: "object",
-  dict: {
-    apiKeyEnv: { type: "string", meta: { default: "DEEPSEEK_OFFICIAL_API_KEY", role: "credential-ref", volatile: true } },
-    baseURL: { type: "string", meta: { default: "https://api.deepseek.com/v1" } },
-    models: { type: "list", inner: DEEPSEEK_MODEL_SCHEMA, meta: { default: DEPLOYMENT_MODELS.map(model => ({ id: model.id, name: model.label, contextWindow: model.contextWindow })) } },
-  },
-  meta: { default: {} },
-};
 const KNOWN_SCHEMAS: Readonly<Record<string, SchemaEnvelope>> = {
   permission: PERMISSION_SCHEMA,
   "ui-settings-general": GENERAL_SCHEMA,
-  "llm-deepseek": DEEPSEEK_SCHEMA,
+  "llm-deepseek": DEEPSEEK_SETTINGS_SCHEMA,
   "llm-cloudflare-gateway": { type: "object", dict: {}, meta: { default: {} } },
   // Data contracts from the pinned official Host registrations; no browser
   // implementation is evaluated in the Worker runtime.
@@ -79,7 +62,7 @@ const KNOWN_SCHEMAS: Readonly<Record<string, SchemaEnvelope>> = {
 const DEFAULT_VALUES: Readonly<Record<string, JsonRecord>> = {
   permission: { defaultPreset: DEFAULT_PERMISSION_PRESET },
   "ui-settings-general": {},
-  "llm-deepseek": { apiKeyEnv: "DEEPSEEK_OFFICIAL_API_KEY", baseURL: "https://api.deepseek.com/v1", models: DEPLOYMENT_MODELS.map(model => ({ id: model.id, name: model.label, contextWindow: model.contextWindow })) },
+  "llm-deepseek": DEEPSEEK_SETTINGS_DEFAULTS,
   "llm-cloudflare-gateway": {},
   "ui-settings": { enabled: true },
   locale: {},

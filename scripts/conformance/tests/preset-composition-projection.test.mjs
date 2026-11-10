@@ -28,10 +28,11 @@ assert.equal("broken" in definitionComposition({ not: "a list" }, conditional), 
 
 const root = join(import.meta.dirname, "../../..");
 const think = readThinkComposition(root);
-assert.deepEqual(think.map(row => row.id), ["cloudflare:think:deepseek", "cloudflare:think:fetch", "cloudflare:think:attachments", "cloudflare:think:persona", "cloudflare:think:memory"]);
+assert.deepEqual(think.map(row => row.id), ["cloudflare:think:ai-gateway", "cloudflare:think:deepseek", "cloudflare:think:fetch", "cloudflare:think:attachments", "cloudflare:think:subagent", "cloudflare:think:persona", "cloudflare:think:memory"]);
 const presetThink = readThinkPresetRows(root);
 assert.deepEqual(THINK_PRESET_ROWS.map(row => row.moduleName), presetThink.map(row => row.module));
-assert.equal(THINK_PRESET_ROWS.length, 4);
+assert.deepEqual(presetThink, think, "every declared Think plugin remains visible, including providers");
+assert.equal(THINK_PRESET_ROWS.length, 7);
 assert.equal(Object.keys(OFFICIAL_PRESET_ROWS).length, 4);
 assert.ok(OFFICIAL_PRESET_ROWS.standard.length > 10);
 const generated = await loadOfficialDeclarations(root);

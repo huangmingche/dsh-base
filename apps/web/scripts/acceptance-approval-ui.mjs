@@ -7,7 +7,7 @@
  * and verifies the resumed turn settles in both the DOM and the durable Host
  * transcript with no pending approvals left.
  */
-import { remoteAcceptanceConfig, chromeExecutable, closeAcceptanceBrowser, registrationHeaders, mayRegisterAcceptance, waitForHostReadiness, openSavedSession } from "./acceptance-config.mjs";
+import { remoteAcceptanceConfig, chromeExecutable, closeAcceptanceBrowser, registrationHeaders, mayRegisterAcceptance, waitForHostReadiness } from "./acceptance-config.mjs";
 import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -99,11 +99,12 @@ try {
     const response = await fetch(`${base}/api/session-host`, { method: "POST", headers: { "content-type": "application/json", origin: base, cookie }, body: JSON.stringify({ method, params }), signal: AbortSignal.timeout(20_000) });
     return { status: response.status, body: await response.json() };
   }, created.result.sessionId);
+  const sessionUrl = `${base}/app/session/${encodeURIComponent(created.result.sessionId)}`;
   let booted = false;
   for (let attempt = 1; attempt <= 5 && !booted; attempt += 1) {
     mark(`boot:attempt-${attempt}`);
     try {
-      await openSavedSession(page, base, created.result.sessionId, 45_000);
+      await page.evaluate((url) => { location.href = url; }, sessionUrl).catch(() => {});
       // The official coding/chat views have different localized placeholder
       // text. Inspect the actual writable composer contract instead of old copy.
       await page.waitForSelector('[contenteditable="true"][role="textbox"]', { timeout: 45_000 });

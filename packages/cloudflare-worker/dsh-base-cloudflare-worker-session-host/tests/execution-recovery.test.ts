@@ -32,6 +32,8 @@ const state = {
 let messages: Array<{ id: string; role: string; parts: unknown[]; metadata?: { usage: Record<string, number> } }> = [];
 const submissions = new Map<string, { status: string }>();
 let modelRuns = 0;
+let admissions = 0, pluginProjections = 0;
+let gatewayDisabled = false;
 const credentialWrites: Array<string | null> = [];
 let lostResponse = true;
 let hold = false;
@@ -40,7 +42,10 @@ let release: (() => void) | undefined;
 const agent = {
   async ensureHistory(seed: typeof messages) { if (messages.length === 0) messages = [...seed]; },
   async setModel() {}, async setUserCredential(value: string | null) { credentialWrites.push(value); },
+  async setThinkPlugins(input: { disabled?: readonly string[] }) { pluginProjections += 1; return { disabled: [...(input.disabled ?? [])] }; },
+  async getInputExecution(requestId: string) { return submissions.get(requestId); },
   async admitInput(input: { requestId: string; text: string }) {
+    admissions += 1;
     if (!submissions.has(input.requestId)) {
       modelRuns += 1;
       submissions.set(input.requestId, { status: hold ? "running" : "completed" });
@@ -60,7 +65,11 @@ const agent = {
   async cancelInput(id: string) { if (failCancelOnce) { failCancelOnce = false; throw new Error("cancel transport lost"); } submissions.set(id, { status: "aborted" }); release?.(); },
 };
 (globalThis as unknown as { __testAgent: typeof agent }).__testAgent = agent;
-let owner = new SessionHostObject(state, { DshAgent: {} as never, PLATFORM_AI_ENABLED: "true", AI_GATEWAY_ID: "test-gateway" });
+const runtimeEnv = { DshAgent: {} as never, PLATFORM_AI_ENABLED: "true", AI_GATEWAY_ID: "test-gateway", PluginControl: {
+  idFromName: (name: string) => name,
+  get: () => ({ async fetch() { return Response.json({ revision: 1, overrides: { "@dsh-base/cloudflare-think-ai-gateway": { disabled: gatewayDisabled } } }); } }),
+} };
+let owner = new SessionHostObject(state, runtimeEnv);
 const call = async (method: string, params: Record<string, unknown> = {}) => {
   const response = await owner.fetch(new Request("https://host/api/session-host", { method: "POST", body: JSON.stringify({ method, params }) }));
   return { status: response.status, body: await response.json() as { result?: any; error?: { code: string; details?: any } } };
@@ -71,11 +80,16 @@ const admitted = (await call("prompt", { sessionId: "s", text: "hello", requestI
 assert.equal((await claim("s", admitted.submissionId)).status, 500);
 assert.equal((await call("state", { sessionId: "s" })).body.result.running, true);
 // New owner process, same database and durable Agent history.
-owner = new SessionHostObject(state, { DshAgent: {} as never, PLATFORM_AI_ENABLED: "true", AI_GATEWAY_ID: "test-gateway" });
+gatewayDisabled = true;
+const callsAfterLostReply = { admissions, pluginProjections, credentialWrites: credentialWrites.length };
+owner = new SessionHostObject(state, runtimeEnv);
 assert.equal((await call("claim", { sessionId: "s", submissionId: admitted.submissionId })).status, 200);
 assert.equal(modelRuns, 1);
 assert.equal((await call("history", { sessionId: "s" })).body.result.records.length, 2);
 assert.equal((await call("state", { sessionId: "s" })).body.result.running, false);
+assert.deepEqual({ admissions, pluginProjections, credentialWrites: credentialWrites.length }, callsAfterLostReply, "recovery copies completed evidence without re-admission, credential injection or capability enablement");
+assert.equal((await call("modelAccess")).body.result.providers["cloudflare-ai-gateway"].available, false, "recovery leaves Gateway disabled");
+gatewayDisabled = false;
 
 // Two transports racing for one input share execution; actual cancellation
 // reaches the Agent before the Host returns success.
@@ -99,10 +113,16 @@ hold = false;
 const third = (await call("prompt", { sessionId: "s", text: "again", requestId: "r3" })).body.result;
 failCompletionOnce = true;
 assert.equal((await claim("s", third.submissionId)).status, 500);
-owner = new SessionHostObject(state, { DshAgent: {} as never, PLATFORM_AI_ENABLED: "true", AI_GATEWAY_ID: "test-gateway" });
+gatewayDisabled = true;
+const callsAfterLostCommit = { admissions, pluginProjections, credentialWrites: credentialWrites.length };
+owner = new SessionHostObject(state, { ...runtimeEnv, PLATFORM_AI_ENABLED: "false" });
 assert.equal((await claim("s", third.submissionId)).status, 200);
 assert.equal((await call("projections", { sessionId: "s" })).body.result.tokenUsage.uncachedInputTokens, 20);
 assert.equal(modelRuns, 3);
+assert.deepEqual({ admissions, pluginProjections, credentialWrites: credentialWrites.length }, callsAfterLostCommit, "completed Agent recovery needs neither owner nor deployment provider permission");
+assert.equal((await call("history", { sessionId: "s" })).body.result.turns.find((turn: { requestId: string }) => turn.requestId === "r3").status, "completed", "a new disable cannot rewrite the recorded completion as failure");
+gatewayDisabled = false;
+owner = new SessionHostObject(state, runtimeEnv);
 console.log("session-host: replayed completion does not duplicate usage projections");
 
 // Archive admission shares the prompt transaction boundary. Without explicit
@@ -176,3 +196,24 @@ assert.equal((await claim("byok", credentialInput.submissionId)).status, 200);
 assert.equal(credentialWrites.at(-1), "test-owner-key");
 assert.equal(modelRuns, 4);
 console.log("session-host: failed BYOK read blocks provider selection and resumes after repair");
+
+// Already-settled failure/cancellation keeps its real outcome after revocation;
+// neither is interpreted as a new provider attempt or a fabricated success.
+for (const status of ["failed", "cancelled"] as const) {
+  gatewayDisabled = false;
+  owner = new SessionHostObject(state, runtimeEnv);
+  const sessionId = `settled-${status}`, requestId = `settled-${status}-request`;
+  await call("create", { sessionId });
+  const input = (await call("prompt", { sessionId, requestId, text: "durable outcome" })).body.result;
+  lostResponse = true;
+  assert.equal((await claim(sessionId, input.submissionId)).status, 500);
+  submissions.set(requestId, { status });
+  const beforeRecovery = { modelRuns, admissions, pluginProjections, credentialWrites: credentialWrites.length };
+  gatewayDisabled = true;
+  owner = new SessionHostObject(state, runtimeEnv);
+  const recovered = await claim(sessionId, input.submissionId);
+  assert.equal(recovered.status, status === "failed" ? 500 : 200);
+  assert.deepEqual({ modelRuns, admissions, pluginProjections, credentialWrites: credentialWrites.length }, beforeRecovery);
+  assert.equal((await call("history", { sessionId })).body.result.turns.find((turn: { requestId: string }) => turn.requestId === requestId).status, status);
+}
+console.log("session-host: recorded failure/cancellation survive provider revocation without new execution");

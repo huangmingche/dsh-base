@@ -1,0 +1,17 @@
+{
+  "name": "@dsh-base/cloudflare-worker-public-pages",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": { ".": "./src/index.ts" },
+  "peerDependencies": { "@deepseek-ai/cordis": "*", "@dsh-base/cloudflare-worker-http": "workspace:*" },
+  "dshBase": {
+    "worker": { "id": "cloudflare:worker:public-pages", "origin": "custom", "order": 12 },
+    "reuse": {
+      "mode": "custom",
+      "official": ["@deepseek-ai/dsh-client-locale", "@deepseek-ai/dsh-client-web"],
+      "reason": "The pinned official locale and web packages implement application navigation, not a Workers public-document publication registry. Neither exposes a server publication or search-index policy that can be mounted or forked. This plugin composes only declared public document providers, validates ownership and publication state, and supplies the shared HTTP/SEO contract; it introduces no replacement UI."
+    }
+  }
+}

@@ -4,7 +4,7 @@ import { assertLoginReturn } from "./assert-login-return.mjs";
 import { assertSidebarBrand } from './assert-sidebar-brand.mjs';
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
-import { acceptanceLaunchOptions, closeAcceptanceBrowser, openSavedSession } from "./acceptance-config.mjs";
+import { acceptanceLaunchOptions, closeAcceptanceBrowser } from "./acceptance-config.mjs";
 import { spawn } from "node:child_process";
 import { request as httpRequest } from "node:http";
 import { mkdirSync, writeFileSync, rmSync, readFileSync } from "node:fs";
@@ -13,6 +13,17 @@ import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer-core";
 import { clientRows, officialPackages, repoRoot } from "../../../scripts/conformance/lib.mjs";
 import { loadOfficialDeclarations } from "./generate-preset-declarations.mjs";
+import { prefixFor } from "../../../packages/boot/dsh-base-locale-path/src/index.ts";
+import { readOfficialPluginCatalog, LOCAL_MANAGEABLE_BUNDLES, REPRESENTATIVE_OFFICIAL_BUNDLES } from '../tests/parity/official-plugin-catalog-oracle.mjs';
+import { assertCategoryCounts } from '../tests/parity/plugin-counts-assertions.mjs';
+import { readOwnedPluginInventory, READONLY_OWNED_BUNDLES, assertOwnedBundleCards, assertReadonlyOwnedDetail, readOwnedDetailNames, assertOwnedComponentNames, assertInventoryNames } from '../tests/parity/owned-plugin-inventory-oracle.mjs';
+import { GATEWAY_BUNDLE, GATEWAY_COMPONENTS, assertGatewayBundleCard, assertGatewayBundleDetail, assertGatewayManagementScope } from '../tests/parity/gateway-bundle-assertions.mjs';
+import { assertOfficialCards, openMorePlugins, openPluginDetail, assertUnavailablePluginDetail, backFromPluginDetail, managerCopy } from '../tests/parity/plugin-manager-assertions.mjs';
+import { assertOfficialSidebarMore } from './sidebar-more-contract.mjs';
+import { assertSessionHeaderMenu } from './session-menu-contract.mjs';
+
+const officialPluginCatalog = readOfficialPluginCatalog();
+const ownedOracle = readOwnedPluginInventory();
 
 const { declarations: officialPresetDeclarations, officialRows: officialPresetRows, thinkRows: thinkPresetRows } = await loadOfficialDeclarations();
 const presetDeclarationText = { en: {}, zh: {} };
@@ -28,9 +39,12 @@ mkdirSync(artifacts, { recursive: true });
 for (const stale of ["report.json", "failure.json", "failure.png"]) rmSync(join(artifacts, stale), { force: true });
 const port = process.env.DSH_LOCAL_PORT ?? "5180";
 const base = `http://127.0.0.1:${port}`;
+// The installed local workerd accepts dates through 2026-10-30. This fixture
+// selects that local date without changing the deployment compatibility date.
+const localCompatibilityDate = process.env.DSH_LOCAL_COMPATIBILITY_DATE ?? "2026-10-30";
 const registrationToken = randomBytes(32).toString("base64url");
 const server = spawn(process.execPath, [join(app, "scripts/serve-local.mjs")], {
-  cwd: app, env: { ...process.env, DSH_LOCAL_PORT: port, DSH_LOCAL_REGISTRATION_TOKEN: registrationToken, DSH_LOCAL_FORBID_OUTBOUND: "1" }, stdio: ["ignore", "pipe", "pipe"],
+  cwd: app, env: { ...process.env, DSH_LOCAL_PORT: port, DSH_LOCAL_COMPATIBILITY_DATE: localCompatibilityDate, DSH_LOCAL_REGISTRATION_TOKEN: registrationToken, DSH_LOCAL_FORBID_OUTBOUND: "1" }, stdio: ["ignore", "pipe", "pipe"],
 });
 let serverLog = "";
 for (const stream of [server.stdout, server.stderr]) stream.on("data", data => { serverLog = (serverLog + data.toString()).slice(-12000); });
@@ -38,6 +52,61 @@ let browser;
 let cleanupCredential;
 const errors = [];
 const observations = [];
+const restrictedReadPaths = new Set(['/api/saas/newsletter/reconcile', '/api/operations-dashboard']);
+const permissionDenials = [], permissionConsole = [];
+function observeBrowserErrors(page, label = '') {
+  page.on('pageerror', error => errors.push(`${label}${error.message}`));
+  page.on('response', response => {
+    const path = new URL(response.url()).pathname;
+    if (response.status() !== 403 || !restrictedReadPaths.has(path)) return;
+    const entry = { path, method: response.request().method(), status: response.status() };
+    permissionDenials.push(entry);
+    if (entry.method !== 'GET') errors.push(`${label}${path}: only the administrator GET probe is an expected denial`);
+  });
+  page.on('console', message => {
+    if (message.type() !== 'error') return;
+    let path;
+    try { path = new URL(message.location().url).pathname; } catch { /* Unlocated errors remain fatal. */ }
+    if (restrictedReadPaths.has(path) && message.text() === 'Failed to load resource: the server responded with a status of 403 (Forbidden)') {
+      permissionConsole.push({ path });
+      return;
+    }
+    errors.push(`${label}${path ? `${path}: ` : ''}${message.text()}`);
+  });
+}
+// Failure evidence only: observe transport without intercepting it or changing
+// the acceptance timeout. Never retain cookies, headers, queries or bodies.
+const networkDiagnostics = new Map();
+async function watchFailureNetwork(page) {
+  const client = await page.createCDPSession();
+  const requests = new Map(), recent = [], sockets = new Map();
+  const pathOf = url => { try { return new URL(url).pathname; } catch { return undefined; } };
+  await client.send('Network.enable');
+  client.on('Network.requestWillBeSent', event => {
+    const path = pathOf(event.request.url);
+    if (!path?.startsWith('/api/')) return;
+    const row = { id: event.requestId, path, method: event.request.method, resourceType: event.type, startedAt: Date.now(), state: 'pending', initiator: event.initiator.type };
+    requests.set(event.requestId, row); recent.push(row);
+    if (recent.length > 250) recent.shift();
+  });
+  client.on('Network.responseReceived', event => {
+    const row = requests.get(event.requestId); if (!row) return;
+    Object.assign(row, { state: 'headers', status: event.response.status, protocol: event.response.protocol, connectionId: event.response.connectionId,
+      contentType: event.response.mimeType, fromServiceWorker: event.response.fromServiceWorker, timing: event.response.timing });
+  });
+  client.on('Network.loadingFinished', event => {
+    const row = requests.get(event.requestId); if (!row) return;
+    Object.assign(row, { state: 'finished', durationMs: Date.now() - row.startedAt }); requests.delete(event.requestId);
+  });
+  client.on('Network.loadingFailed', event => {
+    const row = requests.get(event.requestId); if (!row) return;
+    Object.assign(row, { state: 'failed', durationMs: Date.now() - row.startedAt, error: event.errorText, canceled: event.canceled }); requests.delete(event.requestId);
+  });
+  client.on('Network.webSocketCreated', event => sockets.set(event.requestId, { path: pathOf(event.url), state: 'connecting' }));
+  client.on('Network.webSocketHandshakeResponseReceived', event => { const row = sockets.get(event.requestId); if (row) Object.assign(row, { state: 'open', status: event.response.status }); });
+  client.on('Network.webSocketClosed', event => sockets.delete(event.requestId));
+  networkDiagnostics.set(page, () => ({ pending: [...requests.values()].map(row => ({ ...row, ageMs: Date.now() - row.startedAt })), recent, sockets: [...sockets.values()] }));
+}
 const controller = new AbortController();
 const watchdog = setTimeout(() => controller.abort(new Error("local UI acceptance exceeded 600 seconds")), 600000);
 const request = (path, init = {}) => fetch(`${base}${path}`, { ...init, signal: AbortSignal.any([controller.signal, AbortSignal.timeout(15000)]) });
@@ -51,7 +120,15 @@ try {
   // Regression: public navigation must not orphan Better Auth initialization.
   assert.equal((await request("/login")).status, 200);
   assert.equal((await request("/api/auth/get-session")).status, 200);
-  assert.deepEqual(await (await request("/api/auth-policy")).json(), { signUpEnabled: false });
+  assert.deepEqual(await (await request("/api/auth-policy")).json(), {
+    signUpEnabled: false, googleEnabled: false, apiKeysEnabled: true, userAdminEnabled: true,
+    email: { enabled: false, ready: false, provider: "cloudflare" },
+    passwordResetEnabled: false, emailVerificationEnabled: false, emailVerificationRequired: false,
+  }, "the local deployment exposes the complete explicit capability policy without provider secrets");
+  const publicSiteResponse = await request('/api/site-config');
+  assert.equal(publicSiteResponse.status, 200);
+  const publicSite = await publicSiteResponse.json();
+  assert.ok(typeof publicSite.brand?.name === 'string' && publicSite.brand.name.trim() !== '');
   const account = { username: `local${randomBytes(8).toString("hex")}`, name: "Local acceptance", email: `local-${randomBytes(8).toString("hex")}@example.test`, password: randomBytes(32).toString("base64url") };
   const publicSignup = await request("/api/auth/sign-up/email", { method: "POST", headers: { "content-type": "application/json", origin: base }, body: JSON.stringify(account) });
   assert.equal(publicSignup.status, 403, "public signup must fail closed");
@@ -77,11 +154,13 @@ try {
     });
     assert.equal(status, 403, `cross-origin upgrade: ${path}`);
   }
-  // Owner-level plugin control was removed in Commit 1 together with the
-  // `control` Worker plugin, so the route no longer exists: a same-origin
-  // request falls through to 404. The cross-origin assertion above still
-  // expects 403 because origin policy rejects before routing.
-  assert.equal((await request("/api/plugin-control", { method: "POST", headers: { cookie, origin: base, "content-type": "application/json" }, body: "{}" })).status, 404, "plugin-control was removed in Commit 1; same-origin requests fall through to 404");
+  // Commit 2 restores the owner-scoped control plane. A same-origin write from
+  // a signed-in owner still cannot mutate anything without the deployment
+  // administrator token, so the route exists and fails closed with 403.
+  const pluginControl = await request("/api/plugin-control", { method: "POST", headers: { cookie, origin: base, "content-type": "application/json" }, body: "{}" });
+  assert.equal(pluginControl.status, 403, "plugin-control write requires the deployment administrator token");
+  assert.equal((await pluginControl.json()).error, "control_read_only", "plugin-control fails closed without PLUGIN_CONTROL_TOKEN");
+  assert.equal((await request("/api/plugin-manager", { headers: { cookie, origin: base } })).status, 200, "owner plugin-manager reads are restored");
   const call = async (method, params) => {
     const response = await request("/api/session-host", { method: "POST", headers: { "content-type": "application/json", origin: base, cookie }, body: JSON.stringify({ method, params }) });
     const body = await response.json();
@@ -114,9 +193,9 @@ try {
   cleanupCredential = () => call("credentialsUnset", { ref: "DEEPSEEK_OFFICIAL_API_KEY" });
   browser = await puppeteer.launch(acceptanceLaunchOptions());
   const page = await browser.newPage();
+  await watchFailureNetwork(page);
   await page.setViewport({ width: 1440, height: 900 });
-  page.on("pageerror", error => errors.push(error.message));
-  page.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
+  observeBrowserErrors(page);
   const publicDocuments = [];
   let publicRequests = [], publicSockets = [];
   const recordRequest = request => { const url = new URL(request.url()); if (url.pathname.startsWith("/api/")) publicRequests.push(url.pathname); };
@@ -128,9 +207,12 @@ try {
     publicRequests = []; publicSockets = [];
     await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: "light" }]);
     await page.goto(`${base}/login?locale=${locale}`, { waitUntil: "domcontentloaded" });
-    await page.waitForFunction(() => /Public registration is disabled|此部署未开放公开注册/.test(document.querySelector("#dsh-base-login")?.textContent ?? ""), { timeout: 20000 });
+    await page.waitForSelector('[role="dialog"]:has([data-auth-dialog])', { visible: true, timeout: 20000 });
     await page.waitForNetworkIdle({ idleTime: 500, timeout: 10000 });
-    assert.equal(await page.$eval(".dsh-login-switch", element => element.disabled), true);
+    assert.equal(await page.$$eval('[data-auth-dialog] .dsh-auth-providers button[title]:disabled', elements => elements.length === 3), true, "unconfigured provider buttons never imply available OAuth");
+    assert.deepEqual(await page.$$eval('[data-auth-dialog] [data-auth-email]', elements => elements.map(element => ({ action: element.getAttribute('data-auth-email'), disabled: element.matches(':disabled'), explained: Boolean(element.getAttribute('title')?.trim()) }))), [
+      { action: 'reset', disabled: true, explained: true }, { action: 'verification', disabled: true, explained: true },
+    ], "unconfigured email recovery and verification remain visible, disabled and explained");
     const inventory = await page.evaluate(() => window.__DSH_BASE_PLUGINS__);
     assert.equal(inventory?.length, 1, "public document must boot only its declared provider");
     assert.equal(inventory[0].moduleName, "@dsh-base/client-auth-login");
@@ -142,19 +224,17 @@ try {
     for (const scheme of ["light", "dark", "light"]) {
       await page.emulateMediaFeatures([{ name: "prefers-color-scheme", value: scheme }]);
       await page.waitForFunction(expected => document.documentElement.style.colorScheme === expected, {}, scheme);
-      const palette = await page.$eval("#dsh-base-login", surface => {
-        const probe = document.createElement("span");
-        probe.style.backgroundColor = "var(--dsw-alias-bg-base)";
-        probe.style.color = "var(--dsw-alias-label-primary)";
-        document.body.append(probe);
-        const result = { background: getComputedStyle(surface).backgroundColor, foreground: getComputedStyle(surface.querySelector("h1")).color,
-          expectedBackground: getComputedStyle(probe).backgroundColor, expectedForeground: getComputedStyle(probe).color,
+      const palette = await page.$eval('[role="dialog"]:has([data-auth-dialog])', surface => {
+        const token = document.createElement("span");
+        token.style.backgroundColor = "var(--dsw-alias-bg-layer-2)"; token.style.color = "var(--dsw-alias-label-primary)";
+        surface.append(token); const official = getComputedStyle(token);
+        const expected = { background: official.backgroundColor, foreground: official.color }; token.remove();
+        return { background: getComputedStyle(surface).backgroundColor, foreground: getComputedStyle(surface.querySelector("h2")).color, expected,
           dark: document.body.hasAttribute("data-ds-dark-theme"), source: document.documentElement.getAttribute("data-ds-theme-source") };
-        probe.remove(); return result;
       });
-      assert.equal(palette.background, palette.expectedBackground, "public login must use the official background token");
-      assert.equal(palette.foreground, palette.expectedForeground);
-      assert.notEqual(palette.background, palette.foreground, "public login foreground cannot disappear into its background");
+      assert.equal(palette.background, palette.expected.background, "official Modal secondary-layer background token");
+      assert.equal(palette.foreground, palette.expected.foreground, "official Modal title foreground token");
+      assert.notEqual(palette.background, palette.foreground);
       assert.equal(palette.dark, scheme === "dark"); assert.equal(palette.source, "system");
       palettes.push({ scheme, ...palette });
       await page.screenshot({ path: join(artifacts, scheme === "light" ? `login-${locale}.png` : `login-${locale}-dark.png`) });
@@ -163,15 +243,30 @@ try {
     assert.deepEqual(publicSockets, [], "public theme must not start a private connection");
     publicDocuments.push({ locale, apiRequests: [...publicRequests], webSockets: [...publicSockets], inventory, palettes });
   }
+  // The public shell still mounts the official inventory, but private Host
+  // transports must wait for a verified account instead of retrying 401s.
+  publicRequests = []; publicSockets = [];
+  await page.goto(`${base}/?locale=en`, { waitUntil: "networkidle0" });
+  await page.waitForSelector('[data-auth-dialog]', { visible: true });
+  assert.deepEqual(await page.evaluate(() => window.__DSH_BASE_PLUGINS__.map(row => row.moduleName).sort()),
+    ['@dsh-base/client-auth-login', '@dsh-base/client-newsletter']);
+  assert.equal(await page.$('[data-plugin-panel], [contenteditable="true"], [data-signed-out]'), null);
+  assert.deepEqual([...publicRequests].sort(), ['/api/auth-policy', '/api/auth/get-session']);
+  assert.deepEqual(publicSockets, []);
+  const anonymousShell = { apiRequests: [...publicRequests], webSockets: [...publicSockets], signInRequired: true };
+  await page.screenshot({ path: join(artifacts, 'anonymous-login.png') });
   page.off("request", recordRequest);
   await network.detach();
   await page.setCookie({ name: match[1], value: match[2], url: base, httpOnly: true, sameSite: "Lax" });
+  await page.reload({ waitUntil: "domcontentloaded" });
+  await page.waitForFunction(() => window.__DSH_BASE_PLUGINS__?.filter(row => row.enabled).every(row => row.fiberPhase === "active"), { timeout: 20000 });
   const otherTab = await browser.newPage();
+  await watchFailureNetwork(otherTab);
   await otherTab.setViewport({ width: 1440, height: 900 });
-  otherTab.on("pageerror", error => errors.push(`second tab: ${error.message}`));
-  otherTab.on("console", message => { if (message.type() === "error") errors.push(`second tab: ${message.text()}`); });
-  await openSavedSession(otherTab, base, editorSessionId);
+  observeBrowserErrors(otherTab, 'second tab: ');
+  await otherTab.goto(`${base}/app/session/${encodeURIComponent(editorSessionId)}`, { waitUntil: "domcontentloaded" });
   await otherTab.waitForSelector('[contenteditable="true"]', { timeout: 20000 });
+  observations.push({ sessionMenu: await assertSessionHeaderMenu({ page: otherTab, browser, base, request, cookie, sessionId: editorSessionId, historyText, artifacts }) });
   const otherCall = async (method, params) => {
     const result = await otherTab.evaluate(async ({ method, params }) => {
       const response = await fetch("/api/session-host", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ method, params }) });
@@ -192,9 +287,14 @@ try {
     return response.body.result.value;
   };
   const expected = clientRows(repoRoot);
+  const expectedNames = new Set(expected.map(row => row.name));
+  for (const [name, { manifest }] of officialPackages(repoRoot)) {
+    if (manifest.dsh?.client !== undefined && (!manifest.dsh.client.platform || manifest.dsh.client.platform === "web")) expectedNames.add(name);
+  }
   const inspect = async () => {
     const inventory = await page.evaluate(() => window.__DSH_BASE_PLUGINS__);
     assert.ok(Array.isArray(inventory));
+    assert.deepEqual(inventory.map(row => row.moduleName).sort(), [...expectedNames].sort(), 'runtime inventory matches metadata/profile and complete official inventory');
     for (const row of expected) {
       const actual = inventory.find(entry => entry.moduleName === row.name);
       assert.ok(actual, `missing inventory: ${row.name}`);
@@ -206,6 +306,11 @@ try {
     for (const [name, { manifest }] of officialPackages(repoRoot)) {
       if (manifest.dsh?.client === undefined || (manifest.dsh.client.platform && manifest.dsh.client.platform !== "web")) continue;
       assert.ok(inventory.some(entry => entry.moduleName === name), `official inventory absent: ${name}`);
+      if (!expected.some(row => row.name === name)) {
+        const original = inventory.find(entry => entry.moduleName === name);
+        assert.equal(original.enabled, false, 'uncomposed official entries remain disabled inventory');
+        assert.equal(original.fiberPhase, null);
+      }
     }
     for (const name of ['@deepseek-ai/dsh-api-remote-access', '@deepseek-ai/dsh-typert-registry']) {
       const entry = inventory.find(row => row.moduleName === name);
@@ -216,6 +321,12 @@ try {
     const retiredGeneration = inventory.find(row => row.moduleName === '@dsh-base/client-wire-bootstrap');
     assert.equal(retiredGeneration?.enabled, false, 'the unchanged Gateway owns the sole generation loop');
     assert.equal(retiredGeneration?.fiberPhase, null);
+    const siteConfig = inventory.find(row => row.moduleName === '@dsh-base/client-site-config');
+    assert.equal(siteConfig?.enabled, true, 'public site settings are active');
+    assert.equal(siteConfig?.fiberPhase, 'active');
+    const retiredMenu = inventory.find(row => row.moduleName === '@dsh-base/client-shell-extras');
+    assert.equal(retiredMenu?.enabled, false, 'site settings do not restore retired sidebar entries');
+    assert.equal(retiredMenu?.fiberPhase, null);
     return inventory;
   };
   const click = async pattern => {
@@ -266,7 +377,7 @@ try {
   // client error surface ("unavailable"); reload once before treating it as a
   // real failure so a slow isolate does not break an unrelated UI assertion.
   // Commit 1 restored the official in-memory workspace selection: a cold load
-  // can ask "Choose workspace" before mounting the composer.
+  // of a session URL can ask "Choose workspace" before mounting the composer.
   const ensureSessionComposer = async () => {
     try { await page.waitForSelector('[contenteditable="true"]', { timeout: 12000 }); return true; } catch { /* possibly the workspace chooser */ }
     const picked = await page.evaluate(() => {
@@ -280,11 +391,11 @@ try {
     if (!picked) return false;
     try { await page.waitForSelector('[contenteditable="true"]', { timeout: 15000 }); return true; } catch { return false; }
   };
-  const gotoSessionPage = async (url, sessionId) => {
+  const gotoSessionPage = async url => {
     let lastError;
     for (let attempt = 0; attempt < 3; attempt += 1) {
       try {
-        await openSavedSession(page, url, sessionId);
+        await page.goto(url, { waitUntil: "domcontentloaded", timeout: 30000 });
         const text = (await page.evaluate(() => document.body.innerText)).trim();
         if (text !== "unavailable" && await ensureSessionComposer()) return;
       } catch (error) { lastError = error; }
@@ -484,7 +595,7 @@ try {
     await closeSettings();
     // Composer: real official Slot + Controller with the complete 5-row roster.
     const blank = await call("create", { title: `Preset composer ${locale}` });
-    await gotoSessionPage(`${base}${locale === "zh" ? "/zh-CN" : ""}`, blank.sessionId);
+    await gotoSessionPage(`${base}${prefixFor(locale === "zh" ? "zh" : "en")}/app/session/${encodeURIComponent(blank.sessionId)}`);
     const chipLabel = locale === "zh" ? "Cloudflare Think 模式" : "Cloudflare Think";
     await page.waitForFunction(label => [...document.querySelectorAll('button[aria-haspopup="menu"]')].some(button => (button.textContent ?? "").includes(label)), { timeout: 20000 }, chipLabel);
     const chipPoint = await page.evaluate(label => {
@@ -554,12 +665,14 @@ try {
   };
 
   // BYOK-only deployment: the official DeepSeek provider surface remains, and
-  // the Cloudflare AI Gateway provider card removed with Commit 1 is not rendered.
+  // Commit 2 restores the platform Gateway card, but only when the deployment
+  // enables the platform route; DSH_EXPECT_PLATFORM_AI selects the expectation.
+  const expectPlatformGateway = process.env.DSH_EXPECT_PLATFORM_AI === "true";
   {
     for (const locale of ['en', 'zh']) {
       await call("settingsUpdate", { ns: "locale", patch: { preference: locale } });
       await page.bringToFront();
-      await gotoSessionPage(`${base}${locale === 'zh' ? '/zh-CN' : ''}`, editorSessionId);
+      await gotoSessionPage(`${base}${prefixFor(locale === "zh" ? "zh" : "en")}/app/session/${encodeURIComponent(editorSessionId)}`);
       await click('account menu|账号菜单');
       await click('^settings\\b|^设置');
       await page.waitForSelector('[role="dialog"] nav button', { timeout: 20000 });
@@ -569,7 +682,19 @@ try {
       await page.waitForFunction(() => (document.querySelector('[role="dialog"]')?.innerText ?? '').includes('DeepSeek'), { timeout: 20000 });
       const settingsText = await page.$eval('[role="dialog"]', element => element.innerText);
       assert.match(settingsText, /DeepSeek/u, `${locale}: official DeepSeek provider remains`);
-      assert.equal(await page.$('[data-gateway-provider]'), null, `${locale}: removed Cloudflare Gateway provider card is not rendered`);
+      // The restored card stays visible in both platform states (official rule:
+      // an unavailable official capability is shown disabled with a localized
+      // reason, never hidden). The card exposes its state; the localized reason
+      // lives in the expandable read-only details region.
+      await page.waitForFunction(() => {
+        const card = document.querySelector('[data-gateway-provider]');
+        const state = card?.getAttribute('data-gateway-provider');
+        return state === 'available' || state === 'unavailable' || state === 'error';
+      }, { timeout: 20000 });
+      const gatewayState = await page.$eval('[data-gateway-provider]', element => element.getAttribute('data-gateway-provider'));
+      assert.match(settingsText, /Cloudflare AI Gateway/u, `${locale}: platform Gateway provider card is rendered`);
+      if (expectPlatformGateway) assert.equal(gatewayState, 'available', `${locale}: platform route reports available`);
+      else assert.equal(gatewayState, 'unavailable', `${locale}: platform route reports unavailable (not hidden)`);
       await page.screenshot({ path: join(artifacts, `models-providers-${locale}.png`) });
       await page.setViewport({ width: 720, height: 800 });
       await page.screenshot({ path: join(artifacts, `models-providers-narrow-${locale}.png`) });
@@ -579,20 +704,20 @@ try {
   }
 
   for (const locale of ["en", "zh"]) {
-    // Commit 1 removed the URL locale plugin, so the official locale plugin
-    // reads the persisted preference; set it before loading each locale page.
+    // The bare English route follows the persisted preference; select the
+    // official preference for deterministic language acceptance before boot.
     await call("settingsUpdate", { ns: "locale", patch: { preference: locale } });
     // Keep the document receiving real pointer/keyboard interaction foreground.
     // Background tab mutations below use fetch without changing focus.
     await page.bringToFront();
-    await gotoSessionPage(`${base}${locale === "zh" ? "/zh-CN" : ""}`, editorSessionId);
+    await gotoSessionPage(`${base}${prefixFor(locale === "zh" ? "zh" : "en")}/app/session/${encodeURIComponent(editorSessionId)}`);
     try { await page.waitForSelector('[contenteditable="true"]', { timeout: 20000 }); }
     catch (error) { throw new Error(`boot failed: ${(await page.evaluate(() => document.body.innerText)).slice(0,1800)}\n${errors.join("\n")}`, { cause: error }); }
     const inventory = await inspect();
     const brand = await assertSidebarBrand(page);
     const forkEntry = inventory.find(row => row.moduleName === "@dsh-base/client-agent-preset");
     const replacedEntry = inventory.find(row => row.moduleName === "@deepseek-ai/dsh-client-ui-agent-preset");
-    assert.equal(forkEntry?.origin, "custom", "active preset UI comes from the marked custom fork");
+    assert.equal(forkEntry?.origin, "fork", "active preset UI comes from the marked official fork");
     assert.equal(forkEntry?.enabled, true);
     assert.equal(forkEntry?.fiberPhase, "active");
     assert.equal(forkEntry?.replaces, "@deepseek-ai/dsh-client-ui-agent-preset");
@@ -626,18 +751,19 @@ try {
     assert.equal(new Set(sectionLabels).size, sectionLabels.length, "shadowed sections must not create duplicate Settings navigation");
     await clickDialogNav("^general$|^通用设置$");
     await page.waitForFunction(() => /no upload service|没有日志上传服务/.test(document.body.innerText), { timeout: 10000 });
-    // Commit 1 removed the zh display-label fork: the official locale plugin
-    // renders "中文" while the internal id and /zh-CN route stay zh.
+    // P4a restores the approved display-name fork: zh renders 简体中文 while the
+    // internal id and the /zh path prefix stay official, and the official locale
+    // runtime still owns switching/persistence.
     const languageLabels = await page.$$eval('[role="dialog"] button', buttons => buttons.map(button => (button.textContent ?? '').trim()).filter(Boolean));
-    const activeLanguage = languageLabels.find(label => ['中文', 'English'].includes(label));
-    assert.equal(activeLanguage, locale === 'zh' ? '中文' : 'English', `${locale}: language current value`);
+    const activeLanguage = languageLabels.find(label => ['简体中文', 'English'].includes(label));
+    assert.equal(activeLanguage, locale === 'zh' ? '简体中文' : 'English', `${locale}: language current value`);
     await page.evaluate(label => {
       [...document.querySelectorAll('[role="dialog"] button')].find(button => (button.textContent ?? '').trim() === label)?.click();
     }, activeLanguage);
     await page.waitForSelector('[role="menuitem"]', { timeout: 10000 });
     const languageMenu = await page.$$eval('[role="menuitem"]', items => items.map(item => (item.textContent ?? '').trim()));
-    assert.ok(languageMenu.includes('中文'), `${locale}: language menu offers the official 中文 label`);
-    assert.equal(languageMenu.includes('简体中文'), false, `${locale}: removed 简体中文 label absent`);
+    assert.ok(languageMenu.includes('简体中文'), `${locale}: language menu offers the approved 简体中文 label`);
+    assert.equal(languageMenu.some(label => label === '中文'), false, `${locale}: the replaced official 中文 label is not listed twice`);
     await page.screenshot({ path: join(artifacts, `language-${locale}.png`) });
     await page.screenshot({ path: join(artifacts, `version-${locale}.png`) });
     await page.keyboard.press('Escape');
@@ -690,16 +816,190 @@ try {
     assert.ok(created, "official manual creation must reach durable Host");
     assert.equal(created.kind, "rrule");
     assert.equal((await call("scheduleEdit", { id: created.id, action: "delete" })).deleted, true);
-    await click("^plugins$|^插件$");
-    // Commit 1 runs without a manageable profile: the official Plugins page must
-    // open and render its official unavailable state instead of listing a
-    // switchable bundle (the inventory seam reports managementAvailable: false).
-    // Official unavailable copy (manager-store short-circuits when the Host
-    // reports managementAvailable:false); accept either locale wording.
-    const pluginUnavailable = "本部署没有可管理的 profile|This deployment runs without a manageable profile";
-    await page.waitForFunction(source => new RegExp(source, "u").test(document.body.innerText), { timeout: 20000 }, pluginUnavailable);
-    assert.equal(await page.$("[data-plugin-package]"), null, "no managed plugin bundle is listed");
+    await assertOfficialSidebarMore(page, locale, { screenshot: join(artifacts, `sidebar-more-${locale}.png`) });
+    // Compare the real rendered catalog with an independent pinned-source
+    // oracle. Metadata-only official bundles remain visible and unavailable.
+    await page.waitForSelector("[data-plugin-package]", { timeout: 20000 });
+    const managerComposition = await page.evaluate(() => {
+      const names = ['@dsh-base/client-plugin-manager', '@deepseek-ai/dsh-client-ui-plugin-manager'];
+      return names.map(name => {
+        const row = window.__DSH_BASE_PLUGINS__?.find(entry => entry.moduleName === name);
+        return row && { moduleName: row.moduleName, enabled: row.enabled, fiberPhase: row.fiberPhase, origin: row.origin, ...(row.replaces === undefined ? {} : { replaces: row.replaces }) };
+      });
+    });
+    assert.deepEqual(managerComposition[0], { moduleName: '@dsh-base/client-plugin-manager', enabled: true, fiberPhase: 'active', origin: 'fork', replaces: '@deepseek-ai/dsh-client-ui-plugin-manager' }, 'the actual plugin page is owned by the marked active fork');
+    assert.deepEqual(managerComposition[1], { moduleName: '@deepseek-ai/dsh-client-ui-plugin-manager', enabled: false, fiberPhase: null, origin: 'upstream' }, 'the original stays disabled inventory without a running fiber');
+    const mainPluginCards = await assertOfficialCards(page, officialPluginCatalog.main, locale, officialPluginCatalog);
+    const countFiber = await page.evaluate(() => window.__DSH_BASE_PLUGINS__?.find(row => row.moduleName === '@dsh-base/client-plugin-counts'));
+    assert.equal(countFiber?.entryId, 'client:plugin-counts');
+    assert.equal(countFiber?.enabled, true);
+    assert.equal(countFiber?.fiberPhase, 'active', 'category counts are delivered by their composed plugin');
+    const categoryCounts = { main: await assertCategoryCounts(page, locale), more: undefined };
+    for (const bundle of LOCAL_MANAGEABLE_BUNDLES) {
+      assert.ok(mainPluginCards.some(card => card.name === bundle && !card.disabled && card.group === 'bundles'), `${bundle}: local manageable control remains distinct from original extensions`);
+    }
+    assert.ok(!mainPluginCards.some(card => card.name === '@dsh-base/client-commands'), 'required client shell rows are not switchable');
+    const ownedCards = await assertOwnedBundleCards(page);
+    const readonlyDetails = [], restrictedPanels = [];
+    const ownedStateBefore = await (await request('/api/plugin-manager', { headers: { cookie } })).json();
+    const readonlyMutations = [];
+    const observeReadonlyMutation = outgoing => { if (outgoing.method() !== 'GET' && new URL(outgoing.url()).pathname === '/api/plugin-manager') readonlyMutations.push(outgoing.method()); };
+    page.on('request', observeReadonlyMutation);
+    await page.$$eval('[data-plugin-package^="dsh-base:"] [role="switch"]', elements => elements.forEach(element => element.click()));
+    for (const name of READONLY_OWNED_BUNDLES) {
+      await openPluginDetail(page, name);
+      const expected = ownedOracle.bundles.find(bundle => bundle.name === name);
+      readonlyDetails.push(await assertReadonlyOwnedDetail(page, name, locale, expected, { hostSection: true }));
+      const restrictedRead = name === 'dsh-base:dashboard' ? '/api/operations-dashboard' : name === 'dsh-base:newsletter' ? '/api/saas/newsletter/reconcile' : undefined;
+      if (restrictedRead) {
+        // The client deliberately rejects an unauthorized response before
+        // consuming its body. CDP response.json() can wait indefinitely for
+        // that stream; verify the actual same-cookie GET body independently.
+        const response = await request(restrictedRead, { headers: { cookie } });
+        assert.equal(response.status, 403, `${restrictedRead}: ordinary account is denied`);
+        assert.deepEqual(await response.json(), { error: 'site_admin_required' }, `${restrictedRead}: denial exposes no private records`);
+      }
+      if (name === 'dsh-base:dashboard') {
+        const panel = `[data-saas-panel="${name}"][data-state="denied"]`;
+        await page.waitForSelector(panel, { timeout: 10000 });
+        assert.equal(await page.$eval(`${panel} [role="status"]`, element => element.textContent.trim()), locale === 'zh' ? '仅站点管理员可以访问这些信息。' : 'Only site administrators can access this information.');
+        assert.equal(await page.$$eval(`${panel} [data-saas-row], ${panel} [data-saas-action], ${panel} [data-saas-result]`, elements => elements.length), 0, 'administrator-only operations expose no records, results or actions to ordinary users');
+        restrictedPanels.push({ name, state: 'denied', privateRows: 0, explained: true });
+      } else if (name === 'dsh-base:newsletter') {
+        const panel = `[data-saas-panel="${name}"][data-state="ready"]`;
+        await page.waitForSelector(panel, { timeout: 10000 });
+        assert.equal(await page.$eval(`${panel} [role="status"]`, element => element.textContent.trim()), locale === 'zh' ? '当前部署不可用。' : 'Unavailable in this deployment.');
+        for (const action of ['subscribe', 'unsubscribe']) assert.equal(await page.$eval(`${panel} [data-saas-action="${action}"] button`, element => element.disabled), true, 'newsletter keeps owner controls visible while its provider is unavailable');
+        assert.equal(await page.$$eval(`${panel} [data-saas-row], ${panel} [data-saas-action^="reconcile:"]`, elements => elements.length), 0, 'ordinary subscribers never receive administrator recovery rows or actions');
+        restrictedPanels.push({ name, state: 'ready', recoveryRows: 0, ownerControls: 2 });
+      }
+      await page.$$eval('[data-plugin-detail] [role="switch"]', elements => elements.forEach(element => element.click()));
+      await page.screenshot({ path: join(artifacts, `plugins-owned-${name.split(':')[1]}-${locale}.png`) });
+      await page.$eval(`[data-plugin-detail] button[aria-label=${JSON.stringify(managerCopy(locale).backToList)}]`, button => button.click());
+      await page.waitForSelector('[data-plugin-group="bundles"]');
+    }
+    assert.deepEqual(readonlyMutations, [], 'read-only card and component clicks cannot mutate account settings');
+    page.off('request', observeReadonlyMutation);
+    for (const name of [...READONLY_OWNED_BUNDLES, ...ownedOracle.rows.filter(row => READONLY_OWNED_BUNDLES.includes(row.bundle)).map(row => row.moduleName)]) {
+      const denied = await request('/api/plugin-manager', { method: 'PUT', headers: { cookie, origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ name, disabled: true, expectedRevision: ownedStateBefore.revision }) });
+      assert.equal(denied.status, 403, `${name}: visible does not grant control permission`);
+    }
+    const ownedStateAfter = await (await request('/api/plugin-manager', { headers: { cookie } })).json();
+    assert.deepEqual(ownedStateAfter, ownedStateBefore, 'all forged read-only writes leave the owner record unchanged');
+    const ownedVisibility = { cards: ownedCards.length, components: ownedOracle.rows.length, readonlyBundles: readonlyDetails.length, readonlyComponents: readonlyDetails.reduce((sum, detail) => sum + detail.rows.length, 0), refusedWrites: READONLY_OWNED_BUNDLES.length + readonlyDetails.reduce((sum, detail) => sum + detail.rows.length, 0), restrictedPanels };
+    const optionalNames = [];
+    for (const name of LOCAL_MANAGEABLE_BUNDLES.filter(name => name !== GATEWAY_BUNDLE)) {
+      await openPluginDetail(page, name);
+      optionalNames.push(...await readOwnedDetailNames(page, name, locale, ownedOracle.bundles.find(bundle => bundle.name === name)));
+      await page.$eval(`[data-plugin-detail] button[aria-label=${JSON.stringify(managerCopy(locale).backToList)}]`, button => button.click());
+      await page.waitForSelector('[data-plugin-group="bundles"]');
+    }
+    await assertGatewayBundleCard(page);
+    await openPluginDetail(page, GATEWAY_BUNDLE);
+    const initialGatewayDetail = await assertGatewayBundleDetail(page, locale);
+    const ownedTitles = assertOwnedComponentNames([...readonlyDetails.flatMap(detail => detail.rows), ...optionalNames, ...initialGatewayDetail.rows], ownedOracle);
+    await assertGatewayManagementScope(page, locale);
+    const gatewayWrites = [];
+    const observeGatewayWrite = outgoing => {
+      if (outgoing.method() !== 'GET' && new URL(outgoing.url()).pathname === '/api/plugin-manager') gatewayWrites.push(outgoing.method());
+    };
+    page.on('request', observeGatewayWrite);
+    await page.$$eval('[data-plugin-row] [role="switch"]', elements => elements.forEach(element => element.click()));
+    await new Promise(resolve => setTimeout(resolve, 100));
+    assert.deepEqual(gatewayWrites, [], 'Gateway components are inspectable but cannot independently change the group');
+    const readOwnerPlugins = async () => {
+      const response = await request('/api/plugin-manager', { headers: { cookie } });
+      assert.equal(response.status, 200);
+      return response.json();
+    };
+    const gatewayRevisions = [];
+    for (const enabled of [false, true]) {
+      const before = await readOwnerPlugins();
+      const writesBefore = gatewayWrites.length;
+      await page.$eval('[data-plugin-detail] [role="switch"]', element => element.click());
+      await page.waitForFunction(enabled => {
+        const toggle = document.querySelector('[data-plugin-detail] [role="switch"]');
+        return toggle?.getAttribute('aria-checked') === String(enabled) && !toggle.disabled;
+      }, { timeout: 15000 }, enabled);
+      const after = await readOwnerPlugins();
+      assert.equal(after.revision, before.revision + 1, 'one Gateway switch saves both components in one revision');
+      assert.equal(gatewayWrites.length, writesBefore + 1, 'one Gateway click makes one control mutation');
+      for (const component of GATEWAY_COMPONENTS) assert.equal(after.overrides[component.module]?.disabled, !enabled);
+      gatewayRevisions.push(after.revision);
+      await page.waitForFunction(enabled => {
+        const row = window.__DSH_BASE_PLUGINS__?.find(entry => entry.moduleName === '@dsh-base/client-gateway-provider');
+        return row?.enabled === enabled && row.fiberPhase === (enabled ? 'active' : null);
+      }, { timeout: 15000 }, enabled);
+      await assertGatewayBundleDetail(page, locale, enabled);
+      await assertGatewayManagementScope(page, locale);
+      // Persisted account intent must produce the same real Loader on cold boot.
+      await page.reload({ waitUntil: 'domcontentloaded' });
+      await page.waitForFunction(enabled => {
+        const row = window.__DSH_BASE_PLUGINS__?.find(entry => entry.moduleName === '@dsh-base/client-gateway-provider');
+        return row?.enabled === enabled && row.fiberPhase === (enabled ? 'active' : null);
+      }, { timeout: 20000 }, enabled);
+      // The official panel store may restore Plugins on reload. Wait for the
+      // restored panel or real Session composer, then navigate only if closed:
+      // clicking its sidebar entry while already selected toggles it away.
+      await page.waitForFunction(historyText => {
+        if (document.querySelector('[data-plugin-package]')) return true;
+        return document.querySelector('[contenteditable="true"]') !== null && document.body.innerText.includes(historyText);
+      }, { timeout: 20000 }, historyText);
+      if (await page.$('[data-plugin-package]') === null) await click('^Plugins$|^插件$');
+      await page.waitForSelector('[data-plugin-package]', { timeout: 20000 });
+      await assertGatewayBundleCard(page);
+      await assertCategoryCounts(page, locale);
+      await openPluginDetail(page, GATEWAY_BUNDLE);
+      await assertGatewayBundleDetail(page, locale, enabled);
+      await assertGatewayManagementScope(page, locale);
+      const afterReload = await readOwnerPlugins();
+      assert.deepEqual(afterReload, after, 'viewing and reloading a Gateway selection do not rewrite control state');
+    }
+    page.off('request', observeGatewayWrite);
+    await page.screenshot({ path: join(artifacts, `plugins-gateway-components-${locale}.png`) });
+    await page.$eval(`[data-plugin-detail] button[aria-label=${JSON.stringify(managerCopy(locale).backToList)}]`, button => button.click());
+    await page.waitForSelector('[data-plugin-group="bundles"]');
+    const gatewayBundle = { cards: 1, components: 2, readonlyComponentSwitches: 2, revisions: gatewayRevisions, reloads: 2, writes: gatewayWrites.length };
+
+    const builtinItems = await page.$$eval('[data-plugin-item]', elements => elements.map(element => element.getAttribute('data-plugin-item')));
+    const expectedBuiltinItems = ['subagent', 'web-search', 'agent-loop', 'shell'];
+    assert.deepEqual(builtinItems.filter(id => expectedBuiltinItems.includes(id)), expectedBuiltinItems, `${locale}: original built-in entries retain their order without duplicates`);
     await page.screenshot({ path: join(artifacts, `plugins-${locale}.png`) });
+    for (const id of ['subagent', 'web-search', 'agent-loop', 'shell']) {
+      await page.click(`[data-plugin-item="${id}"] button`);
+      await page.waitForSelector(`[data-plugin-item-detail="${id}"] [role="status"][data-builtin-unavailable]`);
+      const builtin = await page.$eval(`[data-plugin-item-detail="${id}"]`, element => ({ reason: element.querySelector('[role="status"][data-builtin-unavailable]')?.textContent ?? '', inputs: [...element.querySelectorAll('input,select,textarea')].map(input => input.matches(':disabled')) }));
+      assert.ok(builtin.reason.length > 10, `${id}: real unavailable reason is visible`);
+      if (locale === 'zh') assert.match(builtin.reason, /[\u4e00-\u9fff]/u);
+      assert.ok(builtin.inputs.every(disabled => disabled), `${id}: unavailable original form never offers editable fields`);
+      await page.screenshot({ path: join(artifacts, `plugins-builtin-${id}-${locale}.png`) });
+      await page.click(`[data-plugin-item-detail] button[aria-label=${JSON.stringify(managerCopy(locale).backToList)}]`);
+      await page.waitForSelector('[data-plugin-group="extensions"]');
+    }
+    const pluginMutations = [];
+    const observePluginMutation = request => { if (request.method() !== 'GET' && new URL(request.url()).pathname === '/api/plugin-manager') pluginMutations.push(request.method()); };
+    page.on('request', observePluginMutation);
+    await openMorePlugins(page);
+    await assertOfficialCards(page, officialPluginCatalog.more, locale, officialPluginCatalog);
+    categoryCounts.more = await assertCategoryCounts(page, locale, { more: true });
+    await page.$$eval('[data-plugin-package] [role="switch"]', elements => elements.forEach(element => element.click()));
+    await page.screenshot({ path: join(artifacts, `plugins-more-${locale}.png`) });
+    for (const name of REPRESENTATIVE_OFFICIAL_BUNDLES) {
+      await openPluginDetail(page, name);
+      await assertUnavailablePluginDetail(page, name, locale, officialPluginCatalog);
+      await page.$$eval('[data-plugin-detail] [role="switch"]', elements => elements.forEach(element => element.click()));
+      await page.screenshot({ path: join(artifacts, `plugins-${locale}-${name.split('/')[1]}.png`) });
+      await backFromPluginDetail(page, locale);
+    }
+    page.off('request', observePluginMutation);
+    assert.deepEqual(pluginMutations, [], 'unavailable original controls never write account selections');
+    const controlBefore = await (await request('/api/plugin-manager', { headers: { cookie } })).json();
+    const refusedOriginal = await request('/api/plugin-manager', { method: 'PUT', headers: { cookie, origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ name: REPRESENTATIVE_OFFICIAL_BUNDLES[0], disabled: false, expectedRevision: controlBefore.revision }) });
+    assert.equal(refusedOriginal.status, 403, 'private control endpoint rejects direct unavailable original enablement');
+    const controlAfter = await (await request('/api/plugin-manager', { headers: { cookie } })).json();
+    assert.equal(controlAfter.revision, controlBefore.revision, 'rejected catalog activation changes no persisted selection');
+    const catalogFibers = await page.evaluate(names => (window.__DSH_BASE_PLUGINS__ ?? []).filter(row => names.includes(row.moduleName)), officialPluginCatalog.bundles.map(bundle => bundle.name));
+    assert.ok(catalogFibers.every(row => row.enabled === false && row.fiberPhase === null), 'unavailable metadata must not acquire a running fiber');
     await click("account menu|账号菜单");
     await click("^settings\\b|^设置");
     await click("^built-in plugins$|^内置插件$");
@@ -779,7 +1079,17 @@ try {
     await page.click('[data-plugin-scope="global"] button[class*="groupToggle"]');
     await page.waitForSelector('[data-plugin-scope="global"] [data-plugin-entry="client:session-adapter"]', { timeout: 10000 });
     const displayedModules = await page.$$eval('[data-plugin-scope="global"] [data-plugin-module]', elements => elements.map(element => element.getAttribute("data-plugin-module")));
-    for (const name of displayedModules) assert.ok(inventory.some(entry => entry.moduleName === name), `invented plugin inventory: ${name}`);
+    const workerResponse = await request('/api/plugin-manager/inventory', { headers: { cookie } });
+    assert.equal(workerResponse.status, 200);
+    const observedWorkers = (await workerResponse.json()).entries;
+    assert.equal(observedWorkers.length, ownedOracle.rows.filter(row => row.plane === 'worker').length);
+    assert.deepEqual(displayedModules.slice().sort(), [...inventory, ...observedWorkers].map(entry => entry.moduleName).sort(), 'global inventory includes every observed client and Worker entry');
+    assert.equal(displayedModules.length, expectedNames.size + observedWorkers.length);
+    assert.equal((await presetModules()).length, ownedOracle.rows.filter(row => row.plane === 'think').length, 'all Think entries, including the BYOK provider, remain visible');
+    assert.ok((await presetModules()).includes('@dsh-base/cloudflare-think-deepseek'));
+    const completeOwned = [...displayedModules, ...await presetModules()].filter(name => name.startsWith('@dsh-base/'));
+    assert.deepEqual(completeOwned.slice().sort(), ownedOracle.rows.map(row => row.moduleName).sort(), 'all independently composed owned plugins have a complete inventory entry');
+    await assertInventoryNames(page, ownedTitles, ownedOracle);
     assert.ok(displayedModules.includes("@deepseek-ai/dsh-client-ui-schedule"));
     assert.ok(displayedModules.includes("@deepseek-ai/dsh-client-ui-permission-presets"), "the restored official permission plugin remains visible in inventory");
     await page.screenshot({ path: join(artifacts, `inventory-${locale}.png`) });
@@ -806,7 +1116,7 @@ try {
     // must survive a cold snapshot read; no Session is required.
     // Full reload of the session page (a bare reload could restore the Plugins
     // page and its official unavailable state instead of the composer).
-    await gotoSessionPage(`${base}${locale === "zh" ? "/zh-CN" : ""}`, editorSessionId);
+    await gotoSessionPage(`${base}${prefixFor(locale === "zh" ? "zh" : "en")}/app/session/${encodeURIComponent(editorSessionId)}`);
     await click("account menu|账号菜单");
     await click("^settings\\b|^设置");
     await click("^built-in plugins$|^内置插件$");
@@ -824,7 +1134,7 @@ try {
     assert.equal(await page.$eval('[data-plugin-scope="preset"]', element => element.getAttribute("data-preset-id")), "dsh-base-think");
     await page.keyboard.press("Escape");
     const agentPresets = await agentPresetChecks(locale, editorSessionId);
-    observations.push({ locale, versionLine: agentPresets.versionLine, upstreamLinks: { repository: upstreamRepository, release: upstreamRelease }, inventory, composerInput, scheduleTaskVisible: true, manualTaskCreated: true, settingsPersistedAfterReload: true, crossTabSettings: true, crossTabModelEffort: true, crossTabPermissions: true, crossTabScheduleCreateDelete: true, terminalDisabled: true, pluginInventoryVisible: true, pluginInventorySession: { groupTitle: presetGroupLabel, defaultPreset: "dsh-base-think", thinkRows: thinkPresetRows.length, officialPresets: Object.keys(officialPresetRows) }, versionLine: agentPresets.versionLine, installationDisabled: true, directoryCreated: true, workspaceConfirmed: true, agentPresets, agentPresetInventory: { fork: forkEntry, replacedOriginal: replacedEntry } });
+    observations.push({ locale, gatewayBundle, ownedVisibility, categoryCounts, ownedNameCount: Object.keys(ownedTitles).length, versionLine: agentPresets.versionLine, upstreamLinks: { repository: upstreamRepository, release: upstreamRelease }, inventory, composerInput, scheduleTaskVisible: true, manualTaskCreated: true, settingsPersistedAfterReload: true, crossTabSettings: true, crossTabModelEffort: true, crossTabPermissions: true, crossTabScheduleCreateDelete: true, terminalDisabled: true, pluginInventoryVisible: true, pluginInventorySession: { groupTitle: presetGroupLabel, defaultPreset: "dsh-base-think", thinkRows: thinkPresetRows.length, officialPresets: Object.keys(officialPresetRows) }, versionLine: agentPresets.versionLine, installationDisabled: true, directoryCreated: true, workspaceConfirmed: true, agentPresets, agentPresetInventory: { fork: forkEntry, replacedOriginal: replacedEntry } });
   }
   for (const id of ["standard", "ptc", "minimal", "cordis"]) {
     assert.equal(presetDeclarationText.en[id], presetDeclarationText.zh[id], `${id}: declaration content is locale-independent`);
@@ -834,24 +1144,48 @@ try {
   await cleanupCredential();
   cleanupCredential = undefined;
   assert.deepEqual(await call("history", { sessionId: editorSessionId }), editorHistory, "cross-tab configuration changes must not execute a model or mutate history");
-  const loginReturns = [await assertLoginReturn(browser, account, new URL("/", base))];
+  // The bare Session address follows the saved language; the earlier matrix ends in Chinese.
+  await call("settingsUpdate", { ns: "locale", patch: { preference: "en" } });
+  const { workspace } = await call("workspaceCreate", { path: "/login-return", title: "Login return" });
+  const workspaceBlank = await call("create", { workspaceId: workspace.workspaceId });
+  const sessionPath = "/app/session/" + encodeURIComponent(editorSessionId);
+  const workspacePath = prefixFor("zh") + "/app/workspace/" + encodeURIComponent(workspace.workspaceId);
+  const workspaceSessionPath = prefixFor("zh") + "/app/session/" + encodeURIComponent(workspaceBlank.sessionId);
+  const loginReturns = [
+    await assertLoginReturn(browser, account, new URL(sessionPath, base), sessionPath),
+    await assertLoginReturn(browser, account, new URL(workspacePath, base), workspaceSessionPath),
+  ];
   assert.equal(serverLog.includes("LOCAL_OUTBOUND_REQUEST"), false, "zero-model local acceptance must issue no outbound provider requests");
+  for (const path of restrictedReadPaths) {
+    const observed = permissionDenials.filter(row => row.path === path);
+    assert.ok(observed.length >= 2, `${path}: both locale passes exercise the real administrator denial`);
+    assert.ok(permissionConsole.filter(row => row.path === path).length <= observed.length, `${path}: every classified HTTP console message has a verified GET 403 response`);
+  }
   assert.deepEqual(errors, [], "browser must have no plugin/runtime errors");
-  const report = { ok: true, loginReturns, testedAt: new Date().toISOString(), upstream: JSON.parse(readFileSync(join(repoRoot, "dsh-source.lock.json"), "utf8")).commit, browser: await browser.version(), scope: "built local Worker cold auth, isolated public login with no private RPC/WebSockets, real plugin fibers/provenance, official inventory, shell, desktop history composer rapid HTTPS typing and clearing without submission, rightbar, settings durability and real cross-tab push for settings/Schedule/model/effort/permission, manual Schedule creation, read-only plugin management, and real official Agent preset roster/declarations/composer with Coding Tools and reload behavior en/zh", compatibilityDate: process.env.DSH_LOCAL_COMPATIBILITY_DATE ?? "deployment config", aiExecutionTested: false, modelSelection: { unconfiguredRejected: true, credential: "local sentinel configured then removed", providerAuthenticationTested: false, inferenceTested: false, outboundRequests: 0 }, publicDocuments, observations };
+  const report = { ok: true, loginReturns, testedAt: new Date().toISOString(), upstream: JSON.parse(readFileSync(join(repoRoot, "dsh-source.lock.json"), "utf8")).commit, browser: await browser.version(), scope: "built local Worker cold auth, isolated public login with no private RPC/WebSockets, real plugin fibers/provenance, official inventory, shell, official Session header menu with actual clipboard and ZIP download, desktop history composer rapid HTTPS typing and clearing without submission, rightbar, settings durability and real cross-tab push for settings/Schedule/model/effort/permission, manual Schedule creation, owner-scoped plugin management seam, and real official Agent preset roster/declarations/composer with Coding Tools and reload behavior en/zh-CN", compatibilityDate: localCompatibilityDate, aiExecutionTested: false, modelSelection: { unconfiguredRejected: true, credential: "local sentinel configured then removed", providerAuthenticationTested: false, inferenceTested: false, outboundRequests: 0 }, publicDocuments, observations };
+  report.anonymousShell = anonymousShell;
+  report.expectedPermissionDenials = permissionDenials;
   writeFileSync(join(artifacts, "report.json"), JSON.stringify(report, null, 2));
-  console.log(JSON.stringify({ ...report, observations: observations.map(({ inventory, ...result }) => ({ ...result, plugins: inventory.length })) }));
+  console.log(JSON.stringify({ ...report, observations: observations.map(({ inventory, ...result }) => ({ ...result, ...(inventory === undefined ? {} : { plugins: inventory.length }) })) }));
 } catch (error) {
   if (browser !== undefined) {
     const pages = await browser.pages();
     for (const [index, page] of pages.entries()) {
       if (page.url() === "about:blank") continue;
       const screenshot = index === 1 ? "failure.png" : `failure-tab-${index}.png`;
+      // Freeze transport before focusing a tab can trigger account refreshes.
+      const transport = structuredClone(networkDiagnostics.get(page)?.());
+      const boot = await page.evaluate(() => ({ readyState: document.readyState, title: document.title,
+        inventory: window.__DSH_BASE_PLUGINS__?.map(({ entryId, moduleName, enabled, fiberPhase, origin }) => ({ entryId, moduleName, enabled, fiberPhase, origin })),
+        busy: [...document.querySelectorAll('[aria-busy="true"]')].map(element => ({ tag: element.tagName, className: element.className, text: element.textContent?.slice(0, 160) })),
+      })).catch(() => ({ unavailable: true }));
+      const failedPage = (await page.evaluate(() => document.body.innerText).catch(() => "unavailable")).slice(0,8000);
       await page.bringToFront().catch(() => {});
       await page.screenshot({ path: join(artifacts, screenshot) }).catch(() => {});
-      observations.push({ failedUrl: page.url(), screenshot, failedPage: (await page.evaluate(() => document.body.innerText).catch(() => "unavailable")).slice(0,8000) });
+      observations.push({ failedUrl: page.url(), screenshot, failedPage, boot, network: transport });
     }
   }
-  writeFileSync(join(artifacts, "failure.json"), JSON.stringify({ error: String(error), stack: error.stack, browserErrors: errors, serverLog, observations }, null, 2));
+  writeFileSync(join(artifacts, "failure.json"), JSON.stringify({ error: String(error), stack: error.stack, browserErrors: errors, expectedPermissionDenials: permissionDenials, classifiedPermissionConsole: permissionConsole, serverLog, observations }, null, 2));
   throw error;
 } finally {
   clearTimeout(watchdog);

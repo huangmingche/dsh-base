@@ -6,7 +6,8 @@ import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import puppeteer from "puppeteer-core";
-import { remoteAcceptanceConfig, chromeExecutable, closeAcceptanceBrowser, waitForHostReadiness, openSavedSession } from "./acceptance-config.mjs";
+import { remoteAcceptanceConfig, chromeExecutable, closeAcceptanceBrowser, waitForHostReadiness } from "./acceptance-config.mjs";
+import { prefixFor } from "../../../packages/boot/dsh-base-locale-path/src/index.ts";
 
 const { base, credentials } = remoteAcceptanceConfig();
 const expectedVersion = process.env.DSH_EXPECTED_DEPLOYMENT_VERSION;
@@ -103,7 +104,7 @@ const openSettingsPanel = async () => {
 const openSettingsModels = async (locale) => {
   await hostCall("settingsUpdate", { ns: "locale", patch: { preference: locale } });
   await page.bringToFront();
-  await openSavedSession(page, `${base}${locale === "zh" ? "/zh-CN" : ""}`, settingsSession.sessionId, 60_000);
+  await page.goto(`${base}${prefixFor(locale === "zh" ? "zh" : "en")}/app/session/${encodeURIComponent(settingsSession.sessionId)}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
   await page.waitForSelector('[contenteditable="true"], textarea, [role="textbox"]', { timeout: 60_000 });
   // The official first-run coordinator can dismiss Settings once while its
   // registrants finish deciding; reopen once, then verify the real section.
@@ -292,7 +293,7 @@ try {
     await page.waitForFunction(() => !document.querySelector('[role="dialog"] nav'), { timeout: 20_000 });
     // New independent test Session: only two selectable providers, default Gateway,
     // explicit Gateway selection survives reload, then restore the initial Gateway choice.
-    await openSavedSession(page, `${base}${locale === "zh" ? "/zh-CN" : ""}`, testSession.sessionId, 60_000);
+    await page.goto(`${base}${prefixFor(locale === "zh" ? "zh" : "en")}/app/session/${encodeURIComponent(testSession.sessionId)}`, { waitUntil: "domcontentloaded", timeout: 60_000 });
     await page.waitForSelector('[contenteditable="true"], textarea, [role="textbox"]', { timeout: 60_000 });
     const openModelMenu = async () => {
       await page.waitForFunction(() => [...document.querySelectorAll('button[aria-haspopup="menu"]')].some(item => /Select model|选择模型|DeepSeek-V4\.1-Flash/u.test(`${item.getAttribute("aria-label") ?? ""} ${item.textContent ?? ""}`)), { timeout: 60_000 });

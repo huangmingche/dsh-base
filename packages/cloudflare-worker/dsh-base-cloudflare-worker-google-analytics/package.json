@@ -1,0 +1,35 @@
+{
+  "name": "@dsh-base/cloudflare-worker-google-analytics",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts",
+    "./conversions": "./src/conversions.ts"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@dsh-base/cloudflare-worker-http": "workspace:*",
+    "@dsh-base/cloudflare-worker-site-config": "workspace:*",
+    "@dsh-base/cloudflare-worker-auth": "workspace:*",
+    "@dsh-base/cloudflare-worker-public-pages": "workspace:*"
+  },
+  "dshBase": {
+    "worker": {
+      "id": "cloudflare:worker:google-analytics",
+      "origin": "custom",
+      "order": 17
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-client-product-analytics"
+      ],
+      "reason": "The pinned official product-analytics requires authenticated Desktop Host telemetry with account and Session context. It has no site public-page, administrator consent, merchant-conversion or GA4 provider contract that can be mounted or adapted without changing its product behavior. This custom plugin owns canonical published-page validation, first-party daily conversion counts, server-confirmed event receipts, optional consented GA4 transport and an administrator-only aggregate read API. It loads no browser tracking SDK, creates no persistent visitor identity, and uses the existing D1 database with additive tables.",
+      "gaps": [
+        "First-party counts deduplicate real registrations, first completed activation per account, checkout creation and verified paid events. Google sends require explicit consent and make at most one attempt; HTTP acceptance is not proof of ingestion. No automatic retries, persistent visitors or cross-session attribution. Activation remains first-party only because background completions carry no browser consent."
+      ]
+    }
+  }
+}

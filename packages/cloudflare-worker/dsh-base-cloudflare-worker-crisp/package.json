@@ -1,0 +1,29 @@
+{
+  "name": "@dsh-base/cloudflare-worker-crisp",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@dsh-base/cloudflare-worker-http": "workspace:*"
+  },
+  "dshBase": {
+    "worker": {
+      "id": "cloudflare:worker:crisp",
+      "origin": "custom",
+      "order": 27
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-command-feedback"
+      ],
+      "reason": "The initialized pinned official command-feedback service records Session feedback events in conversation logs. It does not deliver general product support messages or configure an external support widget. Mounting or forking it through a Host-only seam would not provide this separate support capability. This independent Worker plugin preserves official Session feedback and adds only its own explicit support contract.",
+      "gaps": []
+    }
+  }
+}

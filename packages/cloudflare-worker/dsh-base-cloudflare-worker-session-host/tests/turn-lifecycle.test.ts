@@ -65,7 +65,7 @@ function fixture(id: string, calls = ["approve-a", "approve-b"], initialSteps = 
       aliases.push(userMessageId);
       return { status: inputStatus };
     },
-    async getInputExecution() { return { status: inputStatus, ...(continuations > 0 ? { sdkRequestId: "sdk-continuation" } : {}) }; },
+    async getInputExecution(requestId: string) { return messages.some(message => message.role === "user" && message.id === requestId) ? { status: inputStatus, ...(continuations > 0 ? { sdkRequestId: "sdk-continuation" } : {}) } : undefined; },
     async getExecutionStats(sdkRequestId: string) { assert.equal(sdkRequestId, "sdk-continuation"); return { sdkRequestId, steps: 1, llmMs: 5, ttftMs: 2, ttftSteps: 1, decodeMs: 3, decodeTokens: 2, usage: { inputTokens: 10, outputTokens: 2, cacheReadTokens: 0, cacheWriteTokens: 0 } }; },
     async resolveToolApproval(input: { requestId: string; userMessageId: string; toolCallId: string; approved: boolean }) {
       assert.ok(messages.some(message => message.id === input.userMessageId));
@@ -340,3 +340,85 @@ console.log('session-host: legacy configuration gaps retain the approval and can
   assert.notEqual(allowed.status, 409, "enabled memory approval is not capability-rejected");
 }
 console.log("approval continuation: disabled memory refuses pending remember_fact with zero model; enabled memory is not capability-blocked");
+
+// The provider frozen before an approval must still obey a later owner/Session
+// disable. Recovery must not consume the tool decision or spin model retries.
+for (const scope of ["owner", "session"] as const) {
+  const moduleName = "@dsh-base/cloudflare-think-ai-gateway";
+  const selection = { overrides: {} as Record<string, { disabled: boolean }>, session: {} as Record<string, { disabled: boolean }> };
+  const pluginControl = { idFromName: (name: string) => name, get: () => ({ async fetch() { return Response.json({ revision: 1, ...selection }); } }) };
+  let projected: string[] = [];
+  const f = fixture(`gateway-${scope}-disabled`, ["gateway-approval"], 1, { env: { PluginControl: pluginControl }, agent: {
+    setThinkPlugins(input: { disabled?: readonly string[] }) { projected = [...(input.disabled ?? [])]; return { disabled: projected }; },
+  } });
+  await f.create(); await f.start();
+  const target = scope === "owner" ? selection.overrides : selection.session;
+  target[moduleName] = { disabled: true };
+  const denied = await f.decide("gateway-approval");
+  assert.equal(denied.status, 409);
+  assert.equal(denied.body.error.code, "session/approval-capability-disabled");
+  assert.deepEqual(projected, ["cloudflare-ai-gateway"]);
+  assert.deepEqual(f.counts(), { modelRuns: 1, continuations: 0 });
+  assert.deepEqual(await f.host.queuedSubmissions(), [], "blocked approval is not automatically requeued");
+  await f.restartAndAlarm();
+  assert.deepEqual(f.counts(), { modelRuns: 1, continuations: 0 }, "restart/alarm cannot bypass the provider gate");
+  target[moduleName] = { disabled: false };
+  assert.equal((await f.decide("gateway-approval")).status, 200, "explicit re-enable permits the same recorded approval decision");
+  assert.deepEqual(f.counts(), { modelRuns: 1, continuations: 1 });
+  assert.deepEqual(projected, []);
+}
+console.log("approval continuation: owner/Session Gateway disable survives restart without execution; re-enable resumes the original input once");
+
+// Provider revocation blocks new inference, not copying a continuation that
+// already durably completed before the Host's completion transaction failed.
+{
+  let disabled = false, credentialWrites = 0, pluginWrites = 0;
+  const pluginControl = { idFromName: (name: string) => name, get: () => ({ async fetch() { return Response.json({ revision: 1, overrides: { "@dsh-base/cloudflare-think-ai-gateway": { disabled } } }); } }) };
+  const f = fixture("gateway-completed-recovery", ["recover-final"], 1, { env: { PluginControl: pluginControl }, agent: {
+    setThinkPlugins(input: { disabled?: readonly string[] }) { pluginWrites += 1; return { disabled: [...(input.disabled ?? [])] }; },
+    setUserCredential() { credentialWrites += 1; },
+  } });
+  await f.create(); await f.start();
+  f.inject("submission.completed");
+  assert.equal((await f.decide("recover-final")).status, 503, "the Agent result survives a failed Host terminal commit");
+  assert.equal((await f.agent.getInputExecution("r1")).status, "completed");
+  assert.deepEqual(f.counts(), { modelRuns: 1, continuations: 1 });
+  const writesBeforeRecovery = { credentialWrites, pluginWrites };
+  disabled = true;
+  await f.restartAndAlarm();
+  assert.deepEqual(f.counts(), { modelRuns: 1, continuations: 1 }, "terminal recovery never repeats the model or approved tool");
+  assert.deepEqual({ credentialWrites, pluginWrites }, writesBeforeRecovery, "reconciliation does not enable or configure the revoked provider");
+  const history = (await f.call("history", { sessionId: "s" })).body.result;
+  assert.equal(history.turns[0].status, "completed");
+  assert.ok(history.records.some((message: Message) => message.id === "continued:r1"));
+  assert.equal((await f.call("modelAccess")).body.result.providers["cloudflare-ai-gateway"].available, false);
+}
+console.log("approval recovery: completed durable result reconciles after Gateway disable without provider reconfiguration or another continuation");
+
+// A first model call can also settle at an approval pause before the initial
+// Host sync fails. Copy that existing card, then gate the later human decision.
+{
+  let disabled = false, credentialWrites = 0, pluginWrites = 0;
+  const pluginControl = { idFromName: (name: string) => name, get: () => ({ async fetch() { return Response.json({ revision: 1, overrides: { "@dsh-base/cloudflare-think-ai-gateway": { disabled } } }); } }) };
+  const f = fixture("gateway-paused-recovery", ["recover-paused"], 1, { env: { PluginControl: pluginControl }, agent: {
+    setThinkPlugins(input: { disabled?: readonly string[] }) { pluginWrites += 1; return { disabled: [...(input.disabled ?? [])] }; },
+    setUserCredential() { credentialWrites += 1; },
+  } });
+  await f.create();
+  const prompt = (await f.call("prompt", { sessionId: "s", requestId: "r1", text: "pause at approval" })).body.result;
+  f.inject("submission.awaiting-approval");
+  assert.equal((await f.call("claim", { sessionId: "s", submissionId: prompt.submissionId })).status, 500);
+  assert.equal((await f.agent.getInputExecution("r1"))?.status, "awaiting-approval");
+  disabled = true;
+  const writesBeforeRecovery = { credentialWrites, pluginWrites };
+  await f.restartAndAlarm();
+  assert.deepEqual({ credentialWrites, pluginWrites }, writesBeforeRecovery);
+  assert.deepEqual(f.counts(), { modelRuns: 1, continuations: 0 });
+  assert.equal((await f.call("history", { sessionId: "s" })).body.result.turns[0].status, "awaiting-approval");
+  assert.equal((await f.call("pendingApprovals", { sessionId: "s" })).body.result.toolApprovals.length, 1, "the existing approval card is retained");
+  const continuation = await f.decide("recover-paused");
+  assert.equal(continuation.status, 409);
+  assert.equal(continuation.body.error.code, "session/approval-capability-disabled", "new inference still requires enabled Gateway");
+  assert.deepEqual(f.counts(), { modelRuns: 1, continuations: 0 });
+}
+console.log("approval recovery: a recorded approval pause remains visible after Gateway disable while continuation stays blocked");

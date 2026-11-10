@@ -1,0 +1,18 @@
+{
+  "name": "@dsh-base/cloudflare-worker-email",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": { ".": "./src/index.ts" },
+  "peerDependencies": { "@deepseek-ai/cordis": "*" },
+  "dshBase": {
+    "worker": { "id": "cloudflare:worker:email", "origin": "custom", "order": 9 },
+    "reuse": {
+      "mode": "custom",
+      "official": ["@deepseek-ai/dsh-api-account-controller", "@deepseek-ai/dsh-deepseek-account"],
+      "reason": "Inspected the pinned release's account-controller and deepseek-account source and exports: they implement DeepSeek OAuth, Platform account operations and credentials, with no transactional mail transport, product-password recovery or email templates to mount or fork. No official mail package exists. This independently authored Workers-native Cordis service uses public Cloudflare Email Sending and Resend REST contracts and the existing D1 database; it contains no purchased template code or UI.",
+      "gaps": ["Provider acceptance is not guaranteed inbox delivery. Real credentials and verified sending domains are deployment prerequisites; provider traffic is tested with fixtures only.", "There is no public send endpoint, marketing mail, newsletter, contact form, delivery webhook or automatic retry. Ambiguous sends remain blocked for that logical key until investigated."]
+    }
+  }
+}

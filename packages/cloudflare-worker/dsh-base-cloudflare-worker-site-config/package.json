@@ -1,0 +1,32 @@
+{
+  "name": "@dsh-base/cloudflare-worker-site-config",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./src/*": "./src/*"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@dsh-base/cloudflare-worker-http": "workspace:*",
+    "@dsh-base/cloudflare-worker-auth": "workspace:*",
+    "@dsh-base/cloudflare-worker-public-pages": "workspace:*"
+  },
+  "dshBase": {
+    "worker": {
+      "id": "cloudflare:worker:site-config",
+      "origin": "custom",
+      "order": 11
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-plugin-manager",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-config-editor"
+      ],
+      "reason": "Official plugin-manager configuration slots and ui-settings forms are reused by the client companion. No official package provides deployment-wide site metadata, administrator authority, or Workers-native site storage; config-editor persists local profile files. This custom Worker service adapts the existing D1 deployment database without changing official UI or account settings."
+    }
+  }
+}

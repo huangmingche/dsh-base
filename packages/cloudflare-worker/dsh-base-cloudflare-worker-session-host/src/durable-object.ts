@@ -49,10 +49,11 @@ export function createDurableObjectSessionHost(
   uploads?: UploadStore,
   changes?: HostChangeFeed,
   permissionStore?: () => Promise<PermissionStore>,
+  onCompleted?: () => void | Promise<void>,
 ): SessionHost {
   const storage: SqlStorage = { exec: (query, ...bindings) => sql.exec(query, ...bindings) };
   if (transactionSync !== undefined) {
     storage.transactionSync = <T>(operation: () => T): T => transactionSync(operation);
   }
-  return new SessionHost(new SqliteSessionHostStorage(storage), catalog, files, settings, credentials, schedules, jobs, wakeClaim, uploads, changes, permissionStore);
+  return new SessionHost(new SqliteSessionHostStorage(storage), catalog, files, settings, credentials, schedules, jobs, wakeClaim, uploads, changes, permissionStore, onCompleted);
 }

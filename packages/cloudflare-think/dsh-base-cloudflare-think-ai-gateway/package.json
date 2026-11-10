@@ -1,0 +1,39 @@
+{
+  "name": "@dsh-base/cloudflare-think-ai-gateway",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./src/*": "./src/*"
+  },
+  "dshBase": {
+    "agent": {
+      "id": "cloudflare:think:ai-gateway",
+      "order": 1,
+      "export": "aiGateway"
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-llm-deepseek"
+      ],
+      "reason": "The official DeepSeek plugin consumes Cordis Host services and the DSH Messages stream protocol; it cannot supply a Cloudflare Think AI SDK LanguageModel or the AI binding gateway transport. Forking that Host plugin would still require a separate SDK protocol bridge. This Workers provider reuses the unchanged exported official DEFAULT_MODELS and preserves canonical provider model ids. The AI SDK public request transformer applies the durable admitted off/low/high/max selection as documented DeepSeek Chat Completions thinking/reasoning_effort fields for both owner BYOK and platform gateway requests. No unsupported effort or client-only success is advertised.",
+      "sourceEntries": [
+        "@deepseek-ai/dsh-llm-deepseek/src/models.ts"
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "gaps": [
+        "Deployment-declared platform_ai entitlements are checked through the trusted owner Host before every provider attempt. The optional output-token cap bounds a single request; accumulated usage quotas and recalling already-started requests are not supplied."
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@ai-sdk/openai-compatible": "*",
+    "@dsh-base/cloudflare-think-core": "workspace:*",
+    "@cloudflare/workers-types": "*",
+    "@deepseek-ai/dsh-llm-deepseek": "*",
+    "ai": "*",
+    "@dsh-base/session-wire": "workspace:*"
+  }
+}

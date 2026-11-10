@@ -24,7 +24,7 @@
   "dshBase": {
     "client": {
       "id": "client:commands",
-      "origin": "custom",
+      "origin": "fork",
       "order": 50,
       "replaces": "@deepseek-ai/dsh-client-ui-commands"
     },

@@ -1,0 +1,95 @@
+{
+  "name": "@dsh-base/client-workspace",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/client/entry.ts",
+    "./client": "./src/client/entry.ts",
+    "./src/*": "./src/*",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-api-remote-access",
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-api-workspace-controller",
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-shortcuts",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-session",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-context-menu",
+        "@dsh-base/client-session-adapter"
+      ],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-api-remote-access": "*",
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-api-remotes": "*",
+    "@deepseek-ai/dsh-agent": "*",
+    "@deepseek-ai/dsh-agent-preset-registry": "*",
+    "@deepseek-ai/dsh-api-session-controller": "*",
+    "@deepseek-ai/dsh-api-workspace-controller": "*",
+    "@deepseek-ai/dsh-client-connection": "*",
+    "@deepseek-ai/dsh-client-locale": "*",
+    "@deepseek-ai/dsh-client-store": "*",
+    "@deepseek-ai/dsh-client-ui-conversation": "*",
+    "@deepseek-ai/dsh-client-ui-layout": "*",
+    "@deepseek-ai/dsh-client-ui-primitives": "*",
+    "@deepseek-ai/dsh-client-ui-renderer": "*",
+    "@deepseek-ai/dsh-client-ui-session": "*",
+    "@deepseek-ai/dsh-client-ui-sidebar": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*",
+    "@deepseek-ai/dsh-jobs": "*",
+    "@deepseek-ai/dsh-schedule": "*",
+    "@deepseek-ai/dsh-session": "*",
+    "@deepseek-ai/dsh-subagent": "*",
+    "@deepseek-ai/dsh-typert-protocol": "*",
+    "@deepseek-ai/dsh-util-values": "*",
+    "@deepseek-ai/dsh-util-workspace-path": "*",
+    "clsx": "*",
+    "react": "*",
+    "@deepseek-ai/dsh-client-shortcuts": "*",
+    "@deepseek-ai/dsh-client-product-analytics": "*",
+    "@deepseek-ai/dsh-client-ui-context-menu": "*",
+    "@dsh-base/client-session-adapter": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-workspace": "*",
+    "zod": "*",
+    "@dsh-base/client-auth-login": "workspace:*"
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:workspace",
+      "origin": "fork",
+      "order": 67,
+      "replaces": "@deepseek-ai/dsh-client-ui-workspace"
+    },
+    "forkOf": {
+      "package": "@deepseek-ai/dsh-client-ui-workspace",
+      "path": "packages/client/ui-workspace",
+      "commit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "license": "MIT"
+    },
+    "reuse": {
+      "mode": "fork",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-workspace"
+      ],
+      "reason": "The pinned official workspace plugin assumes an authorized Host and offers no account-availability contract in its service, shortcuts or internally registered browser/picker. This complete browser fork retains official UI and Host semantics while isolating account-bound data and actions. Anonymous search, view options, add workspace and picker interactions request the account login dialog before opening private workflows; checking/error states remain disabled. Service calls, restoration, stale snapshots and asynchronous results remain fail-closed, and signed-in actions still require real RemoteAccess.",
+      "gaps": [
+        "Anonymous workspace navigation controls remain clickable and request sign-in before account-bound work. Checking/error states remain disabled. Private workspace/session rows stay hidden until the checked account is authenticated; no private read is made for the public empty state.",
+        "Anonymous workspace lists remain empty without a sign-in prompt; the heading and account-gated actions stay visible.",
+        "This revision limits the workbench to authenticated accounts. The anonymous homepage uses the isolated sign-in and consent document providers."
+      ]
+    }
+  }
+}

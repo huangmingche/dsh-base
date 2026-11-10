@@ -57,7 +57,7 @@ function exportsValue(file, symbol, directory, seen = new Set()) {
 }
 
 export function checkClientContract({ manifest, path }) {
-  if (manifest.dshBase?.client === undefined) return [];
+  if (manifest.dshBase?.client === undefined) return [`${manifest.name}: packages/client packages must declare dshBase.client; browser support libraries belong in packages/boot with dshBase.boot.kind browser-support`];
   const failures = [], label = manifest.name, directory = dirname(path);
   const documentRoutes = manifest.dshBase.client.documentRoutes;
   if (documentRoutes !== undefined && (!Array.isArray(documentRoutes) || documentRoutes.length === 0

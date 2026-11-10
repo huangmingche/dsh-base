@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/client/index.ts",
     "./client": "./src/client/index.ts",
-    "./src/*": "./src/*"
+    "./src/*": "./src/*",
+    "./navigation-access": "./src/client/navigation-access.ts"
   },
   "dsh": {
     "client": {
@@ -37,7 +38,9 @@
     "@deepseek-ai/dsh-api-gateway": "*",
     "@deepseek-ai/dsh-typert-registry": "*",
     "@deepseek-ai/dsh-typert-protocol": "*",
-    "@dsh-base/agent-presets": "workspace:*"
+    "@dsh-base/agent-presets": "workspace:*",
+    "@dsh-base/model-declarations": "workspace:*",
+    "@dsh-base/client-plugin-manager": "workspace:*"
   },
   "dshBase": {
     "client": {
@@ -64,19 +67,30 @@
         "@deepseek-ai/dsh-client-ui-settings-account",
         "@deepseek-ai/dsh-client-file-upload",
         "@deepseek-ai/dsh-api-gateway",
-        "@deepseek-ai/dsh-typert-registry"
+        "@deepseek-ai/dsh-typert-registry",
+        "@deepseek-ai/dsh-client-ui-chat",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-official-bundles",
+        "@deepseek-ai/dsh-package-manifest",
+        "@deepseek-ai/dsh-app-boot"
       ],
       "reason": "Workers supplies owner-scoped Host services to unchanged official client plugins. Unchanged official remote-access and Typert registry plugins are active composition rows. An internal isolated unchanged Gateway instance uses the real shared Connection as its sole answering/generation owner, supplies generated $mount, codecs, namespace registration and caller-fiber withdrawal, and is not represented as the globally active original Gateway row. The adapter is a Cordis Remote facade retaining the existing Host namespaces; it contains no copied Gateway implementation or local access snapshot. Official Typert generation emits the declared /remote runtime into ignored artifacts from the pinned source. The production resolver supplies its third-party dependencies from the existing app installation with browser/import conditions preserved; generated code is neither rewritten nor externalized. The authenticated Host remoteAccess/follow supplies a verified owner baseline; no non-owner grants are fabricated. $stream directly reuses the stable exported official RemoteStream; only physical carrier failures are translated to RemoteStreamCarrierError, while protocol/business failures remain terminal and legacy fallback requires genuine endpoint-unavailable. Official Connection RPC carries settings and schedule arguments unchanged. The unchanged permission UI uses enforced per-session Host permissions and durable official commands. Approval follows the real PendingApproval UI waterfall with Session scopes, AbortSignal and a single active fetch; only explicit user decisions reach the Host, exceptions never auto-reject and invalidation-driven retry preserves the same decision. Feedback contract tests and PendingApproval lifecycle tests use the pinned exported official implementations. Stable entries do not export the RPC helper or those test components; sourceEntries are reviewed at the pinned commit. Other Host compatibility boundaries are enumerated below.",
       "sourceEntries": [
         "@deepseek-ai/dsh-client-connection/src/client/rpc.ts",
         "@deepseek-ai/dsh-client-ui-message-feedback/src/client/controller.ts",
-        "@deepseek-ai/dsh-client-ui-approval/src/client/contract/slots.ts"
+        "@deepseek-ai/dsh-client-ui-approval/src/client/contract/slots.ts",
+        "@deepseek-ai/dsh-client-ui-theme/src/theme-settings.ts",
+        "@deepseek-ai/dsh-client-locale/src/locale-settings.ts",
+        "@deepseek-ai/dsh-client-ui-chat/src/chat-settings.ts",
+        "@deepseek-ai/dsh-client-ui-conversation/src/submission-settings.ts",
+        "@deepseek-ai/dsh-client-ui-settings/src/developer-tools-settings.ts"
       ],
       "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
       "gaps": [
+        "Public pages defer the unchanged Gateway and owner SSE until a shared checked local-account read confirms authentication. Generated contributions retain cancellation handles while pending; official RemoteAccess stays closed without a fabricated baseline. Idle account views do not poll. Explicit sign-in attempts have bounded polling, focus/visibility refresh authentication, and confirmed logout/owner changes reload the page to withdraw the old owner access lifetime.",
         "The real authenticated owner Host follows the official owner baseline contract. Shared non-owner Peer identities, policy grants and policy mutation are not implemented or advertised. RemoteAccess controls service access, separately from agent tool permission presets. The unchanged Gateway is an isolated internal dependency of this seam while existing handwritten Host namespaces migrate; the original global Gateway composition row remains disabled.",
         "Owner-scoped durable SSE invalidations refresh official settings, schedule and credential consumers across tabs. Initial/reconnect baselines close the read/subscribe race; notifications carry only revision/topics, never private values.",
-        "Plugin management exposes real read-only client composition inventory, including disabled originals and observed fiber states. Dynamic package installation, removal and switching are unavailable; no Worker/Think inventory is fabricated.",
+        "Plugin inventory retains observed client fibers and disabled originals. The global manager displays owned client, Worker and Think composition entries derived from package metadata and the effective profile, with pack-derived bundle grouping covering each owned entry exactly once. Display coverage is independent of the owner-mutation allowlists generated from L1 packs; owned bundles carry official: false. Logical dsh-base:* identities describe shipped component groups, not npm installation claims. The user-approved global group contains site branding, public site configuration, SEO and the global-settings interface; Agent presets, model-provider settings, attachments and the unavailable subagent belong to AI chat. Site configuration editing is a separate administrator permission and never relaxes required/deployment plugin enablement policy. Generated metadata/profile coverage includes disabled entries and non-tool providers; the official Settings inventory includes observed client/Worker globals plus every Think declaration. Required/deployment ownership is a read-only Host managementPolicy, separate from unsupported capability state. Missing observed owned client/Worker rows fail honestly. Cloudflare AI Gateway groups the client settings card and Think provider through official BundleInfo.rows with one atomic owner switch. Both real component rows remain inspectable, with managedByBundle Host metadata explaining their read-only switches; legacy member names address the same bundle and legacy owner state follows Think execution selection. The pinned official optional/on-demand bundles are discovery metadata only: missing, uninstalled, disabled, no installTarget or runtime rows, and explicit deploymentAvailability:not-adapted (no fabricated error). The marked official manager fork renders this Host-only extension as neutral Unavailable; genuine read, metadata and runtime errors remain errors. All are listedByDefault to expose unavailable candidates at the user request; unchanged official HIDDEN/MORE rules still govern visibility and ordering. Dynamic package installation/removal remains unavailable.",
         "Conversation-log feedback is unavailable. All official Session/message feedback controls are visible and disabled, and Remote calls and /feedback reject. Tested settings-sidecar feedback helpers remain unmounted and do not claim official log semantics.",
         "The directory browser addresses durable logical Host directories, not the operator native filesystem. Native picking rejects; official browse remains available.",
         "Agent preset roster and declaration viewing use the four pinned official @deepseek-ai/dsh-web-app preset exports generated at check/build time; selection/creation with official ids is refused rather than aliased. The actual fixed composition is canonical dsh-base-think; switching presets remains unavailable.",
@@ -84,7 +98,11 @@
         "Analytics collection is disabled. Dynamic runs/jobs are empty and their mutations refuse; literal composition has no HMR lifecycle. These optional no-op lifecycle interfaces do not claim persistent operations.",
         "No image processing binding is configured. Ordinary file uploads use real session-scoped Host receipts; images are refused by the official InputBar picker/drop through a zero-image limit and by the Host with IMAGE_PROCESSOR_UNAVAILABLE. The shared file entry remains available for supported ordinary files. No vision support is claimed.",
         "Model and reasoning effort selections are forwarded to the durable Host. Only acknowledged values are projected; an older Host that ignores a requested effort is rejected. Legacy catalogs without a reasoning capability remain visibly disabled.",
-        "Projection watermarks are durable Host revisions independent of chat journal cursors. The adapter never fabricates wall-clock sequence values or recomputes snapshots against separately read newer state; a unified native event-derived projection cut remains an explicit compatibility gap."
+        "Projection watermarks are durable Host revisions independent of chat journal cursors. The adapter never fabricates wall-clock sequence values or recomputes snapshots against separately read newer state; a unified native event-derived projection cut remains an explicit compatibility gap.",
+        "sessionModelCatalog is an authenticated Host-data seam for the marked model-selection fork: it reads modelAccess with the exact Session id and preserves read failures. Official session/modelCatalog and modelAccess settings remain account scoped; anonymous eager reads return an authentication error without private HTTP.",
+        "User-approved owned display naming: platform-neutral custom/fork components and feature groups use the exact Dsh-base prefix; Cloudflare integrations use Cloudflare. The existing Cloudflare AI Gateway name is preserved without doubling its prefix. These are localized display names only: original official metadata, package/composition identities, runtime provenance, control state and ownership permissions are unchanged. Cloudflare branding denotes integration, not upstream authorship.",
+        "Public sidebar visibility is separate from private Host access. The checked account snapshot supplies navigation availability to marked official Sidebar, Workspace and Entry-customization forks; anonymous, pending and failed states never admit private actions. Directory picker calls also refuse locally before transport. The server authorization boundary remains unchanged.",
+        "Anonymous plugin browsing reads only generated deployment metadata and declares no running fibers or owner settings. All plugin mutations and every Schedule RPC reject before private transport without an authenticated account. A separate public-navigation plugin composes the official pages and owns action-level login prompts; private RemoteAccess and Gateway scopes remain closed."
       ],
       "declarationSources": [
         "@deepseek-ai/dsh-web-app/presets/standard.patch.yml",
@@ -92,7 +110,33 @@
         "@deepseek-ai/dsh-web-app/presets/minimal.patch.yml",
         "@deepseek-ai/dsh-web-app/presets/cordis.patch.yml"
       ],
-      "declarationSourceCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db"
+      "declarationSourceCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "bundleCatalog": {
+        "source": "@deepseek-ai/dsh-official-bundles",
+        "exports": [
+          "OPTIONAL_BUNDLES",
+          "ON_DEMAND_BUNDLES",
+          "OFFICIAL_ON_DEMAND_CATALOG"
+        ],
+        "commit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+        "generator": "scripts/composition/generate-official-bundle-catalog.mjs",
+        "generated": "src/client/official-bundle-catalog.generated.ts",
+        "metadataResources": "Optional bundle exported package.json and locale/*.json; on-demand display data comes unchanged from the stable official catalog export.",
+        "iconContract": "The exported package manifest icon declares a relative resource. The dsh-package-manifest PluginLocalizedMeta.icon and dsh-app-boot readPluginMeta contracts permit embedding that package-owned image as a base64 data URL; this is not an import of an unexported module. Generated provenance records the declaration and original visibility.",
+        "readerDecision": "The official stable app-boot reader was considered: it requires the native Node ModuleLoader and boot-only dependencies absent from this Workers build. The build extractor reads declarations only, without mounting app-boot, evaluating bundle runtime code, copying official implementation, or adding browser Node dependencies.",
+        "visibilityAdaptation": "User-requested unavailable visibility: listedByDefault=true; preserve originalListedByDefault and official HIDDEN_BUNDLES/MORE_BUNDLES behavior. No availability or installation claims are promoted."
+      },
+      "assets": [
+        {
+          "file": "src/client/cloudflare-plugin-icon.ts",
+          "source": "https://github.com/cloudflare/workers-sdk/blob/4335eacef350c98722418fbb58b012a6964e26d7/packages/create-cloudflare/templates/react/workers/ts/src/assets/cloudflare.svg",
+          "commit": "4335eacef350c98722418fbb58b012a6964e26d7",
+          "sha256": "1c87883a8d8037c52d0dfe59f328ebbaac09e86243c0d927ece8847d3b6051fc",
+          "license": "MIT",
+          "licenseFile": "src/client/assets/cloudflare.LICENSE",
+          "usage": "Unmodified Cloudflare cloudmark shared by Gateway UI and all owned Worker/Think component metadata, rendered through the existing official image contract. No remote image fetch or official-plugin provenance claim."
+        }
+      ]
     }
   }
 }

@@ -1,0 +1,19 @@
+{
+  "name": "@dsh-base/model-declarations",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dshBase": {
+    "reuse": {
+      "mode": "seam",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-settings-models",
+        "@deepseek-ai/dsh-api-remotes"
+      ],
+      "reason": "Pure public data contract shared by existing Host and client plugins. Moves existing deployment model declarations and serialized DeepSeek settings defaults into one platform-neutral source. The official UI consumes the SettingsNamespaceView/schema contract; no official runtime is copied and no feature, network request or endpoint is supplied independently. It contains only static defaults, never owner settings, credentials, authentication or availability state."
+    }
+  }
+}

@@ -1,9 +1,12 @@
+> Current differences are classified in [official differences](official-differences.en.md). The current repair pass adds real effort, per-session R2 policy, exact fork seeds, SDK step evidence, persistent authentication limits and event-driven Host observations; deployment evidence is versioned separately.
+
 # Runtime compatibility and state ownership
 
-The official Web UI and interaction contract remain the
+Updated: 2026-11-10. The official Web UI and interaction contract remain the
 product reference. Workers/Think provide a different Host and execution runtime;
 matching a Remote shape does not make those execution semantics identical.
 Current verification is tracked in [completion-status.md](completion-status.md).
+The previous chronological notes are preserved in [history](history/2026-11-10-pre-alignment-runtime-parity.md).
 
 ## Composition and source boundary
 
@@ -18,10 +21,11 @@ The app boots generated composition; it does not own feature behavior.
 - Disabled official rows remain visible in inventory without importing their
   modules. Coverage checks validate declarations; browser acceptance separately
   checks `origin`, `replaces`, and active fibers.
-- Source/export, plane, and composition validators are release gates. Negative
-  fixtures verify that these gates actually fail on forbidden changes. Exact
-  source counts are recorded per build in completion status. The 62 official
-  UI declarations consist of 57 unchanged plugins and 5 tracked replacements.
+- Source, export, runtime-plane and composition checks run before release.
+  The [application profile](../apps/web/composition.profile.json) and the
+  pinned official packages determine which plugins load directly and which
+  have a recorded fork. The [acceptance record](completion-status.en.md)
+  gives the totals for each tested build.
 - Public documents are selected by plugin `documentRoutes` metadata. `/login`
   starts only the login provider through the original official Loader; it skips
   private control reads, app fibers and shell mounting. Its public system-theme seam
@@ -186,13 +190,13 @@ rejects them with localized feedback, and server paths explicitly refuse them.
 | Tool approval | The existing approval-gated Think tool/Host continuation path is real. It does not imply that every official permission policy or tool lifecycle is implemented. |
 | Terminal | No Host PTY/process service. The official plugin and exported guide/body stay visible; unavailable actions are disabled and service calls reject. |
 | Account billing and feedback | Real account identity/sign-out remain available. Billing and conversation-log feedback controls are official components, visible but disabled with localized reasons; no fake balance or successful log submission is returned. |
-| Session plugin inventory | The unchanged official `ui-settings-plugin-inventory` renders the official Settings “Session plugins” group from `pluginInventory.list()`: generated Cloudflare Think agent-composition rows (default) plus the four pinned declaration groups, and the real client Loader inventory in the global group. Row `fiberPhase` is null for declarations; only live client entries carry observed phases. The declaration rows use the pinned official `definitionComposition` projection; the Think inventory and runtime roster share one metadata validator. | The Host has no runnable official preset Loader, so official declaration groups are read-only inspection; no installation or execution is implied. |
+| Session plugin inventory | The official `ui-settings-plugin-inventory` reads `pluginInventory.list()`. In an authenticated session, the global group reports observed client and Worker entries and their recorded fiber phases. Session groups show the declared Think composition and pinned preset declarations, which carry `fiberPhase: null`. |
 | Agent presets | A complete marked fork of the official ui-agent-preset package preserves all official controllers/copy/load/Toast/animation/guides and only adapts Host availability: the four official modes stay visible in Settings and the composer in a neutral gray unavailable state with localized reasons, while true declaration-load failures keep the official red broken state; `dsh-base-think` is the canonical fixed default, and only unavailable actions (Cloudflare Think viewer, Creator while Cordis is unavailable, switching) are refused. Official ids are never aliased. |
-| Plugin inventory and installation | The unchanged official manager shows the real built-in inventory read-only; `remote.pluginInventory`/`remote.pluginManager` are adaptation-seam projections with no owner-level switch. Disabled originals and deployment-owned rows remain in the official Settings built-in inventory. Add/install/upgrade/physical-uninstall return explicit unavailable reasons; no fictional installed bundle is reported. |
+| Plugin inventory and installation | The Plugins page uses the tracked official manager fork. Its Host seam reads generated bundle metadata and reports observed activation separately. Owner-managed `L1` packs cover the Cloudflare AI Gateway provider, web fetch and memory. The Gateway switch controls both its client and Think components. Disabled originals and deployment-managed rows stay visible. Dynamic installation, upgrade and physical removal report their deployment limits. |
 | Directory picker | The unchanged official browser picker consumes real logical directory RPCs. Folder creation and Workspace registration are separate durable steps. Native OS picking is unavailable. |
 | Native settings document | No native editor; `hasDocument` is false and opening reports unavailable. Durable settings themselves are implemented. |
 | Schedule | Durable after/at/every/daily/weekly/rrule delivery, edits, history, and alarms exist. RRULE uses the pinned official stable `dsh-util-time.RRule` implementation, with TZID, COUNT, DST and latest-due semantics. Timing edits recompute occurrences with revision checks; manual runs preserve the scheduled occurrence. Cron is supported through the pinned official Cron engine. |
-| Subagent delegation and direct history | Delegation is unavailable for both BYOK and platform modes. The composition retains an honest capability statement and no delegation tool. Historical facet storage/reads remain compatible, but execution hooks reject; direct-subagent Session page/follow remains unsupported. |
+| Subagent delegation and direct history | Delegation is unavailable for both BYOK and platform modes. The composition retains an honest capability statement and no delegation tool; model/turn/step/tool hooks reject with that reason and interactive control returns `subagent/unavailable`. The `DshSubagent` class name/export and the inherited read path are restored for compatibility, but the earlier `deleted` migration cleared the historical facets used in the acceptance deployment. Reading pre-migration history has not been verified. Direct-subagent Session page/follow remains unsupported. |
 | Dynamic Cordis | No isolated runtime/dynamic-worker loader for agent-defined plugin execution. The mounted UI cannot be treated as a working sandbox. |
 | HMR | No Host per-plugin artifact build/graph-revision pipeline. The event carrier is not evidence of real HMR rebuild support. |
 | Maintenance jobs | Cleanup/pruning/recovery jobs exist. General official job execution/details are not declared equivalent. |
@@ -215,19 +219,20 @@ compiler-emitted dependency declarations avoid merging upstream project planes.
 Dependency extraction uses `noCheck`; owned source checking does not, and this
 is not a claim of complete upstream semantic checking.
 
-The current source gates include 41 validator regressions. All 76 scoped
-parity/integration cases and 7 browser compatibility cases passed on the
-official React 18 browser runtime. The server SDK's React peer environment is
-isolated in a build dependency package; its React entrypoints cannot enter the
-browser bundle. Frozen installation enforces peer contracts without exemptions.
-Final full-product Worker/Chromium and deployment results are recorded in the
-current ledger, including rapid input in the real conversation composer.
-Local private inventory contains 108 rows with declared provenance and all enabled
-fibers active. English and Chinese public login each starts one login fiber,
-requests only `/api/auth-policy`, opens no WebSocket and reports no browser errors.
-Neither that local run nor the controlled reference fixtures call an AI provider.
-The browser compatibility cases exercise real document Workers and login policy;
-they do not assert model-side document parsing.
+The November 10, 2026 acceptance record covered 41 validator regressions,
+76 scoped parity and integration cases, and 7 browser compatibility cases.
+Those tests ran on the official React 18 browser runtime. The server SDK's
+React peer environment is isolated in a build dependency package. Frozen
+installation checks its peer contracts and the build excludes its React
+entrypoints from the browser bundle.
+
+In that local run, the private inventory contained 108 rows with declared
+provenance and every enabled fiber was active. English and Chinese public
+login each started one login fiber, requested only `/api/auth-policy`, opened
+no WebSocket and reported no browser errors. The run and its reference
+fixtures made no AI provider calls. Browser compatibility tests exercised
+document Workers and login policy. The [acceptance record](completion-status.en.md)
+identifies the build and results for later checks.
 
 The current ledger records the exact tested deployment and final validation
 status. Deployed Host/browser/provider/file checks record their selected

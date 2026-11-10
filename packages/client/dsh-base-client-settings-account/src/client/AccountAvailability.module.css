@@ -1,0 +1,15 @@
+/* Explicit Host-unavailable presentation only. Keep the copied official CSS intact.
+   Disabled anchors follow the official Button's opacity and cursor treatment. */
+.unavailable a[aria-disabled='true'] {
+  cursor: not-allowed;
+  opacity: 0.4;
+}
+
+/* An unavailable action must not gain the official enabled hover treatment. */
+.unavailable a[aria-disabled='true']:hover {
+  background: transparent;
+}
+
+.unavailable a[aria-disabled='true'][data-account-action='top-up']:hover {
+  background: var(--dsw-alias-button-primary-fill);
+}

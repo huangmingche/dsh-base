@@ -1,3 +1,4 @@
+import { exportCommandDescriptor } from './export-command.ts';
 import { firstCronOccurrence, officialCron } from './schedule-cron.ts';
 import { FIXED_AGENT_PRESET_ID } from "../../../boot/dsh-base-agent-presets/src/index.ts";
 import { prepareFork } from './fork-seed.ts';
@@ -210,6 +211,7 @@ export class SessionHost implements SessionHostReadContract {
   private readonly wakeClaim: (() => void | Promise<void>) | undefined;
   private readonly changes: HostChangeFeed;
   private readonly permissionStore: (() => Promise<PermissionStore>) | undefined;
+  private readonly onCompleted: (() => void | Promise<void>) | undefined;
 
   /**
    * @param storage - durable Session storage port.
@@ -231,6 +233,7 @@ export class SessionHost implements SessionHostReadContract {
     uploads?: UploadStore,
     changes = new HostChangeFeed(),
     permissionStore?: () => Promise<PermissionStore>,
+    onCompleted?: () => void | Promise<void>,
   ) {
     this.storage = storage;
     this.catalog = catalog;
@@ -243,6 +246,7 @@ export class SessionHost implements SessionHostReadContract {
     this.uploads = uploads;
     this.changes = changes;
     this.permissionStore = permissionStore;
+    this.onCompleted = onCompleted;
   }
 
   private async workspaceData(): Promise<{
@@ -377,6 +381,12 @@ export class SessionHost implements SessionHostReadContract {
     if (this.permissionStore === undefined) throw new SessionRpcFault('gateway/endpoint-unavailable', 'Session permission runtime unavailable');
     return this.permissionStore();
   }
+  async exportCommandDescriptor(input: { sessionId: string }) { await this.requireSession(input.sessionId); return exportCommandDescriptor(); }
+  async executeExportCommand(input: { sessionId: string; line: string; attachments: readonly unknown[]; rpcId: string }) {
+    await this.requireSession(input.sessionId);
+    if (!this.storage.executeExportCommand) throw new SessionRpcFault('gateway/endpoint-unavailable', 'Export command persistence unavailable');
+    return this.storage.executeExportCommand(input);
+  }
   async permissionCatalog() { return (await this.permissions()).catalog(); }
   async permissionCommands(input: {sessionId: string}) { return (await this.permissions()).commands(input.sessionId); }
   async executePermissionCommand(input: {sessionId: string; line: string; attachments: readonly unknown[]; rpcId: string}) {
@@ -422,6 +432,20 @@ export class SessionHost implements SessionHostReadContract {
   async history(input: { sessionId: string }): Promise<{ records: readonly SessionMessageRecord[]; turns: readonly SessionTurnState[]; forkSeed?: import('@dsh-base/session-wire').SessionForkSeed }> {
     const snapshot = await this.transcriptSnapshot(input.sessionId);
     return { records: snapshot.records, turns: turnStates(snapshot), ...(snapshot.forkSeed === undefined ? {} : { forkSeed: snapshot.forkSeed }) };
+  }
+
+  /** Read export metadata and the full committed transcript from the same cut. */
+  async logExportSnapshot(input: { sessionId: string }) {
+    const snapshot = await this.transcriptSnapshot(input.sessionId);
+    return { session: snapshot.session, records: snapshot.records, turns: turnStates(snapshot),
+      ...(snapshot.forkSeed === undefined ? {} : { forkSeed: snapshot.forkSeed }) };
+  }
+
+  /** Resolve only a file actually admitted to this Session; never accept an R2 key. */
+  async logExportFile(input: { sessionId: string; file: import('./uploads.ts').FileRef }) {
+    await this.requireSession(input.sessionId);
+    if (!this.uploads) throw uploadError('Attachment storage is unavailable', 'STORAGE_UNAVAILABLE');
+    return this.uploads.exportFile(input.sessionId, input.file);
   }
 
   /** Detect the prior duplicate-Step projection fault without calling the model. */
@@ -870,6 +894,7 @@ export class SessionHost implements SessionHostReadContract {
       const awaiting = pendingToolApproval(messages.slice(start + 1, end < 0 ? undefined : end));
       const completed: SessionHostSubmission = { ...running, status: latest?.status === "cancelled" ? "cancelled" : awaiting ? "awaiting-approval" : "completed", updatedAt: Date.now() };
       const committed = await this.transitionSubmission(completed, completed.status, `submission.${completed.status}`, completed);
+      if (committed.status === 'completed') { try { await this.onCompleted?.(); } catch { /* Statistics cannot fail a completed turn. */ } }
       return { submissionId: committed.submissionId, status: committed.status as "completed" | "cancelled" | "awaiting-approval", messages: messages.length };
     } catch (error) {
       const latest = await this.storage.getSubmission(input.submissionId);
@@ -984,7 +1009,8 @@ export class SessionHost implements SessionHostReadContract {
       : result.status === "completed" ? "completed"
       : result.status === "awaiting-approval" ? "awaiting-approval"
       : "continuing";
-    await this.transitionSubmission(latest, status, `submission.${status}`, { submissionId: latest.submissionId, authoritative: true, ...(result.error === undefined ? {} : { message: result.error }) });
+    const committed = await this.transitionSubmission(latest, status, `submission.${status}`, { submissionId: latest.submissionId, authoritative: true, ...(result.error === undefined ? {} : { message: result.error }) });
+    if (committed.status === 'completed') { try { await this.onCompleted?.(); } catch { /* Statistics cannot fail a completed turn. */ } }
     await this.wakeClaim?.();
   }
 

@@ -1,0 +1,44 @@
+{
+  "name": "@dsh-base/client-shell-extras",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/client/index.tsx",
+    "./client": "./src/client/index.tsx"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-client-ui-primitives": "*",
+    "react": "*",
+    "@dsh-base/client-site-config": "workspace:*",
+    "zod": "*"
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:shell-extras",
+      "origin": "custom",
+      "order": 55,
+      "disabled": true,
+      "unavailableReason": "Disabled by product request: the sidebar More menu retains only the official Browse/Create plugin entries."
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-entry-customization"
+      ],
+      "reason": "The unchanged official entry-customization plugin owns the Browse/Create actions. About, support and environment rows were a custom product extension, not an official capability. The user requested their removal; this extension is now disabled inventory and receives no bundled resolver. Its source is retained for history and does not register UI in the deployed composition.",
+      "gaps": []
+    }
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-locale"
+      ],
+      "platform": "web"
+    }
+  }
+}

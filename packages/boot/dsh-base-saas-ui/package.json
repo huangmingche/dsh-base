@@ -1,0 +1,54 @@
+{
+  "name": "@dsh-base/client-saas-ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./transport": "./src/transport.ts",
+    "./locales": "./src/locales.ts",
+    "./challenge": "./src/Challenge.tsx"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-client-locale": "*",
+    "@deepseek-ai/dsh-client-ui-renderer": "*",
+    "@deepseek-ai/dsh-client-ui-plugin-manager": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*",
+    "@deepseek-ai/dsh-client-ui-primitives": "*",
+    "@deepseek-ai/dsh-client-ui-settings-models": "*",
+    "@dsh-base/client-auth-login": "workspace:*",
+    "react": "*",
+    "react-dom": "*",
+    "@deepseek-ai/dsh-client-ui-theme": "*",
+    "@deepseek-ai/dsh-client-web": "*",
+    "@dsh-base/client-public-navigation": "workspace:*"
+  },
+  "dshBase": {
+    "boot": {
+      "kind": "browser-support"
+    },
+    "reuse": {
+      "mode": "seam",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-plugin-manager",
+        "@deepseek-ai/dsh-client-ui-primitives",
+        "@deepseek-ai/dsh-client-ui-settings-models"
+      ],
+      "reason": "Browser-only generic request lifecycle and official primitive rendering. Product endpoints, schemas, decisions and composition entries remain in each caller plugin. Official settings forms depend on Host configuration namespaces rather than these same-origin SaaS APIs, so mounting or forking them cannot provide this transport. Buttons, inputs and switches use stable unchanged exports; existing exported field and select styles supply layout without copying official source.",
+      "sourceEntries": [
+        "@deepseek-ai/dsh-client-ui-primitives/src/settings-form/fields.module.css",
+        "@deepseek-ai/dsh-client-ui-settings-models/src/client/ModelsSection.module.css",
+        "@deepseek-ai/dsh-client-ui-theme/src/client/styles.ts",
+        "@deepseek-ai/dsh-client-ui-theme/src/client/icon-sprite.ts",
+        "@deepseek-ai/dsh-client-ui-theme/src/styles/brand-font.css",
+        "@deepseek-ai/dsh-client-web/src/base.css"
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "for": [
+        "@deepseek-ai/dsh-client-ui-plugin-manager",
+        "@deepseek-ai/dsh-client-ui-primitives"
+      ]
+    }
+  }
+}

@@ -1,4 +1,5 @@
 import { providerForModelId } from '../../../boot/dsh-base-session-wire/src/model-routes.ts';
+import { MANAGEABLE_THINK_RUNTIME_NAMES } from '../../../boot/dsh-base-plugin-management/src/index.ts';
 import { InputExecutionLedger, type InputExecution, type ExecutionStatistics, type InputExecutionConfig, type ModelStepEvidence } from "./input-execution.ts";
 import { readUploadedFile, uploadedFileContext, type UploadedFileRef, type UploadedFilePage } from "./uploaded-files.ts";
 import { assertSessionActive } from "./session-activity.ts";
@@ -33,6 +34,8 @@ export interface DshAgentRuntime {
   noteModelRetry?(failure: { readonly message: string }): void;
   /** Per-plugin JSON config selected by the owner; plugins narrow their own deployment limits. */
   pluginConfig?(name: string): unknown;
+  /** Re-check a deployment-declared paid operation using this Agent's trusted owner Host. */
+  authorizeOperation?(operation: string): Promise<void>;
 }
 
 /** A dsh-base agent plugin: one capability composed into the agent. */
@@ -168,7 +171,7 @@ export function composeAgent<Env extends Cloudflare.Env>(plugins: readonly DshPl
 
     /** Apply the Host's persisted owner/session projection before the next model call. */
     setThinkPlugins(input: { disabled?: readonly string[]; config?: Record<string, unknown> }): { disabled: string[] } {
-      const disabled = new Set((input.disabled ?? []).filter(name => name === 'fetch' || name === 'memory'))
+      const disabled = new Set((input.disabled ?? []).filter(name => MANAGEABLE_THINK_RUNTIME_NAMES.includes(name)))
       const config = typeof input.config === 'object' && input.config !== null && !Array.isArray(input.config) ? input.config : {}
       this.disabledThinkPlugins = disabled
       this.thinkPluginConfig = config
@@ -1092,8 +1095,23 @@ export function composeAgent<Env extends Cloudflare.Env>(plugins: readonly DshPl
       const response = await stub.fetch(new Request('https://session-host/api/session-host', {method:'POST', headers:{'content-type':'application/json', ...(internal ? {'x-dsh-internal-token':secret!} : {})},
         body:JSON.stringify({method,params:{sessionId:this.hostSessionId(),...params}})}));
       const body = await response.json() as {result?:unknown;error?:unknown};
-      if (!response.ok || body.error !== undefined || !Object.hasOwn(body,'result')) throw new Error(`${method} failed`);
+      if (!response.ok || body.error !== undefined || !Object.hasOwn(body,'result')) {
+        const code = typeof body.error === 'object' && body.error !== null ? (body.error as {code?:unknown}).code : undefined;
+        if (method === 'authorizeOperation' && (code === 'entitlement_required' || code === 'entitlements_unavailable')) {
+          throw Object.assign(new Error(code), {code, status: response.status});
+        }
+        throw new Error(`${method} failed`);
+      }
       return body.result;
+    }
+
+    /** Every platform provider request uses the owner transport, never a browser-supplied user id. */
+    async authorizeOperation(operation: string): Promise<void> {
+      if (operation !== 'platform_ai') throw new Error('unsupported_paid_operation');
+      const name = (this.ctx as unknown as {id?:{name?:string}}).id?.name;
+      if (typeof name !== 'string' || !/^owner:[^:]+:.+$/u.test(name)) throw new Error('entitlements_unavailable');
+      const decision = await this.callHost('authorizeOperation', {operation}, true) as {allowed?:unknown}|undefined;
+      if (decision?.allowed !== true) throw new Error('entitlements_unavailable');
     }
 
     async authorizeAction(ctx: Parameters<Think<Env>['authorizeAction']>[0]): Promise<Awaited<ReturnType<Think<Env>['authorizeAction']>>> {

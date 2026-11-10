@@ -1,0 +1,34 @@
+{
+  "name": "@dsh-base/cloudflare-worker-entitlements",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@dsh-base/cloudflare-worker-http": "workspace:*",
+    "@dsh-base/cloudflare-worker-auth": "workspace:*",
+    "@dsh-base/cloudflare-worker-payment-waffo": "workspace:*"
+  },
+  "dshBase": {
+    "worker": {
+      "id": "cloudflare:worker:entitlements",
+      "origin": "custom",
+      "order": 14
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-deepseek-account",
+        "@deepseek-ai/dsh-api-account-controller"
+      ],
+      "reason": "The pinned official account packages manage DeepSeek Platform identity and wallet balances, not product merchant purchases or feature grants. Neither direct mounting nor a Host-only fork provides SaaS feature authorization. This plugin composes the local auth and Waffo Pancake payment services with a server-configured feature-to-plan declaration and adds no UI or runtime infrastructure.",
+      "gaps": [
+        "Explicit platform_ai operation mappings are checked in Host and before every Think gateway request. Other product routes must call the trusted service before protected work. It does not implement cumulative usage quotas, credits or provider reconciliation."
+      ]
+    }
+  }
+}

@@ -1,5 +1,5 @@
-# Release verification
+# 版本范围与验收
 
-The client profile and the source lock specify the official plugins and upstream release used by this build. Run `pnpm check` and `pnpm build` against the locked checkout. Local and Staging browser tests describe the interactions exercised by each runner. An acceptance result applies to the build that produced it.
+此版本通过客户端、Worker 和 Think 插件交付自有功能。具体启用的条目见应用 profile 和 pack 元数据。服务供应商及功能开关由部署配置决定。发布前运行 `pnpm check`、`pnpm build:all` 和相应的浏览器验收。每次验收结果均以实际运行时间和构建版本为准。
 
-[Source lock](../dsh-source.lock.json) · [Client profile](../apps/web/composition.profile.json) · [Runtime boundaries](runtime-parity.md)
+[官方差异](official-differences.md) · [English](completion-status.en.md)

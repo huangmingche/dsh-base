@@ -2,21 +2,23 @@
 import { createRequire } from "node:module";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join, relative } from "node:path";
-import { repoRoot } from "../conformance/lib.mjs";
-const app = join(repoRoot, "apps/web"), source = join(repoRoot, ".submodules/deepseek-harness"), output = join(repoRoot, ".artifacts/typecheck");
+import { buildContext, cliProductRoot } from "../build/product-paths.mjs";
+import { createTypecheckProgram, parseTypecheckProject } from "./compiler.mjs";
+const context = buildContext(cliProductRoot());
+const { productRoot: repoRoot, appRoot: app, upstreamRoot: source, typecheckRoot: output } = context;
 const ts = createRequire(join(app, "package.json"))("typescript");
 const plane = process.argv[2] ?? "client";
 if (!["client", "worker"].includes(plane)) throw new Error("Expected client or worker plane");
 const configPath = join(output, `${plane}.json`);
 const raw = JSON.parse(readFileSync(configPath, "utf8"));
-const parsed = ts.parseJsonConfigFileContent(raw, ts.sys, output);
-const graph = ts.createProgram({ rootNames: parsed.fileNames, options: parsed.options });
+const parsed = parseTypecheckProject(ts, raw, context);
+const graph = createTypecheckProgram(ts, { rootNames: parsed.fileNames, options: parsed.options }, context);
 const roots = graph.getSourceFiles().filter(file => file.fileName.startsWith(`${source}/`) && !file.isDeclarationFile).map(file => file.fileName);
 const declarationRoot = join(output, `${plane}-dependencies`);
-const program = ts.createProgram({ rootNames: roots, options: {
+const program = createTypecheckProgram(ts, { rootNames: roots, options: {
   ...parsed.options, rootDir: source, outDir: declarationRoot, noEmit: false, declaration: true, declarationMap: false,
   emitDeclarationOnly: true, noCheck: true, types: ["node"], typeRoots: [join(app, "node_modules/@types")],
-} });
+} }, context);
 const emitted = program.emit();
 if (emitted.emitSkipped || emitted.diagnostics.length) {
   console.error(ts.formatDiagnosticsWithColorAndContext(emitted.diagnostics, { getCanonicalFileName: value => value, getCurrentDirectory: () => repoRoot, getNewLine: () => "\n" }));

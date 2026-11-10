@@ -1,0 +1,21 @@
+{
+  "$schema": "../../scripts/composition/pack.schema.json",
+  "id": "optional-think",
+  "planes": {
+    "think": [
+      "@dsh-base/cloudflare-think-fetch",
+      "@dsh-base/cloudflare-think-memory"
+    ]
+  },
+  "requires": [
+    "ai-chat-core"
+  ],
+  "config": {},
+  "toggleable": "L1",
+  "uninstallImpact": "Disabling hides the capability surface and rejects its control/execution routes; packages stay installed.",
+  "reuse": {
+    "mode": "custom",
+    "official": [],
+    "reason": "Optional Think tools projected per owner/session; the pack manifest is the single allowlist source."
+  }
+}

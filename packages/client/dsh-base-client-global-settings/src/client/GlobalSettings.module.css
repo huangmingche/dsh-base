@@ -1,0 +1,5 @@
+/* Only layout for the product-specific field groups; controls retain official form styles. */
+.sectionHeading { margin: 20px 0 0; }
+.multiline { height: auto; min-height: 74px; padding-block: 8px; resize: vertical; }
+.actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.notice { margin: 0 0 12px; }

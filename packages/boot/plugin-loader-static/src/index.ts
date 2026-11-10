@@ -19,7 +19,7 @@ export type PluginConfigValue = null | boolean | number | string
 export interface StaticPluginEntry {
   /** Stable composition-local identity. */
   readonly id: StaticPluginEntryId
-  /** Scoped package name resolved only through the module table. */
+  /** Scoped npm package identity, resolved only through the explicit module table. */
   readonly name: string
   /** Original upstream identity or a project-owned fork/new implementation. */
   readonly origin: 'upstream' | 'fork' | 'custom'
@@ -84,7 +84,9 @@ const phases: Record<FiberState, StaticPluginPhase> = {
   [FiberState.ACTIVE]: 'active', [FiberState.FAILED]: 'failed',
   [FiberState.UNLOADING]: 'unloading', [FiberState.DISPOSED]: null,
 }
-const packageName = /^(?:@deepseek-ai\/(?:dsh-[a-z0-9][a-z0-9-]*|cordis(?:-[a-z0-9][a-z0-9-]*)?)|@dsh-base\/[a-z0-9][a-z0-9-]*)$/
+// Package scope does not grant authority. Composition validation owns product
+// namespaces and runtime planes; this loader accepts scoped identities only.
+const packageName = /^@[a-z0-9][a-z0-9._-]*\/[a-z0-9][a-z0-9._-]*$/
 
 /** Reject executable expressions and non-JSON values in durable configuration. */
 function literalConfig(value: PluginConfigValue): PluginConfigValue {
@@ -108,7 +110,7 @@ function validateEntries(entries: readonly StaticPluginEntry[], modules: StaticP
   for (const row of entries) {
     if (!row.id || ids.has(row.id)) throw new Error(`duplicate_or_empty_static_plugin_id:${row.id}`)
     ids.add(row.id)
-    if (!packageName.test(row.name)) throw new Error(`invalid_static_plugin_name:${row.name}`)
+    if (typeof row.name !== 'string' || row.name.length > 214 || !packageName.test(row.name)) throw new Error(`invalid_static_plugin_name:${row.name}`)
     const origin: unknown = row.origin
     if (origin !== 'upstream' && origin !== 'custom' && origin !== 'fork') throw new Error(`invalid_static_plugin_origin:${row.name}`)
     if (row.replaces !== undefined && row.origin !== 'custom' && row.origin !== 'fork') throw new Error(`static_plugin_fork_requires_custom_origin:${row.name}`)

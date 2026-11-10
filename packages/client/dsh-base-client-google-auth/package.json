@@ -1,0 +1,51 @@
+{
+  "name": "@dsh-base/client-google-auth",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/client/index.ts",
+    "./client": "./src/client/index.ts"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-client-locale": "*",
+    "@deepseek-ai/dsh-client-ui-renderer": "*",
+    "@deepseek-ai/dsh-client-ui-plugin-manager": "*",
+    "@dsh-base/client-saas-ui": "workspace:*",
+    "zod": "*",
+    "@dsh-base/client-public-navigation": "workspace:*"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-plugin-manager",
+        "@dsh-base/client-public-navigation"
+      ]
+    }
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:google-auth",
+      "origin": "custom",
+      "order": 114
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-settings-account",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-plugin-manager",
+        "@deepseek-ai/dsh-client-ui-primitives"
+      ],
+      "reason": "The pinned official packages do not implement local SaaS google-auth data or actions. The account package owns DeepSeek Platform credentials, and general settings own unrelated Host namespaces; mounting or forking these would not supply the requested SaaS contract. This independent capability owns its API schema and action descriptors and contributes through the unchanged official plugins.bundle.config slot. The browser-only saas-ui support library renders unchanged official primitives and contains no independently composed feature. No official or purchased template source is copied.",
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "gaps": [
+        "User-requested google-auth capability contributes new feature content inside the official plugin detail seat; no corresponding official implementation exists at the pin."
+      ]
+    }
+  }
+}

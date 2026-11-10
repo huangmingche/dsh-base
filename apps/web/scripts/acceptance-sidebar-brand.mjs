@@ -5,13 +5,18 @@ import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";
 import puppeteer from "puppeteer-core";
-import { remoteAcceptanceConfig, chromeExecutable, closeAcceptanceBrowser, openSavedSession } from "./acceptance-config.mjs";
+import { remoteAcceptanceConfig, chromeExecutable, closeAcceptanceBrowser } from "./acceptance-config.mjs";
 import { officialSessionPage, officialSessionProjections, assertStatsMatchJournal, assertVisibleSessionStats } from "./acceptance-turn-semantics.mjs";
+import { prefixFor } from "../../../packages/boot/dsh-base-locale-path/src/index.ts";
 
 const { base, credentials } = remoteAcceptanceConfig();
 const output = resolve(import.meta.dirname, "../../../.artifacts/acceptance/online-sidebar");
 mkdirSync(output, { recursive: true });
 const request = (path, init = {}) => fetch(`${base}${path}`, { ...init, signal: AbortSignal.timeout(30000) });
+const publicSiteResponse = await request('/api/site-config');
+assert.equal(publicSiteResponse.status, 200);
+const publicSite = await publicSiteResponse.json();
+assert.ok(typeof publicSite.brand?.name === 'string' && publicSite.brand.name.trim() !== '');
 const login = await request("/api/auth/sign-in/username", { method: "POST", headers: { "content-type": "application/json", origin: base }, body: JSON.stringify({ username: credentials.username, password: credentials.password }) });
 assert.equal(login.status, 200, "isolated acceptance sign-in must succeed");
 const match = login.headers.getSetCookie().join("; ").match(/(__Secure-better-auth\.session_token)=([^;]+)/u);
@@ -42,7 +47,7 @@ try {
   await page.setCookie({ name: match[1], value: match[2], url: base, httpOnly: true, secure: true, sameSite: "Lax" });
   page.on("pageerror", error => errors.push(error.message));page.on("console", message => { if (message.type() === "error") errors.push(message.text()); });
   for (const locale of ["en", "zh"]) {
-    await openSavedSession(page, `${base}${locale === "zh" ? "/zh-CN" : ""}`, sessionId, 90000);
+    await page.goto(`${base}${prefixFor(locale === "zh" ? "zh" : "en")}/app/session/${encodeURIComponent(sessionId)}`, { waitUntil: "domcontentloaded", timeout: 90000 });
     await page.waitForSelector('[contenteditable="true"][role="textbox"]', { timeout: 45000 });
     await page.waitForFunction(id => [...document.querySelectorAll('[role="treeitem"][aria-selected="true"]')].some(row => row.dataset.rowKey === `session:${id}`), { timeout: 30000 }, sessionId);
     await page.waitForSelector(`button[aria-label="${locale === "zh" ? "新建会话" : "New session"}"]`, { timeout: 30000 });
@@ -51,7 +56,7 @@ try {
     await page.evaluate(() => document.fonts.ready);
     const brand = await assertSidebarBrand(page);
     const active = await page.evaluate(() => {
-      const rows = window.__DSH_BASE_PLUGINS__;return ["@deepseek-ai/dsh-client-ui-sidebar"].map(name => ({ name, enabled: rows.find(row => row.moduleName === name)?.enabled, phase: rows.find(row => row.moduleName === name)?.fiberPhase }));
+      const rows = window.__DSH_BASE_PLUGINS__;return ["@dsh-base/client-site-config", "@dsh-base/client-sidebar"].map(name => ({ name, enabled: rows.find(row => row.moduleName === name)?.enabled, phase: rows.find(row => row.moduleName === name)?.fiberPhase }));
     });
     for (const row of active) { assert.equal(row.enabled, true);assert.equal(row.phase, "active"); }
     const completedTurns = await page.$$eval('button[data-turn-process]', buttons => buttons

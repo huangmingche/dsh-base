@@ -5,9 +5,10 @@ import { createRequire } from 'node:module';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { acceptanceLaunchOptions, closeAcceptanceBrowser } from '../../scripts/acceptance-config.mjs';
+import { settle, stableCompare, stableScreenshot } from "./stability.mjs";
 const app=resolve(import.meta.dirname,'../..'),require=createRequire(resolve(app,'package.json'));
 const vite=await import(require.resolve('vite')),puppeteer=require('puppeteer-core').default;
-const configFile=resolve(app,'vite.parity.config.ts'),output=resolve(app,'dist/parity-evidence');let browser,server;
+const configFile=resolve(app,'vite.parity.config.ts'),output=resolve(process.env.DSH_PARITY_OUTPUT??resolve(app,'dist/parity-evidence'));let browser,server;
 const report=[];
 try {
  await vite.build({configFile,logLevel:'error',build:{minify:true}});server=await vite.preview({configFile,logLevel:'error',preview:{host:'127.0.0.1',port:0,strictPort:true}});
@@ -32,7 +33,7 @@ try {
    await page.evaluate(()=>window.__CHAT_STEP__.replay());await new Promise(r=>setTimeout(r,60));assert.equal(await content(),completed);
    await page.evaluate(()=>window.__CHAT_STEP__.reload());await new Promise(r=>setTimeout(r,60));assert.equal(await content(),completed);assert.equal(await page.$$eval('button[data-turn-process]',rows=>rows.length),1);
    assert.deepEqual((await page.evaluate(()=>window.__CHAT_STEP__.read())).nodes.filter(n=>n.kind==='assistant-step').map(n=>n.id),ids);
-   const screenshot=await page.screenshot({ captureBeyondViewport: false });results.push({side,completed,screenshot});assert.deepEqual(errors,[]);report.push({locale,side,assistantIds:ids,oneTurn:true,steps:2,replay:true,reload:true,errors});await page.close();
+   const screenshot=await stableScreenshot(page,{ captureBeyondViewport: false });results.push({side,completed,screenshot});assert.deepEqual(errors,[]);report.push({locale,side,assistantIds:ids,oneTurn:true,steps:2,replay:true,reload:true,errors});await page.close();
   }
   assert.equal(results[0].completed,results[1].completed);assert.ok(Buffer.from(results[0].screenshot).equals(Buffer.from(results[1].screenshot)),'actual official renderer pixels match the native per-Step journal');
  }

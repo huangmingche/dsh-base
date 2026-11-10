@@ -2,6 +2,7 @@
 import type { ClientConnectionRpc } from "@deepseek-ai/dsh-client-connection/client";
 
 interface ScheduleRemoteOptions {
+  readonly isAuthenticated?: () => boolean;
   readonly rpc: () => Pick<ClientConnectionRpc, "call">;
   readonly changed: () => void;
 }
@@ -9,6 +10,7 @@ interface ScheduleRemoteOptions {
 /** No action rewriting or browser task state: the Host owns schedule semantics. */
 export function createScheduleRemote(options: ScheduleRemoteOptions) {
   const call = async (method: string, request?: Record<string, unknown>, changes = false) => {
+    if (options.isAuthenticated?.() === false) return { ok: false as const, error: { code: "auth/required", message: "Sign in to access your tasks.", details: {} } };
     const result = await options.rpc().call("/api", `schedule/${method}`, {
       args: request === undefined ? {} : { request },
     });

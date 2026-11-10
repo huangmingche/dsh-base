@@ -1,0 +1,83 @@
+{
+  "name": "@dsh-base/client-plugin-management",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/client/index.tsx",
+    "./client": "./src/client/index.tsx"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-settings",
+        "@deepseek-ai/dsh-client-ui-plugin-manager",
+        "@deepseek-ai/dsh-client-ui-session",
+        "@deepseek-ai/dsh-client-ui-settings-shell",
+        "@deepseek-ai/dsh-client-ui-settings-agent-loop",
+        "@deepseek-ai/dsh-client-ui-settings-web-search",
+        "@deepseek-ai/dsh-client-ui-settings-subagent"
+      ],
+      "platform": "web"
+    }
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:plugin-management",
+      "origin": "custom",
+      "order": 108
+    },
+    "reuse": {
+      "mode": "seam",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-plugin-manager"
+      ],
+      "reason": "No official Worker-native composition-management plugin exists. This plugin fills the official plugins.detail.section and plugins.row.config slots with localized scope explanations and Host fetch policy configuration, using the official uiSession current binding. This seam does not replace the list, toggles, details, install/update surfaces or page styles. The separate marked client-plugin-manager fork owns the user-approved deployment-availability presentation; all other page behavior remains official. Official settings companions are already mounted unchanged, but whileServed intentionally withdraws their cards when the Host does not expose their namespaces. The seam fills only those absent plugins.item cells using their exported original Card and controller implementations, truthful unavailable/read-only form scopes, and explicit refusal ports. It preserves original titles, order, artwork, descriptions and unavailable forms, adding an official Tag and localized Host capability explanation. It never advertises a missing settings namespace or accepts a write. Existing official slot priority shadowing ensures the original wins during namespace transitions. Stable /client entries export types but not these Card/controller values, so reviewed ./src/* exports are required; a fork is unnecessary for these settings companions and slot contributions.",
+      "sourceEntries": [
+        "@deepseek-ai/dsh-client-ui-plugin-manager/src/client/slot-contract.ts",
+        "@deepseek-ai/dsh-client-ui-settings-shell/src/client/ShellCard.tsx",
+        "@deepseek-ai/dsh-client-ui-settings-shell/src/client/shell-card-controller.ts",
+        "@deepseek-ai/dsh-client-ui-settings-agent-loop/src/client/AgentLoopCard.tsx",
+        "@deepseek-ai/dsh-client-ui-settings-agent-loop/src/client/agent-loop-card-controller.ts",
+        "@deepseek-ai/dsh-client-ui-settings-web-search/src/client/WebSearchCard.tsx",
+        "@deepseek-ai/dsh-client-ui-settings-web-search/src/client/web-search-card-controller.ts",
+        "@deepseek-ai/dsh-client-ui-settings-subagent/src/client/SubagentCard.tsx",
+        "@deepseek-ai/dsh-client-ui-settings-subagent/src/client/subagent-limits-card-controller.ts",
+        "@deepseek-ai/dsh-client-ui-settings-subagent/src/client/subagent-model-selection-card-controller.ts",
+        "@deepseek-ai/dsh-client-ui-settings-subagent/src/client/subagent-card-controller.ts"
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "gaps": [
+        "The official page has no capability field for a disabled Add-plugin action; unsupported package-manager operations fail in the official install dialog with an explicit explanation instead of pretending to install.",
+        "The user-approved unified Cloudflare AI Gateway bundle uses the existing official detail section slot for eight-language account-scope copy. It names both the model settings card and platform model defaults, preserves explicit Session overrides, and states that in-flight requests and owner BYOK are unaffected; no frontend-only or next-page-start-only behavior is claimed.",
+        "Absent official Built-in configuration cards remain visible through their original slots and unavailable form state, with a localized capability label and explanation. Catalog-only official bundles show why their Host/runtime capability is unavailable on Workers; they are not installed, running or activatable. This seam introduces no synthetic settings namespace; the separate marked client-plugin-manager fork owns the approved neutral deployment-availability state.",
+        "The user-approved complete owned inventory uses the existing official detail slot for concise eight-language scope copy. Validated managementPolicy metadata distinguishes required application features and deployment-managed services from ordinary disabled components. Product descriptions follow the pinned official metadata style without modifying official entry dictionaries or page layout."
+      ],
+      "for": [
+        "@deepseek-ai/dsh-client-ui-plugin-manager",
+        "@deepseek-ai/dsh-client-ui-settings-shell",
+        "@deepseek-ai/dsh-client-ui-settings-agent-loop",
+        "@deepseek-ai/dsh-client-ui-settings-web-search",
+        "@deepseek-ai/dsh-client-ui-settings-subagent"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-client-locale": "*",
+    "@deepseek-ai/dsh-client-ui-plugin-manager": "*",
+    "@deepseek-ai/dsh-client-ui-renderer": "*",
+    "@deepseek-ai/dsh-client-ui-settings": "*",
+    "@deepseek-ai/dsh-client-ui-session": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*",
+    "react": "*",
+    "zod": "*",
+    "@deepseek-ai/dsh-client-ui-settings-shell": "*",
+    "@deepseek-ai/dsh-client-ui-settings-agent-loop": "*",
+    "@deepseek-ai/dsh-client-ui-settings-web-search": "*",
+    "@deepseek-ai/dsh-client-ui-settings-subagent": "*",
+    "@deepseek-ai/dsh-client-ui-primitives": "*"
+  }
+}

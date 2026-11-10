@@ -7,7 +7,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 const app=resolve(import.meta.dirname,"../.."),requireFromApp=createRequire(resolve(app,"package.json"));
 const puppeteer=requireFromApp("puppeteer-core").default,vite=await import(requireFromApp.resolve("vite"));
-const configFile=resolve(app,"vite.parity.config.ts"),output=resolve(app,"dist/parity-evidence");
+const configFile=resolve(app,"vite.parity.config.ts"),output=resolve(process.env.DSH_PARITY_OUTPUT??resolve(app,"dist/parity-evidence"));
 let browser,server;const cases=[],requests=[];
 const fixtureHost={name:"controlled-upload-host",configurePreviewServer(server){server.middlewares.use(async(req,res,next)=>{
   const url=new URL(req.url,"http://fixture.test");

@@ -1,0 +1,73 @@
+{
+  "name": "@dsh-base/client-entry-customization",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/client/entry.ts",
+    "./client": "./src/client/entry.ts",
+    "./src/*": "./src/*",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "dsh": {
+    "client": {
+      "platform": "web",
+      "inject": [
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-plugin-manager",
+        "@deepseek-ai/dsh-client-ui-workspace",
+        "@dsh-base/client-session-adapter"
+      ]
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-client-locale": "*",
+    "@deepseek-ai/dsh-client-product-analytics": "*",
+    "@deepseek-ai/dsh-client-store": "*",
+    "@deepseek-ai/dsh-client-ui-sidebar": "*",
+    "@deepseek-ai/dsh-client-ui-conversation": "*",
+    "@deepseek-ai/dsh-client-ui-sidebar-right": "*",
+    "@deepseek-ai/dsh-client-ui-plugin-manager": "*",
+    "@deepseek-ai/dsh-client-ui-workspace": "*",
+    "@deepseek-ai/dsh-client-ui-primitives": "*",
+    "@deepseek-ai/dsh-client-ui-renderer": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*",
+    "clsx": "*",
+    "react": "*",
+    "react-dom": "*",
+    "zod": "*",
+    "@deepseek-ai/dsh-client-ui-entry-customization": "*",
+    "@dsh-base/client-session-adapter": "workspace:*",
+    "@dsh-base/client-auth-login": "workspace:*"
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:entry-customization",
+      "origin": "fork",
+      "order": 84,
+      "replaces": "@deepseek-ai/dsh-client-ui-entry-customization"
+    },
+    "forkOf": {
+      "package": "@deepseek-ai/dsh-client-ui-entry-customization",
+      "path": "packages/client/ui-entry-customization",
+      "commit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "license": "MIT"
+    },
+    "reuse": {
+      "mode": "fork",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-entry-customization"
+      ],
+      "reason": "The pinned official entry-customization plugin has no SaaS account prerequisite contract and hides Browse other plugins without pluginNavigation. This complete pinned fork preserves all three official menu registrations, dictionaries and CSS. A real public or authenticated pluginNavigation service opens Browse other plugins; Create your plugin opens the login dialog for anonymous visitors and otherwise keeps the official Creator draft flow. Checking/error states remain guarded; no RemoteAccess grant or private session is fabricated.",
+      "gaps": [
+        "Anonymous More actions stay clickable: Browse opens the public plugin catalog, Create asks for sign-in before creating a private draft. Missing navigation, checking and error states keep localized unavailable semantics.",
+        "All official menu rows, icons, labels and geometry remain unchanged; no About, Support or Environment entries are added.",
+        "Anonymous Creator defers the login request one animation frame so the unchanged official Menu can restore focus to its persistent trigger before the dialog captures it.",
+        "This revision limits the workbench to authenticated accounts. The anonymous homepage uses the isolated sign-in and consent document providers."
+      ],
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db"
+    }
+  }
+}

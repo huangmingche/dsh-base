@@ -1,0 +1,9 @@
+# Subscribe to site news by email.
+
+Independent client plugin `client:newsletter`, grouped under `dsh-base:newsletter` through the official `plugins.bundle.config` slot. This package owns its response validation, fields and actions; browser support supplies only same-origin request lifetime and unchanged official control rendering. Adds no settings section and does not modify DeepSeek Platform account behavior. The server independently authorizes all private reads and writes. Missing configuration and denied access remain explicit. Supports all eight official languages. No purchased template or official source is copied.
+
+The public form requires explicit consent and Turnstile. An email link opens an official confirmation dialog; only its confirmation action submits the token. Cancel/success removes the token from the address. Signed-in users can unsubscribe their own address. The administrator recovery section lists pending confirmation/opt-out records and remains available while public subscriptions or the mail sender are disabled. After at least 60 seconds, the administrator must verify that the original provider request has finished and explicitly acknowledge this before checking the provider and recovering. Recovery only reads provider status; it does not resend subscription writes.
+
+Failed recovery reads remain unavailable; version conflicts never report success. A normal user’s 403 exposes no administrator list, and a 401 clears private state. Focused check: `node --test packages/client/dsh-base-client-newsletter/tests/recovery.test.mjs`.
+
+The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. The default workbench requires sign-in. The panel and server authorize account and administrator actions. Unloading removes the registration and never exposes private row configuration.

@@ -2,6 +2,7 @@
 /** Require official chat composition; this gate does not assert visual parity. */
 import { join } from "node:path";
 import { clientRows, isMain, localPackages, printResult, readJson, repoRoot } from "./lib.mjs";
+import { projectContext } from "../composition/project-context.mjs";
 
 export const requiredChatPackages = [
   "@deepseek-ai/dsh-api-session-controller",
@@ -15,13 +16,18 @@ export const requiredChatPackages = [
   "@deepseek-ai/dsh-client-resources",
   "@deepseek-ai/dsh-client-ui-conversation",
   "@deepseek-ai/dsh-client-ui-chat",
+  // The header's more menu lives outside the dsh-client-* package family.
+  // Disabled inventory cannot satisfy the visible Session action contract.
+  "@deepseek-ai/dsh-session-log-export",
+  "@deepseek-ai/dsh-client-ui-open-in-app",
+  "@deepseek-ai/dsh-client-ui-message-feedback",
 ];
 
-export function checkChatParity(root) {
-  const rows = clientRows(root);
+export function checkChatParity(root, options = {}) {
+  const rows = clientRows(root, options);
   const active = rows.filter(row => row.disabled !== true);
   const locals = new Map(localPackages(root).map(({ manifest }) => [manifest.name, manifest]));
-  const { commit } = readJson(join(root, "dsh-source.lock.json"));
+  const { commit } = readJson(join(projectContext(root).baseRoot, "dsh-source.lock.json"));
   const failures = [];
   for (const name of requiredChatPackages) {
     const original = active.find(row => row.name === name);
@@ -30,7 +36,7 @@ export function checkChatParity(root) {
     const row = replacements[0];
     const metadata = locals.get(row?.name)?.dshBase;
     const fork = metadata?.forkOf;
-    const tracked = replacements.length === 1 && original === undefined && row?.origin === "custom"
+    const tracked = replacements.length === 1 && original === undefined && row?.origin === "fork"
       && rows.some(entry => entry.name === name && entry.disabled === true && entry.origin === "upstream")
       && metadata?.reuse?.mode === "fork" && fork?.package === name && fork.commit === commit
       && typeof fork.path === "string" && fork.path.length > 0 && typeof fork.license === "string" && fork.license.length > 0;

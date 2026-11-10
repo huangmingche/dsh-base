@@ -1,3 +1,4 @@
+import { executeExportCommand } from './export-command.ts';
 import { UPLOAD_TTL_MS } from "./uploads.ts";
 /** Durable Object SQLite adapter for the Workers-native Session Host storage port. */
 import { LogicalDirectoryStore } from "./logical-directories.ts";
@@ -77,6 +78,8 @@ function toMessage(row: MessageRow): SessionMessageRecord {
 
 /** SQLite-backed storage; pass a Durable Object SQL executor in production. */
 export class SqliteSessionHostStorage implements SessionHostStorage {
+  executeExportCommand(input: Parameters<typeof executeExportCommand>[1]) { return executeExportCommand(this.sql, input); }
+
   private readonly sql: SqlStorage;
   private readonly directories: LogicalDirectoryStore;
 

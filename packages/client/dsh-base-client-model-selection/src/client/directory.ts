@@ -78,7 +78,9 @@ export class ModelDirectory {
    */
   async load(): Promise<ModelDirectoryState> {
     this.assertAvailable()
-    await this.catalog.load()
+    // Menu opens and /model reads also cover changes made outside this tab's
+    // invalidation channel. Concurrent readers still share the in-flight load.
+    await this.catalog.load(true)
     this.syncInputs()
     return this.store.getSnapshot()
   }

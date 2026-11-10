@@ -145,12 +145,14 @@ test("official exports fail closed for missing exports, null, exclusions and tra
 test("reuse gate audits every runtime package even when dshBase is absent", (t) => {
   const f = fixture(t);
   for (const [group, name] of [["client", "@dsh-base/client-a"], ["client", "@dsh-base/client-b"], ["cloudflare-worker", "@dsh-base/cloudflare-worker-a"], ["cloudflare-think", "@dsh-base/cloudflare-think-a"]]) f.pkg(group, name, { dshBase: undefined });
-  assert.equal(checkOfficialReuse(f.root).failures.length, 4);
+  const failures = checkOfficialReuse(f.root).failures;
+  assert.equal(failures.filter(value => value.includes("must record dshBase.reuse")).length, 4);
+  assert.equal(failures.filter(value => value.includes("must declare dshBase.client")).length, 2);
 });
 
 test("reuse gate rejects unknown packages and unexported side-effect imports", (t) => {
   const f = fixture(t);
-  const source = f.pkg("client", "@dsh-base/client-a");
+  const source = f.pkg("boot", "@dsh-base/client-a");
   f.write(source, `import '${target}/private';\nimport '@deepseek-ai/not-in-the-pin';`);
   assert.equal(checkOfficialReuse(f.root).failures.length, 2);
 });
@@ -158,26 +160,66 @@ test("reuse gate rejects unknown packages and unexported side-effect imports", (
 test("reuse gate requires pin-reviewed source imports and rejects stale reviews", (t) => {
   const f = fixture(t);
   const specifier = `${target}/src/Component.tsx`;
-  const source = f.pkg("client", "@dsh-base/client-a");
+  const source = f.pkg("boot", "@dsh-base/client-a");
   f.write(source, `import { Component } from '${specifier}';`);
   assert.equal(checkOfficialReuse(f.root).failures.length, 2);
-  f.pkg("client", "@dsh-base/client-a", { dshBase: { reuse: { ...reuse, sourceEntries: [specifier], sourceReviewCommit: commit } } });
+  f.pkg("boot", "@dsh-base/client-a", { dshBase: { reuse: { ...reuse, sourceEntries: [specifier], sourceReviewCommit: commit } } });
   assert.deepEqual(checkOfficialReuse(f.root).failures, []);
-  f.pkg("client", "@dsh-base/client-a", { dshBase: { reuse: { ...reuse, sourceEntries: [specifier], sourceReviewCommit: "c".repeat(40) } } });
+  f.pkg("boot", "@dsh-base/client-a", { dshBase: { reuse: { ...reuse, sourceEntries: [specifier], sourceReviewCommit: "c".repeat(40) } } });
   assert.ok(checkOfficialReuse(f.root).failures.some((failure) => failure.includes("sourceReviewCommit")));
 });
 
 test("reuse gate rejects filesystem access around official exports", (t) => {
   const f = fixture(t);
-  const source = f.pkg("client", "@dsh-base/client-a");
+  const source = f.pkg("boot", "@dsh-base/client-a");
   f.write(source, 'import "../../../../.submodules/deepseek-harness/packages/client/ui-sample/src/private.ts";');
   assert.match(checkOfficialReuse(f.root).failures.join("\n"), /through its package exports/);
 });
 
 test("reuse gate validates fork provenance, license and current pin", (t) => {
   const f = fixture(t);
-  f.pkg("client", "@dsh-base/client-a", { dshBase: { forkOf: { ...fork, path: "packages/client/wrong", license: "wrong", commit: "c".repeat(40) } } });
+  f.pkg("boot", "@dsh-base/client-a", { dshBase: { forkOf: { ...fork, path: "packages/client/wrong", license: "wrong", commit: "c".repeat(40) } } });
   assert.equal(checkOfficialReuse(f.root).failures.length, 3);
+});
+
+test("reuse gate rejects mislabeled forks in every runtime plane, including omitted origins", (t) => {
+  for (const [group, plane] of [["client", "client"], ["cloudflare-worker", "worker"], ["cloudflare-think", "agent"]]) {
+    const f = fixture(t);
+    const name = `@dsh-base/${group}-fork`;
+    const metadata = { [plane]: { id: `${plane}:fork`, origin: "fork", ...(plane === "client" ? { replaces: target } : {}) }, forkOf: fork, reuse: { ...reuse, mode: "fork" } };
+    const pkg = { dshBase: metadata, ...(plane === "client" ? { dsh: { client: { platform: "web" } }, exports: { "./client": "./src/index.ts" } } : {}) };
+    const entry = f.pkg(group, name, pkg);
+    f.write(entry, "export const Config = z.object({}).default({});");
+    assert.deepEqual(checkOfficialReuse(f.root).failures, [], plane);
+    for (const origin of ["custom", "upstream", undefined]) {
+      metadata[plane].origin = origin;
+      f.pkg(group, name, pkg);
+      assert.match(checkOfficialReuse(f.root).failures.join("\n"), new RegExp(`dshBase\\.${plane}\\.origin must be fork`), `${plane}: ${origin}`);
+    }
+    metadata[plane].origin = "fork";
+    metadata.reuse.mode = "seam";
+    f.pkg(group, name, pkg);
+    assert.match(checkOfficialReuse(f.root).failures.join("\n"), /forkOf conflicts with reuse.mode seam/);
+    delete metadata.forkOf;
+    f.pkg(group, name, pkg);
+    assert.match(checkOfficialReuse(f.root).failures.join("\n"), /origin fork requires recorded fork provenance/);
+  }
+});
+
+test("reuse gate audits effective profile origins even for disabled inventory", (t) => {
+  const f = fixture(t), name = "@dsh-base/client-fork";
+  const metadata = { client: { id: "client:fork", origin: "fork", replaces: target }, forkOf: fork, reuse: { ...reuse, mode: "fork" } };
+  const entry = f.pkg("client", name, { dshBase: metadata, dsh: { client: { platform: "web" } }, exports: { "./client": "./src/index.ts" } });
+  f.write(entry, "export const Config = z.object({}).default({});");
+  for (const disabled of [false, true]) for (const origin of ["custom", "upstream", undefined, "fork"]) {
+    f.write("apps/web/composition.profile.json", { client: [
+      { name: target, id: "client:original", origin: "upstream", disabled: true },
+      { name, id: "client:fork", origin, disabled },
+    ] });
+    const failures = checkOfficialReuse(f.root).failures;
+    if (origin === "fork") assert.deepEqual(failures, []);
+    else assert.match(failures.join("\n"), /client composition origin must be fork/, `${origin}, disabled=${disabled}`);
+  }
 });
 
 test("chat gate fails for missing and disabled required packages", (t) => {
@@ -194,11 +236,15 @@ test("chat gate accepts only one pin-reviewed fork with the disabled official in
   const f = fixture(t);
   const replaced = "@deepseek-ai/dsh-client-ui-sidebar-right";
   const rows = requiredChatPackages.map((name, i) => ({ name, id: `client:${i}`, origin: "upstream", ...(name === replaced ? { disabled: true } : {}) }));
-  const metadata = { client: { id: "client:sidebar-right", origin: "custom", replaces: replaced },
+  const metadata = { client: { id: "client:sidebar-right", origin: "fork", replaces: replaced },
     reuse: { mode: "fork" }, forkOf: { package: replaced, path: "packages/client/ui-sidebar-right", commit, license: "MIT" } };
   f.pkg("client", "@dsh-base/client-sidebar-right", { dshBase: metadata });
   f.write("apps/web/composition.profile.json", { client: rows });
   assert.deepEqual(checkChatParity(f.root).failures, []);
+  metadata.client.origin = "custom";
+  f.pkg("client", "@dsh-base/client-sidebar-right", { dshBase: metadata });
+  assert.equal(checkChatParity(f.root).failures.length, 1, "recorded forks cannot masquerade as custom implementations");
+  metadata.client.origin = "fork";
   metadata.forkOf.commit = "stale";
   f.pkg("client", "@dsh-base/client-sidebar-right", { dshBase: metadata });
   assert.equal(checkChatParity(f.root).failures.length, 1);
@@ -209,6 +255,21 @@ test("chat gate accepts only one pin-reviewed fork with the disabled official in
   rows.find(row => row.name === replaced).disabled = false;
   f.write("apps/web/composition.profile.json", { client: rows });
   assert.equal(checkChatParity(f.root).failures.length, 1, "original and fork may not both execute");
+});
+
+test("Session header actions cannot disappear into disabled official inventory", (t) => {
+  const f = fixture(t);
+  const rows = requiredChatPackages.map((name, i) => ({ name, id: `client:${i}`, origin: "upstream" }));
+  for (const name of ["@deepseek-ai/dsh-session-log-export", "@deepseek-ai/dsh-client-ui-open-in-app", "@deepseek-ai/dsh-client-ui-message-feedback"]) {
+    assert.ok(requiredChatPackages.includes(name), `${name}: preserve the Session header action contract regardless of its package prefix`);
+    for (const retainedInInventory of [false, true]) {
+      const broken = rows.flatMap(row => row.name !== name ? [row] : retainedInInventory ? [{ ...row, disabled: true }] : []);
+      f.write("apps/web/composition.profile.json", { client: broken });
+      assert.deepEqual(checkChatParity(f.root).failures, [`required official chat package needs its active original or one pinned fork with disabled original inventory: ${name}`]);
+    }
+  }
+  f.write("apps/web/composition.profile.json", { client: rows });
+  assert.deepEqual(checkChatParity(f.root).failures, []);
 });
 
 test("UI declaration coverage rejects disabled official packages with no real replacement", (t) => {
@@ -222,12 +283,38 @@ test("UI declaration coverage rejects disabled official packages with no real re
 
 test("UI coverage counts only active tracked replacements and rejects original/fork double activation", (t) => {
   const f = fixture(t);
-  f.pkg("client", "@dsh-base/client-a", { dshBase: { client: { id: "client:a", origin: "custom", replaces: target }, forkOf: fork } });
+  f.pkg("client", "@dsh-base/client-a", { dshBase: { client: { id: "client:a", origin: "fork", replaces: target }, reuse: { mode: "fork" }, forkOf: fork } });
   assert.match(checkOfficialUiCoverage(f.root).failures.join("\n"), /must remain disabled/);
   f.write("apps/web/composition.profile.json", { client: [{ name: target, id: "client:sample", origin: "upstream", disabled: true }] });
   assert.deepEqual(checkOfficialUiCoverage(f.root).failures, []);
-  f.write("apps/web/composition.profile.json", { client: [{ name: target, id: "client:sample", origin: "upstream", disabled: true }, { name: "@dsh-base/client-a", id: "client:a", origin: "custom", disabled: true }] });
+  f.write("apps/web/composition.profile.json", { client: [{ name: target, id: "client:sample", origin: "upstream", disabled: true }, { name: "@dsh-base/client-a", id: "client:a", origin: "fork", disabled: true }] });
   assert.equal(checkOfficialUiCoverage(f.root).failures.length, 1);
+});
+
+test("UI coverage accepts fork origin only for a matching pinned official client replacement", (t) => {
+  const f = fixture(t);
+  const metadata = { client: { id: "client:a", origin: "fork", replaces: target }, reuse: { mode: "fork" }, forkOf: fork };
+  f.pkg("client", "@dsh-base/client-a", { dshBase: metadata });
+  assert.match(checkOfficialUiCoverage(f.root).failures.join("\n"), /must remain disabled/);
+  f.write("apps/web/composition.profile.json", { client: [{ name: target, id: "client:sample", origin: "upstream", disabled: true }] });
+  assert.deepEqual(checkOfficialUiCoverage(f.root).failures, []);
+
+  f.pkg("client", "@dsh-base/client-a", { dshBase: { ...metadata, client: { ...metadata.client, origin: "custom" } } });
+  assert.match(checkOfficialUiCoverage(f.root).failures.join("\n"), /must be fork when forkOf/);
+
+  const invalid = [
+    ["missing fork metadata", { ...metadata, forkOf: undefined }],
+    ["missing replacement", { ...metadata, client: { ...metadata.client, replaces: undefined } }],
+    ["different upstream package", { ...metadata, forkOf: { ...fork, package: "@deepseek-ai/dsh-client-other" } }],
+    ["stale pin", { ...metadata, forkOf: { ...fork, commit: "stale" } }],
+    ["wrong source directory", { ...metadata, forkOf: { ...fork, path: "packages/client/other" } }],
+    ["wrong license", { ...metadata, forkOf: { ...fork, license: "Apache-2.0" } }],
+    ["upstream origin on a local fork", { ...metadata, client: { ...metadata.client, origin: "upstream" } }],
+  ];
+  for (const [label, dshBase] of invalid) {
+    f.pkg("client", "@dsh-base/client-a", { dshBase });
+    assert.match(checkOfficialUiCoverage(f.root).failures.join("\n"), /local active row must have origin custom or fork with a pinned tracked fork matching replaces/, label);
+  }
 });
 
 test("UI coverage accepts only pin-reviewed exported component seams", (t) => {
@@ -236,6 +323,10 @@ test("UI coverage accepts only pin-reviewed exported component seams", (t) => {
   const metadata = { client: { id: "client:a", origin: "custom", replaces: target }, reuse: { mode: "seam", for: [target], reason: "Reuse exported official UI with an unavailable Host service.", sourceEntries: [`${target}/src/Component.tsx`], sourceReviewCommit: commit } };
   f.pkg("client", "@dsh-base/client-a", { dshBase: metadata });
   assert.deepEqual(checkOfficialUiCoverage(f.root).failures, []);
+  metadata.client.origin = "fork";
+  f.pkg("client", "@dsh-base/client-a", { dshBase: metadata });
+  assert.match(checkOfficialUiCoverage(f.root).failures.join("\n"), /local active row must have origin custom or fork with a pinned tracked fork matching replaces/);
+  metadata.client.origin = "custom";
   metadata.reuse.sourceEntries = [`${target}/private`];
   f.pkg("client", "@dsh-base/client-a", { dshBase: metadata });
   assert.ok(checkOfficialUiCoverage(f.root).failures.length > 0);
@@ -332,9 +423,18 @@ test("client contracts resolve local Config re-exports and reject absent or esca
   assert.match(checkOfficialReuse(f.root).failures.join("\n"), /runtime \/client export/);
 });
 
-test("utility client packages without dshBase.client need no loader Config or client entry", (t) => {
+test("client packages cannot bypass plugin contracts by omitting dshBase.client", (t) => {
   const f = fixture(t);
   const entry = f.pkg("client", "@dsh-base/client-utility");
+  f.write(entry, "export const helper = () => 1;");
+  assert.match(checkOfficialReuse(f.root).failures.join("\n"), /packages\/client packages must declare dshBase.client/);
+});
+
+test("browser support libraries in boot need no independent plugin entry", (t) => {
+  const f = fixture(t);
+  const entry = f.pkg("boot", "@dsh-base/client-utility", {
+    dshBase: { boot: { kind: "browser-support" }, reuse },
+  });
   f.write(entry, "export const helper = () => 1;");
   assert.deepEqual(checkOfficialReuse(f.root).failures, []);
 });

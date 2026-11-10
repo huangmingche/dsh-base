@@ -1,0 +1,26 @@
+{
+  "$schema": "../../scripts/composition/pack.schema.json",
+  "id": "gateway-provider",
+  "planes": {
+    "think": [
+      "@dsh-base/cloudflare-think-ai-gateway"
+    ],
+    "client": [
+      "@dsh-base/client-gateway-provider"
+    ]
+  },
+  "requires": [
+    "ai-chat-core"
+  ],
+  "config": {},
+  "toggleable": "L1",
+  "uninstallImpact": "One Cloudflare AI Gateway bundle switch atomically changes the Settings → Models card and the account default for the Think platform model service. Both runtime plugins remain separate composition entries, and legacy member toggle/reset requests target the whole owner bundle. Explicit Session overrides still apply; in-flight cancellation is not promised. Owner BYOK remains independent and packages stay installed; deployment opt-out cannot be overridden by account or Session selection. Legacy split selections follow the Think provider decision without changing execution intent.",
+  "reuse": {
+    "mode": "custom",
+    "official": [
+      "@deepseek-ai/dsh-llm-deepseek",
+      "@deepseek-ai/dsh-client-ui-settings-models"
+    ],
+    "reason": "No official DSH package supplies a Cloudflare AI Gateway Think provider or a platform Gateway provider card. The Think provider reuses the pinned official model catalog; the client card reuses the pinned official Models row/editor slot contract. Platform usage is an explicit operator opt-in, off by default."
+  }
+}

@@ -1,0 +1,16 @@
+import assert from "node:assert/strict";
+import { controlHandler } from "../src/index.ts";
+let writes = 0;
+const token = "operator-token";
+const env = { PluginControl: { idFromName: (name: string) => name, get: () => ({ async fetch(request: Request) { if (request.method !== "GET") writes += 1; return Response.json({ revision: writes }); } }) } };
+const auth = { async session() { return { id: "existing-user" }; } };
+const request = (method: string, headers = {}) => new Request("https://app.example.test/api/plugin-control", { method, headers });
+assert.equal((await controlHandler(request("GET"), env, undefined))?.status, 200);
+assert.equal((await controlHandler(request("PATCH"), env, auth))?.status, 403);
+assert.equal((await controlHandler(request("PATCH"), { ...env, PLUGIN_CONTROL_TOKEN: token }, auth))?.status, 403);
+assert.equal((await controlHandler(request("PATCH", { authorization: `Bearer ${token}` }), { ...env, PLUGIN_CONTROL_TOKEN: token }, undefined))?.status, 401);
+assert.equal((await controlHandler(request("PATCH", { authorization: `Bearer ${token}`, origin: "https://elsewhere.example.test" }), { ...env, PLUGIN_CONTROL_TOKEN: token }, auth))?.status, 403);
+assert.equal(writes, 0);
+assert.equal((await controlHandler(request("PATCH", { authorization: `Bearer ${token}`, origin: "https://app.example.test" }), { ...env, PLUGIN_CONTROL_TOKEN: token }, auth))?.status, 200);
+assert.equal(writes, 1);
+console.log("plugin control: public reads, authenticated administrator writes and missing-token fail-closed passed");

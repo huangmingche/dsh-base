@@ -1,0 +1,86 @@
+{
+  "name": "@dsh-base/client-schedule",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/client/entry.ts",
+    "./client": "./src/client/entry.ts",
+    "./src/*": "./src/*",
+    "./locale/*.json": "./locale/*.json"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-api-remotes",
+        "@deepseek-ai/dsh-api-session-controller",
+        "@deepseek-ai/dsh-api-workspace-controller",
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@deepseek-ai/dsh-client-ui-sidebar-right",
+        "@deepseek-ai/dsh-client-ui-tool",
+        "@deepseek-ai/dsh-client-ui-workspace",
+        "@deepseek-ai/dsh-client-ui-primitives"
+      ],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/dsh-api-remote-access": "*",
+    "@deepseek-ai/dsh-api-remotes": "*",
+    "@deepseek-ai/dsh-api-session-controller": "*",
+    "@deepseek-ai/dsh-api-workspace-controller": "*",
+    "@deepseek-ai/dsh-client-connection": "*",
+    "@deepseek-ai/dsh-client-locale": "*",
+    "@deepseek-ai/dsh-client-store": "*",
+    "@deepseek-ai/dsh-client-test-runtime": "*",
+    "@deepseek-ai/dsh-client-ui-conversation": "*",
+    "@deepseek-ai/dsh-client-ui-layout": "*",
+    "@deepseek-ai/dsh-client-ui-primitives": "*",
+    "@deepseek-ai/dsh-client-ui-renderer": "*",
+    "@deepseek-ai/dsh-client-ui-session": "*",
+    "@deepseek-ai/dsh-client-ui-sidebar": "*",
+    "@deepseek-ai/dsh-client-ui-sidebar-right": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*",
+    "@deepseek-ai/dsh-client-ui-tool": "*",
+    "@deepseek-ai/dsh-client-ui-workspace": "*",
+    "@deepseek-ai/dsh-schedule": "*",
+    "@deepseek-ai/dsh-session": "*",
+    "@deepseek-ai/dsh-util-time": "*",
+    "@deepseek-ai/dsh-util-values": "*",
+    "clsx": "*",
+    "@deepseek-ai/cordis": "*",
+    "react": "*",
+    "react-dom": "*",
+    "zod": "*"
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:schedule",
+      "origin": "fork",
+      "order": 107,
+      "replaces": "@deepseek-ai/dsh-client-ui-schedule"
+    },
+    "forkOf": {
+      "package": "@deepseek-ai/dsh-client-ui-schedule",
+      "path": "packages/client/ui-schedule",
+      "commit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "license": "MIT"
+    },
+    "reuse": {
+      "mode": "fork",
+      "official": [
+        "@deepseek-ai/dsh-client-ui-schedule"
+      ],
+      "reason": "The pinned official Schedule plugin is otherwise mounted unchanged. Its exported TaskManagerPage opens manual creation entirely within component state and exposes no pre-create Host callback; an anonymous account cannot supply private workspace choices. A complete runtime fork adds only optional onBeforeCreate() to the injected Host contract and checks it before creating a local manual draft. The unchanged private registration omits the hook and preserves official behavior. The separate public-navigation plugin supplies the anonymous login gate, without label/DOM interception, fabricated catalog reads, or private RemoteAccess grants. Every copied source/resource is compared byte-for-byte with the pin after reversing these two declared additions.",
+      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "gaps": [
+        "This revision limits the workbench to authenticated accounts. The anonymous homepage uses the isolated sign-in and consent document providers."
+      ]
+    }
+  }
+}

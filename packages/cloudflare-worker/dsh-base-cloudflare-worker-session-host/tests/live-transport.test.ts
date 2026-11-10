@@ -2,7 +2,7 @@
 import assert from "node:assert/strict";
 import { DatabaseSync } from "node:sqlite";
 import { registerHooks } from "node:module";
-import { createSessionHostClient, SessionHostClientError } from "../../../client/dsh-base-client-session-host/src/index.ts";
+import { createSessionHostClient, SessionHostClientError } from "../../../boot/dsh-base-client-session-host/src/index.ts";
 
 registerHooks({ resolve(specifier, context, next) {
   if (specifier === "agents") return { url: `data:text/javascript,${encodeURIComponent('export async function getAgentByName() { return globalThis.__liveTestAgent; }')}`, shortCircuit: true };

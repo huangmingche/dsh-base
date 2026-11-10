@@ -8,7 +8,7 @@
  * its blank Sessions afterwards. It never submits a prompt.
  */
 import { assertSidebarBrand } from './assert-sidebar-brand.mjs';
-import { remoteAcceptanceConfig, chromeExecutable, closeAcceptanceBrowser, waitForHostReadiness, openSavedSession } from "./acceptance-config.mjs";
+import { remoteAcceptanceConfig, chromeExecutable, closeAcceptanceBrowser, waitForHostReadiness } from "./acceptance-config.mjs";
 import { loadOfficialDeclarations } from "./generate-preset-declarations.mjs";
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
@@ -16,6 +16,7 @@ import { createHash } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import puppeteer from "puppeteer-core";
+import { prefixFor } from "../../../packages/boot/dsh-base-locale-path/src/index.ts";
 
 const { base, credentials } = remoteAcceptanceConfig();
 const expectedVersion = process.env.DSH_EXPECTED_DEPLOYMENT_VERSION;
@@ -123,10 +124,10 @@ const screenshots = [];
 const results = [];
 try {
   for (const locale of ["en", "zh"]) {
-    const prefix = locale === "zh" ? "/zh-CN" : "";
+    const prefix = prefixFor(locale === "zh" ? "zh" : "en");
     await hostCall("settingsUpdate", { ns: "locale", patch: { preference: locale } });
     const loadSession = async sessionId => {
-      await openSavedSession(page, `${base}${prefix}`, sessionId, 120_000);
+      await page.goto(`${base}${prefix}/app/session/${encodeURIComponent(sessionId)}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
       await page.waitForSelector('[contenteditable="true"], textarea, [role="textbox"]', { timeout: 120_000 });
       await page.waitForFunction(() => window.__DSH_BASE_PLUGINS__ !== undefined, { timeout: 60_000 });
       await page.waitForFunction(expected => document.documentElement.lang.toLowerCase().startsWith(expected), { timeout: 30_000 }, locale === "zh" ? "zh" : "en");
@@ -135,10 +136,11 @@ try {
     const inventory = await page.evaluate(() => window.__DSH_BASE_PLUGINS__);
     const fork = inventory.find(entry => entry.moduleName === "@dsh-base/client-agent-preset");
     const original = inventory.find(entry => entry.moduleName === "@deepseek-ai/dsh-client-ui-agent-preset");
-    assert.equal(fork?.origin, "custom"); assert.equal(fork?.enabled, true); assert.equal(fork?.fiberPhase, "active");
+    assert.equal(fork?.origin, "fork"); assert.equal(fork?.enabled, true); assert.equal(fork?.fiberPhase, "active");
     assert.equal(fork?.replaces, "@deepseek-ai/dsh-client-ui-agent-preset");
     assert.equal(original?.origin, "upstream"); assert.equal(original?.enabled, false); assert.equal(original?.fiberPhase, null);
     const brand = await assertSidebarBrand(page);
+    assert.equal(await page.$('[class*="brandName"] [data-copy-version]'), null, "sidebar name must omit the version badge");
 
     const clickNav = async pattern => {
       await page.waitForFunction(source => {

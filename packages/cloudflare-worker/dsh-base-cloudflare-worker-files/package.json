@@ -1,0 +1,31 @@
+{
+  "name": "@dsh-base/cloudflare-worker-files",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "license": "MIT",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@dsh-base/cloudflare-worker-http": "workspace:*",
+    "@dsh-base/cloudflare-worker-auth": "workspace:*"
+  },
+  "dshBase": {
+    "worker": {
+      "id": "cloudflare:worker:files",
+      "origin": "custom",
+      "order": 25
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [
+        "@deepseek-ai/dsh-client-file-upload",
+        "@deepseek-ai/dsh-api-workspace-files"
+      ],
+      "reason": "The initialized pinned official file-upload service stages Session-owned prompt attachments; workspace-files exposes Host workspace filesystem previews and directory observation. Their ownership and receipt contracts are not a product-account R2 library, so neither mounting nor a Host-only fork supplies this independent personal-file capability. This Worker plugin preserves the official conversation attachment feature and independently composes local auth, D1 ownership metadata and R2.",
+      "gaps": []
+    }
+  }
+}

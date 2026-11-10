@@ -6,12 +6,13 @@ import { createHash } from "node:crypto";
 import { createRequire } from "node:module";
 import { mkdir, writeFile, readFile } from "node:fs/promises";
 import { resolve } from "node:path";
+import { settle, stableCompare, stableScreenshot } from "./stability.mjs";
 const app = resolve(import.meta.dirname, "../..");
 const requireFromApp = createRequire(resolve(app, "package.json"));
 const puppeteer = requireFromApp("puppeteer-core").default;
 const vite = await import(requireFromApp.resolve("vite"));
 const configFile = resolve(app, "vite.parity.config.ts");
-const output = resolve(app, "dist/parity-evidence");
+const output = resolve(process.env.DSH_PARITY_OUTPUT ?? resolve(app, "dist/parity-evidence"));
 let server, browser;
 const cases = [];
 const snapshot = page => page.evaluate(() => ({
@@ -67,9 +68,11 @@ try {
     const name = `${surface}-${stateName}-${locale}`;
     assert.deepEqual(await snapshot(adapted.page), await snapshot(reference.page), `${name}: official text/control geometry`);
     for (const fixture of [reference, adapted]) await fixture.page.evaluate(() => document.activeElement?.blur());
-    const a = await reference.page.screenshot({ path: resolve(output, `${name}-official.png`), captureBeyondViewport: false });
-    const b = await adapted.page.screenshot({ path: resolve(output, `${name}-adapted.png`), captureBeyondViewport: false });
-    assert.ok(Buffer.from(a).equals(Buffer.from(b)), `${name}: pinned reference pixels differ`);
+    const pair = await stableCompare(name,
+      () => stableScreenshot(reference.page, { path: resolve(output, `${name}-official.png`), captureBeyondViewport: false }),
+      () => stableScreenshot(adapted.page, { path: resolve(output, `${name}-adapted.png`), captureBeyondViewport: false }));
+    const { a, b } = pair;
+    assert.ok(pair.equal, `${name}: pinned reference pixels differ (attempts ${pair.attempts})`);
     for (const fixture of [reference, adapted]) {
       const { page } = fixture;
       await page.bringToFront();
@@ -245,4 +248,7 @@ try {
   const lock = JSON.parse(await readFile(resolve(app, "../../dsh-source.lock.json"), "utf8"));
   await writeFile(resolve(output, "host-capabilities-report.json"), JSON.stringify({ ok: true, upstream: lock.commit, scope: "Official directory browser, actual named fixed preset, and separate built-in-reference guide interaction over controlled fixtures. The built-in guide case does not claim that the Workers fixed preset implements official Standard. Not a whole-app or persistent Host test.", cases }, null, 2));
   console.log(`directory/preset official reference: ${cases.length} Chromium cases passed`);
-} finally { await closeAcceptanceBrowser(browser); await server?.close(); }
+} finally {
+  try { await closeAcceptanceBrowser(browser); }
+  finally { await server?.close(); }
+}

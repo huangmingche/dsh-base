@@ -3,13 +3,21 @@
   "id": "plugin-management",
   "planes": {
     "client": [
+      "@dsh-base/client-plugin-management",
+      "@dsh-base/client-plugin-manager",
       {
         "name": "@deepseek-ai/dsh-client-ui-plugin-manager",
         "module": "@deepseek-ai/dsh-client-ui-plugin-manager/client",
         "id": "client:ui-plugin-manager",
         "origin": "upstream",
-        "order": 109
-      }
+        "order": 109,
+        "disabled": true,
+        "unavailableReason": "Replaced by the marked @dsh-base/client-plugin-manager fork: explicit deployment availability uses neutral labels while real errors preserve official behavior."
+      },
+      "@dsh-base/client-plugin-counts"
+    ],
+    "worker": [
+      "@dsh-base/cloudflare-worker-control"
     ]
   },
   "requires": [
@@ -17,10 +25,18 @@
   ],
   "config": {},
   "toggleable": "none",
-  "uninstallImpact": "Disabling hides the official Plugins page and rejects control routes; packages stay installed.",
+  "uninstallImpact": "Disabling removes the official Plugins page and the owner-scoped control routes; packages stay installed.",
   "reuse": {
-    "mode": "custom",
-    "official": [],
-    "reason": "Official Plugins entry and control routes; read-only deployment capability, never user-switchable."
+    "mode": "fork",
+    "official": [
+      "@deepseek-ai/dsh-client-ui-plugin-manager"
+    ],
+    "reason": "Marked complete fork of the pinned official Plugins page with only explicit Host deployment-availability presentation changes. The original stays disabled in inventory. Existing management and configuration seams retain owner controls, Workers explanations and official slots.",
+    "forkOf": {
+      "package": "@deepseek-ai/dsh-client-ui-plugin-manager",
+      "path": "packages/client/ui-plugin-manager",
+      "commit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "license": "MIT"
+    }
   }
 }

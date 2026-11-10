@@ -31,7 +31,10 @@ import { WELCOME_NOTICE_SETTINGS_NAMESPACE } from '../onboarding-copy.ts'
 import { Config, ONBOARDING_CONFIG_GLOBAL } from '../onboarding-config.ts'
 export { Config } from '../onboarding-config.ts'
 
-export type { ModelsSectionInjected, ModelsSectionProps } from './ModelsSection.tsx'
+export { ModelsSection } from './ModelsSection.tsx'
+export type { ModelsSectionController, ModelsSectionInjected, ModelsSectionProps } from './ModelsSection.tsx'
+export { createSettingsSchemaOperations } from './schema-operations.ts'
+export type { SettingsSchemaOperations } from './schema-operations.ts'
 export type { ModelsFooterOwnerProps, ProviderCardExtrasOwnerProps } from './slot-contract.ts'
 export type { ModelsKey } from './locales.ts'
 

@@ -9,5 +9,39 @@
   "brandName": "My DSH App",
   "docsUrl": "",
   "signupEnabled": false,
-  "platformAiEnabled": false
+  "platformAiEnabled": false,
+  "seo": {},
+  "siteAdminUserIds": [],
+  "saas": {
+    "waffoEnabled": false,
+    "waffoEnvironment": "test",
+    "waffoStoreId": "",
+    "waffoPlans": [],
+    "emailEnabled": false,
+    "emailProvider": "cloudflare",
+    "emailFrom": "",
+    "emailCloudflareAccountId": "",
+    "emailVerificationRequired": false,
+    "googleEnabled": false,
+    "googleClientId": "",
+    "userAdminEnabled": true,
+    "apiKeysEnabled": true,
+    "filesEnabled": true,
+    "entitlementFeatures": [],
+    "entitlementOperations": {},
+    "platformAiMaxOutputTokens": 0,
+    "newsletterEnabled": false,
+    "contactEnabled": false,
+    "contactSupportEmail": "",
+    "turnstileSiteKey": "",
+    "notificationsEnabled": false,
+    "crispEnabled": false,
+    "crispWebsiteId": "",
+    "cacheEnabled": false,
+    "cacheNamespaceId": ""
+  },
+  "indexing": {
+    "environment": "production",
+    "enabled": false
+  }
 }

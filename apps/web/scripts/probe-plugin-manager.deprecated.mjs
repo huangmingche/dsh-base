@@ -1,13 +1,14 @@
-#!/usr/bin/env node
 // DEPRECATED (Round 3B): superseded by apps/web/scripts/probe-scenarios.mjs. Do not use for acceptance.
+#!/usr/bin/env node
 /** Local Workers-native plugin manager probe: real inventory, owner management, actual loader effects. */
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { randomBytes } from "node:crypto";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { chromeExecutable, openSavedSession } from "./acceptance-config.mjs";
+import { chromeExecutable } from "./acceptance-config.mjs";
 import puppeteer from "puppeteer-core";
+import { prefixFor } from "../../../packages/boot/dsh-base-locale-path/src/index.ts";
 
 const app = resolve(import.meta.dirname, "..");
 const port = 5193 + (randomBytes(1)[0] % 200);
@@ -70,7 +71,7 @@ try {
   const openPlugins = async (target, locale = "en") => {
     const label = locale === "zh" ? "插件" : "Plugins";
     for (let attempt = 0; attempt < 6; attempt += 1) {
-      await openSavedSession(target, `${base}${locale === "zh" ? "/zh-CN" : ""}`, session.sessionId, 60000)
+      await target.goto(`${base}${prefixFor(locale === "zh" ? "zh" : "en")}/app/session/${session.sessionId}`, { waitUntil: "domcontentloaded", timeout: 60000 })
       await target.waitForSelector('[contenteditable], textarea, [role="textbox"]', { timeout: 60000 })
       await target.waitForFunction(label => [...document.querySelectorAll("button, a")].some(element => (element.textContent ?? "").trim() === label && element.getBoundingClientRect().width > 0), { timeout: 30000 }, label)
       const open = await target.evaluate(() => document.querySelector("[data-plugin-panel]") !== null && document.querySelectorAll("[data-plugin-package]").length >= 5)
@@ -121,7 +122,7 @@ try {
   await page.screenshot({ path: join(output, "plugins-installed-en-light-720.png") }); shots.push(join(output, "plugins-installed-en-light-720.png"))
   await page.setViewport({ width: 1440, height: 900 })
   // Detail pages show the precise reason through the official detail-section slot.
-  await openSavedSession(page, base, session.sessionId);
+  await page.goto(`${base}/app/session/${session.sessionId}`, { waitUntil: "domcontentloaded" });
   await page.waitForSelector('[contenteditable], textarea, [role="textbox"]', { timeout: 60000 });
   await page.waitForFunction(() => [...document.querySelectorAll("button, a")].some(element => (element.textContent ?? "").trim() === "Plugins" && element.getBoundingClientRect().width > 0), { timeout: 30000 });
   // Capture the unchanged official page before any persisted change: en/zh,
@@ -171,7 +172,7 @@ try {
   second.on("console", message => { if (message.type() === "error") secondErrors.push(message.text().slice(0, 500)) });
   await second.setViewport({ width: 1440, height: 900 });
   await second.setCookie({ name: match[1], value: match[2], url: base, httpOnly: true, sameSite: "Lax" });
-  await openSavedSession(second, base, draftSession.sessionId);
+  await second.goto(`${base}/app/session/${draftSession.sessionId}`, { waitUntil: "domcontentloaded" });
   await second.waitForSelector('[contenteditable], textarea, [role="textbox"]', { timeout: 60000 });
   const draft = `unsent-draft-${Date.now()}`;
   await second.evaluate(value => {

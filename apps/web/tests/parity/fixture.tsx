@@ -1,3 +1,9 @@
+import { SessionMenuFixture } from './session-menu-fixture.tsx';
+import { AnonymousModelsFixture } from './anonymous-models-fixture.tsx';
+import { GlobalSettingsFixture } from './global-settings-fixture.tsx';
+import { AuthPrimitivesFixture } from './auth-primitives-fixture.tsx';
+import { AnonymousAccountFixture } from './anonymous-account-fixture.tsx';
+import { SidebarNavigationFixture } from './sidebar-navigation-fixture.tsx';
 import { ComposerRuntimeFixture } from './composer-runtime-fixture.tsx';
 import { ChatStepFixture } from './chat-step-fixture.tsx';
 import { SidebarLifecycleFixture } from "./sidebar-lifecycle-fixture.tsx";
@@ -19,11 +25,13 @@ import { checkModelDirectoryAvailability } from "./model-directory-regression.ts
 import { HostCapabilitiesFixture } from "./host-capabilities-fixture.tsx";
 import { ProviderEditorFixture } from "./provider-editor-fixture.tsx";
 import { PluginManagerFixture } from "./plugin-manager-fixture.tsx";
+import { GatewayProviderUiFixture } from "./gateway-provider-ui-fixture.tsx";
 import { MessageFeedbackActions } from "@deepseek-ai/dsh-client-ui-message-feedback/src/client/MessageFeedbackActions.tsx";
 import { FeedbackDialog } from "@deepseek-ai/dsh-client-ui-message-feedback/src/client/FeedbackDialog.tsx";
 import { apply as feedbackAvailabilityApply } from "../../../../packages/client/dsh-base-client-feedback-availability/src/client/index.tsx";
 import { feedbackUnavailableReason } from "../../../../packages/client/dsh-base-client-feedback-availability/src/availability.ts";
 import { apply as scheduleApply } from "@deepseek-ai/dsh-client-ui-schedule/client";
+import { apply as adaptedScheduleApply } from "../../../../packages/client/dsh-base-client-schedule/src/client/index.ts";
 import { TaskManagerPage } from "@deepseek-ai/dsh-client-ui-schedule/src/client/TaskManagerPage.tsx";
 import { PermissionSelect } from "@deepseek-ai/dsh-client-ui-permission-presets/src/client/PermissionSelect.tsx";
 import { TerminalGuide } from "@deepseek-ai/dsh-client-ui-sidebar-terminal/src/client/TerminalGuide.tsx";
@@ -145,7 +153,7 @@ const fake = {
   sidebarRightTabs: { register: () => () => {} },
   sidebarRight: { tabsIn: () => [], openTab: () => {} },
 };
-scheduleApply(fake as never);
+(adapted ? adaptedScheduleApply : scheduleApply)(fake as never);
 permissionApply(fake as never);
 terminalApply(fake as never);
 logApply(fake as never);
@@ -224,9 +232,14 @@ function FeedbackFixture() {
 }
 
 function Fixture() {
+  if (surface === 'session-menu') return <SessionMenuFixture locale={locale} adapted={adapted} />;
+  if (surface === "anonymous-account") return <AnonymousAccountFixture locale={locale} adapted={adapted} />;
+  if (surface === "auth-primitives") return <AuthPrimitivesFixture locale={locale} adapted={adapted} />;
   if (surface === "composer-runtime") return <ComposerRuntimeFixture locale={locale} />;
   if (surface === "chat-step") return <ChatStepFixture locale={locale} adapted={adapted} />;
   if (surface === "sidebar-lifecycle") return <SidebarLifecycleFixture />;
+  if (surface === "sidebar-navigation") return <SidebarNavigationFixture locale={locale} adapted={adapted} />;
+  if (surface === "anonymous-models") return <AnonymousModelsFixture locale={locale} adapted={adapted} />;
   if (surface === "model-effort") return <ModelEffortFixture locale={locale} adapted={adapted} state={state} />;
   if (surface === "upload") return <UploadFixture locale={locale} />;
   const [editor, setEditor] = useState({ drafts: {} as Record<string, unknown> });
@@ -247,6 +260,8 @@ function Fixture() {
   if (surface === "account") return <AccountFixture locale={locale} adapted={adapted} state={state} />;
   if (surface === "commands") return <CommandsFixture locale={locale} adapted={adapted} state={state} />;
   if (surface === "directory" || surface === "agent-preset") return <HostCapabilitiesFixture locale={locale} adapted={adapted} surface={surface} state={state} />;
+if (surface === 'gateway-provider-ui') return <GatewayProviderUiFixture locale={(query.get('gatewayLocale') ?? 'en') as never} state={query.get('state') ?? 'available'} />;
+  if (surface === "global-settings") return <GlobalSettingsFixture locale={locale} adapted={adapted} />;
   if (surface === "plugin-manager") return <PluginManagerFixture locale={locale} adapted={adapted} state={state} />;
   if (surface === "feedback") return <FeedbackFixture />;
   if (surface === "model-keyboard") return <ModelKeyboardFixture />;

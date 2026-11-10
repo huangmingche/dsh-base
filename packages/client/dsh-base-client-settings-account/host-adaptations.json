@@ -1,0 +1,79 @@
+{
+  "upstreamCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+  "additions": [
+    "src/client/entry.ts",
+    "src/client/AccountAvailability.module.css"
+  ],
+  "files": [
+    {
+      "path": "src/client/AccountSection.tsx",
+      "changes": [
+        {
+          "reason": "Load only the additional unavailable-action styling.",
+          "before": "import css from './AccountSection.module.css'\n",
+          "after": "import css from './AccountSection.module.css'\nimport availabilityCss from './AccountAvailability.module.css'\n"
+        },
+        {
+          "reason": "Expose an optional Host presentation contract without changing the default.",
+          "before": "  PropsRuntime<'settings.section'> & PropsLocale<'settings.account'> & InjectFace<AccountSectionInjected>\n",
+          "after": "  PropsRuntime<'settings.section'> & PropsLocale<'settings.account'> & InjectFace<AccountSectionInjected> & {\n    /** Keep complete official cards visible only for genuine signed-out, unavailable Platform state. */\n    presentation?: 'auto' | 'full-unavailable'\n  }\n"
+        },
+        {
+          "reason": "Read the optional presentation contract.",
+          "before": "export function AccountSection({ t, useAccount, useTheme, start, cancel, openPlatformPage, avatarFailed }: AccountSectionProps) {",
+          "after": "export function AccountSection({ t, useAccount, useTheme, start, cancel, openPlatformPage, avatarFailed, presentation = 'auto' }: AccountSectionProps) {"
+        },
+        {
+          "reason": "Permit the preview only for genuine signed-out state without an attempt.",
+          "before": "  const signedIn = state?.status === 'credential-stored'\n",
+          "after": "  const signedIn = state?.status === 'credential-stored'\n  const fullUnavailable = presentation === 'full-unavailable' && state?.status === 'signed-out' && state.attempt === null\n"
+        },
+        {
+          "reason": "Remove navigation and Host handlers from unavailable usage links.",
+          "before": "    <a className={className} href={state?.links.usageUrl} aria-disabled={state === undefined}\n      target=\"_blank\" rel=\"noreferrer\" onClick={openUsage}>{label}</a>",
+          "after": "    <a className={className} href={fullUnavailable ? undefined : state?.links.usageUrl} aria-disabled={fullUnavailable || state === undefined}\n      tabIndex={fullUnavailable ? -1 : undefined}\n      target=\"_blank\" rel=\"noreferrer\" onClick={fullUnavailable ? undefined : openUsage}>{label}</a>"
+        },
+        {
+          "reason": "Let the unavailable presentation use the existing complete official card branch.",
+          "before": "  if (!signedIn && !active) return (",
+          "after": "  if (!signedIn && !active && !fullUnavailable) return ("
+        },
+        {
+          "reason": "Scope disabled-action treatment and an inspection marker to the explicit unavailable state.",
+          "before": "    <section className={css.section} aria-label={t('nav')}>",
+          "after": "    <section className={fullUnavailable ? `${css.section} ${availabilityCss.unavailable}` : css.section} aria-label={t('nav')}\n      data-account-presentation={fullUnavailable ? 'full-unavailable' : undefined}>"
+        },
+        {
+          "reason": "Keep account information visible without evaluating a Platform URL or exposing a navigation target.",
+          "before": "        {signedIn && <a className={css.accountInfo} href={new URL('/', state.links.usageUrl).href} target=\"_blank\" rel=\"noopener noreferrer\">",
+          "after": "        {(signedIn || fullUnavailable) && <a className={css.accountInfo}\n          href={fullUnavailable ? undefined : new URL('/', state.links.usageUrl).href}\n          aria-disabled={fullUnavailable || undefined} tabIndex={fullUnavailable ? -1 : undefined}\n          target=\"_blank\" rel=\"noopener noreferrer\">"
+        },
+        {
+          "reason": "Keep the bonus row visible without supplying a balance.",
+          "before": "        {signedIn && showBonusRow && <>",
+          "after": "        {((signedIn && showBonusRow) || fullUnavailable) && <>"
+        },
+        {
+          "reason": "Never render a stale bonus balance for signed-out unavailable state.",
+          "before": "              {bonusWallets.length > 0\n                ? <span",
+          "after": "              {fullUnavailable ? <span className={css.unavailable}>{t('balanceSignedOut')}</span> : bonusWallets.length > 0\n                ? <span"
+        },
+        {
+          "reason": "Remove navigation and Host handlers from the unavailable top-up action.",
+          "before": "            <a className={`${css.linkButton} ${css.primary}`} href={state?.links.topUpUrl} aria-disabled={state === undefined}\n              target=\"_blank\" rel=\"noreferrer\"\n              onClick={(event) => { if (openPlatformPage !== undefined && signedIn) { event.preventDefault(); showPage(openPlatformPage, 'top-up') } }}>{t('topUp')}</a>",
+          "after": "            <a className={`${css.linkButton} ${css.primary}`} href={fullUnavailable ? undefined : state?.links.topUpUrl} aria-disabled={fullUnavailable || state === undefined}\n              tabIndex={fullUnavailable ? -1 : undefined} data-account-action={fullUnavailable ? 'top-up' : undefined}\n              target=\"_blank\" rel=\"noreferrer\"\n              onClick={fullUnavailable ? undefined : (event) => { if (openPlatformPage !== undefined && signedIn) { event.preventDefault(); showPage(openPlatformPage, 'top-up') } }}>{t('topUp')}</a>"
+        }
+      ]
+    },
+    {
+      "path": "src/client/AccountOnboarding.tsx",
+      "changes": [
+        {
+          "reason": "Use the deployed model-provider fork for its existing settings.models type augmentation; importing the replaced original duplicates that locale namespace. This is a type-only Host compatibility change.",
+          "before": "import type {} from '@deepseek-ai/dsh-client-ui-settings-models/client'",
+          "after": "import type {} from '@dsh-base/client-deepseek-provider/client'"
+        }
+      ]
+    }
+  ]
+}

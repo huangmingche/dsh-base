@@ -1,0 +1,28 @@
+{
+  "name": "@dsh-base/cloudflare-worker-control",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./src/*": "./src/*"
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*"
+  },
+  "dshBase": {
+    "worker": {
+      "id": "cloudflare:worker:control",
+      "origin": "custom",
+      "order": 30
+    },
+    "reuse": {
+      "mode": "custom",
+      "official": [],
+      "reason": "No official DSH package runs on Cloudflare Workers; this is the Worker platform seam.",
+      "gaps": [
+        "Owner-scoped plugin selection is a Worker-native control Durable Object; it cannot install/remove bundled code at runtime."
+      ]
+    }
+  }
+}
