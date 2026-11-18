@@ -43,3 +43,4 @@ test-results/
 
 # Complete owned display inventory, generated from production metadata and pack grouping.
 /packages/client/dsh-base-client-session-adapter/src/client/owned-plugin-inventory.generated.ts
+/packages/client/dsh-base-client-plugin-manager/src/client/brand-artwork.generated.ts

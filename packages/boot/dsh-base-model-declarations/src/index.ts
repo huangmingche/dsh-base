@@ -15,10 +15,11 @@ export const DEPLOYMENT_MODELS: readonly DeploymentModel[] = [
 
 const DEEPSEEK_MODEL_SCHEMA = {
   type: "object",
+  meta: {},
   dict: {
     id: { type: "string", meta: { required: true } },
-    name: { type: "string" },
-    contextWindow: { type: "number" },
+    name: { type: "string", meta: {} },
+    contextWindow: { type: "number", meta: {} },
   },
 } as const;
 export const DEEPSEEK_SETTINGS_SCHEMA = {
@@ -26,7 +27,9 @@ export const DEEPSEEK_SETTINGS_SCHEMA = {
   dict: {
     apiKeyEnv: { type: "string", meta: { default: "DEEPSEEK_OFFICIAL_API_KEY", role: "credential-ref", volatile: true } },
     baseURL: { type: "string", meta: { default: "https://api.deepseek.com/v1" } },
-    models: { type: "list", inner: DEEPSEEK_MODEL_SCHEMA, meta: { default: DEPLOYMENT_MODELS.map(model => ({ id: model.id, name: model.label, contextWindow: model.contextWindow })) } },
+    // The official editor renders the control. Think exposes no owner-selectable retry mode.
+    retryPolicy: { type: "union", list: [] as never[], meta: {} },
+    models: { type: "array", inner: DEEPSEEK_MODEL_SCHEMA, meta: { default: DEPLOYMENT_MODELS.map(model => ({ id: model.id, name: model.label, contextWindow: model.contextWindow })) } },
   },
   meta: { default: {} },
 } as const;

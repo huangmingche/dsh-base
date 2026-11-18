@@ -1,9 +1,11 @@
 /** Category counts describe rendered entries; they never describe enabled fibers. */
 import assert from 'node:assert/strict';
 import { readOwnedPluginInventory } from './owned-plugin-inventory-oracle.mjs';
+import { readOfficialPluginCatalog } from './official-plugin-catalog-oracle.mjs';
 const owned = readOwnedPluginInventory();
+const official = readOfficialPluginCatalog();
 
-export async function assertCategoryCounts(page, locale, { more = false, components = owned.rows.length, bundles = owned.bundles.length, basic = 4, extensions = 6 } = {}) {
+export async function assertCategoryCounts(page, locale, { more = false, components = owned.rows.length, bundles = owned.bundles.length, basic = 4, extensions = official.main.length } = {}) {
   const rows = await page.$$eval('[data-plugin-category-count]', elements => elements.map(element => {
     const group = element.getAttribute('data-plugin-category-count');
     const container = document.querySelector(`[data-plugin-group="${group}"]`);
@@ -38,7 +40,7 @@ export async function assertCategoryCounts(page, locale, { more = false, compone
   }));
   assert.deepEqual(rows.map(row => row.group).sort(), more ? ['more'] : ['basic', 'bundles', 'extensions']);
   for (const row of rows) {
-    const expected = { basic, extensions, bundles, more: 16 }[row.group];
+    const expected = { basic, extensions, bundles, more: official.more.length }[row.group];
     assert.equal(row.count, expected, `${row.group}: category count`);
     assert.equal(row.count, row.visibleCards, `${row.group}: count is derived from the cards actually shown`);
     assert.match(row.className, /sectionCount/u, 'count uses the existing official text style');

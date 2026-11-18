@@ -8,14 +8,14 @@
       "FISH_LOGO_VIEWBOX"
     ],
     "repository": "https://github.com/deepseek-ai/deepseek-harness.git",
-    "tag": "dsh-v0.2.2-rc.1",
-    "commit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+    "tag": "dsh-v0.2.2-rc.5",
+    "commit": "9c2670d3bce5275e0d1610272958121af87787bb",
     "license": "MIT",
     "files": {
-      ".submodules/deepseek-harness/packages/client/ui-primitives/package.json": "8fcf43db8b1675458670ea9ae6b09e7a489a7d1a97a1605979cdd5a462dd7f9b",
+      ".submodules/deepseek-harness/packages/client/ui-primitives/package.json": "eb95c6ca80b494b7036000e0dfe791b997643d64f61a83cff8db9f32a2157c5d",
       ".submodules/deepseek-harness/packages/client/ui-primitives/src/FishLogo.tsx": "284e14941ee40ecb3473f424866a2f9370fb28ecdb8e5f1bbd8b1af295e5ddeb",
-      ".submodules/deepseek-harness/packages/client/ui-primitives/src/index.ts": "567ddf700b04b4f19d8d9352b475c70416041fa615920c083284a7e97ce2a012",
-      ".submodules/deepseek-harness/packages/client/ui-theme/package.json": "a4294e3306133fbd50c79e12683d222e2c079e558e1a4f94b6ce058fb80947fd",
+      ".submodules/deepseek-harness/packages/client/ui-primitives/src/index.ts": "489d960bcdc03ba76b2a81e7f2b1a1cde0e4ac852dfc13aee716eb3897c5218c",
+      ".submodules/deepseek-harness/packages/client/ui-theme/package.json": "0f5e0d9190857e1cfeacea2d50447542240130ec5923cffd3e266da5adcced35",
       ".submodules/deepseek-harness/packages/client/ui-theme/src/styles/Montserrat-OFL.txt": "861d64229728cd65a98d119612c12769582574d1a092f0b63c8b0fd474e7065f",
       ".submodules/deepseek-harness/packages/client/ui-theme/src/styles/montserrat-medium.woff2": "8a81ca6f05cb6831d5487e4b287ce5a625a718c39226b736f155900adc394166",
       ".submodules/deepseek-harness/packages/client/ui-theme/src/styles/montserrat-regular.woff2": "0f4a15e29a9535af580a64db967929a8d6b202fad9a467be390619a591d2c4c5"
@@ -39,7 +39,7 @@
     "ogLogoWidth": 192
   },
   "renderer": {
-    "browser": "Chrome/157.0.8103.79",
+    "browser": "Chrome/158.0.8127.36",
     "method": "Canvas2D Path2D, uniform scale, pinned Montserrat fonts",
     "ico": "lossless PNG frames: 16,32,48"
   },

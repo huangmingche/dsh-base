@@ -1,6 +1,6 @@
 /** Persistent writes must settle with the Host result, including refusals. */
 import assert from "node:assert/strict";
-import { createSettingsRemote } from "../src/client/settings-remote.ts";
+import { createSettingsRemote, unavailableWebRemote } from "../src/client/settings-remote.ts";
 import { createScheduleRemote } from "../src/client/schedule-remote.ts";
 import { createPermissionCommands } from "../src/client/permission-command.ts";
 
@@ -15,6 +15,10 @@ const rpc = { call: async (...args: unknown[]) => {
   if (thrown !== undefined) throw thrown;
   return reply;
 } };
+const providers = await unavailableWebRemote.listProviders();
+assert.equal(providers.ok, false);
+assert.equal(providers.error.code, "gateway/endpoint-unavailable");
+assert.deepEqual(calls, [], "unavailable provider catalogs never query the Host");
 const settings = createSettingsRemote({ rpc: () => rpc as never, accepted: value => accepted.push(value), changed: value => changes.push(value) });
 assert.deepEqual(await settings.mutate("ui-settings", [{ op: "set", path: ["enabled"], value: true }], 6), reply);
 assert.deepEqual(calls.pop(), ["/api", "settings/mutate", { args: { ns: "ui-settings", ops: [{ op: "set", path: ["enabled"], value: true }], expectedRevision: 6 } }, undefined]);

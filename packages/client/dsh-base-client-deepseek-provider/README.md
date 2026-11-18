@@ -1,7 +1,5 @@
 # @dsh-base/client-deepseek-provider
 
-组合范围：默认应用只在登录后加载工作台。以下未登录分支属于组件或 Host 的独立契约，仅在隔离测试中使用。
-
 pinned 官方 `@deepseek-ai/dsh-client-ui-settings-models` 的完整标记 fork。原
 DeepSeek 提供商、密钥、endpoint 与模型目录编辑/语义保持官方实现；fork 增加独立、
 运营者管理的 Cloudflare AI Gateway provider 行，通过官方 provider-card 显示状态，
@@ -23,6 +21,6 @@ Host 可通过 `presentation: 'public-declarations'` 传入只含公开提供商
 
 ## 来源与验证
 
-唯一上游来源为固定子模块 `packages/client/ui-settings-models`，提交 `66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`，许可证 MIT。完整保留 `src/`、`locale/` 和许可证，原 CSS 与编辑器源码保持不变。
+唯一上游来源为固定子模块 `packages/client/ui-settings-models`，提交 `9c2670d3bce5275e0d1610272958121af87787bb`，许可证 MIT。完整保留 `src/`、`locale/` 和许可证，沿用官方 CSS 和提供商编辑器。Think 未开放账号级重试策略时，原版重试选择器以禁用状态显示“由部署管理”。服务端拒绝修改重试策略，账号仍可编辑已有密钥和端点。
 
 [host-adaptations.json](host-adaptations.json) 将既有 Gateway、Loader 和文案差分记在 `baselineChanges`，本轮公开展示合同记在 `changes`。运行 `node --test packages/client/dsh-base-client-deepseek-provider/tests/*.test.mjs`，反向应用差分后按字节核对全部源码和资源。应用验收另外比较官方组件的实际渲染与交互；新增参数不意味着平台计费、任意提供商或匿名模型调用已实现。

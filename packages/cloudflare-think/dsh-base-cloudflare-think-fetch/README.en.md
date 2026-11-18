@@ -9,6 +9,13 @@ limit, 24,000-character model limit, and redirect handling. Pinned DSH's
 neither provides deployment-versus-owner allowlist subset validation. The reuse
 decision is recorded in `package.json`.
 
+This plugin provides `fetch_url` for reading a known URL. DSH rc.5 selects a
+registered `web_search` provider using the model route that requested the search.
+The Workers composition registers no search provider, so both DeepSeek BYOK and
+Cloudflare AI Gateway expose only the enabled URL-fetching capability for web
+access. Official DeepSeek Messages search consumes model tokens for an additional
+model turn on each search.
+
 `FETCH_ALLOWLIST` is the comma-separated deployment policy. An absent or blank
 binding defaults to `https://developers.cloudflare.com/**` and
 `https://ai-sdk.dev/**`. Owner/session `{ "allowlist": [...] }` configuration

@@ -235,6 +235,13 @@ export class SqliteSessionHostStorage implements SessionHostStorage {
     return this.sql.transactionSync ? this.sql.transactionSync(rename) : rename();
   }
 
+  async listSessionIdsAfter(after: string | undefined, limit: number): Promise<readonly string[]> {
+    const rows = after === undefined
+      ? this.sql.exec("SELECT session_id FROM dsh_session_host_sessions ORDER BY session_id LIMIT ?", limit)
+      : this.sql.exec("SELECT session_id FROM dsh_session_host_sessions WHERE session_id > ? ORDER BY session_id LIMIT ?", after, limit);
+    return rows.toArray().map(row => String(row.session_id));
+  }
+
   async listSessions(): Promise<readonly SessionRecord[]> {
     const rows = this.sql.exec(`SELECT * FROM dsh_session_host_sessions`).toArray() as unknown as SessionRow[];
     return rows.map(toSession);

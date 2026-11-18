@@ -1,7 +1,7 @@
 # @dsh-base/client-locale-label
 
 Complete marked fork of pinned `@deepseek-ai/dsh-client-locale` (commit
-`66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`, MIT). The built-in `zh`
+`9c2670d3bce5275e0d1610272958121af87787bb`, MIT). The built-in `zh`
 display label changes from “中文” to the explicitly requested “简体中文”. The
 internal locale id stays `zh`; the persisted preference, `/zh-CN` route, language
 selector, dictionaries and RPC contracts remain the official implementation.

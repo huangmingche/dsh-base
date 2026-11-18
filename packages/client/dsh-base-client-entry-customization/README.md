@@ -1,8 +1,6 @@
 # 更多菜单
 
-组合范围：默认应用只在登录后加载工作台。以下未登录分支属于组件或 Host 的独立契约，仅在隔离测试中使用。
-
-固定版本官方 `@deepseek-ai/dsh-client-ui-entry-customization` 的完整浏览器 fork。来源为 `.submodules/deepseek-harness/packages/client/ui-entry-customization`，提交 `66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`，MIT 许可证。
+固定版本官方 `@deepseek-ai/dsh-client-ui-entry-customization` 的完整浏览器 fork。来源为 `.submodules/deepseek-harness/packages/client/ui-entry-customization`，提交 `9c2670d3bce5275e0d1610272958121af87787bb`，MIT 许可证。
 
 保留官方左侧栏、会话视图和右侧栏的三个槽及全部菜单结构、图标和文案。未登录时“浏览更多插件”直接打开已挂载的公开插件目录，“创建你的插件”先打开登录弹窗。没有增加关于、支持或环境入口。
 

@@ -1,5 +1,9 @@
 # @dsh-base/cloudflare-worker-session-host
 
+工作区文件面板通过官方 `workspaceFiles.search` 搜索当前会话所属工作区。SQLite 先按目录索引排除版本控制目录和用户指定的路径，并应用“显示隐藏文件”设置，再按路径顺序匹配最多 2,000 个文件及其上级目录，最多返回 512 条结果。启用“遵循 .gitignore”时，如果搜索范围内有适用的原生忽略规则，Host 会返回 `workspace-file/search-failed`。已排除目录中的规则不会影响其他目录。
+
+官方会话在打开长历史时按消息数与轮数加载首屏，再从同一游标向前分页。Think 持久化的是失败文本，缺少官方判定手动继续所需的模型尝试和分类错误码。因此 `conversationContinuation` 返回 `null`，新的空提示请求返回 `session/agent-busy`。
+
 Workers-native fork 目标：官方 DSH Session Remote 契约。
 
 ## 状态
@@ -54,7 +58,7 @@ RPC 桥：
 
 - 包：`@deepseek-ai/dsh-api-session-controller`
 - 路径：`packages/api/session-controller`
-- commit：`66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`
+- commit：`9c2670d3bce5275e0d1610272958121af87787bb`
 - license：MIT
 - 官方源码只存在于 `.submodules/deepseek-harness`；本包只做 Workers-native 适配。
 

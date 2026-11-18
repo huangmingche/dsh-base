@@ -30,6 +30,7 @@ try{
     assert.deepEqual(guarded,[true,true,true]);assert.equal(adapted.page.url(),before);assert.equal(adapted.popups.length,0);assert.deepEqual(await adapted.page.evaluate(()=>window.__ACCOUNT_PARITY__.calls),[]);assert.deepEqual(reference.errors,[]);assert.deepEqual(adapted.errors,[]);
     cases.push({locale,state:"unavailable-billing",visibleLinks:data.links.length,blockedPointerKeyboardAuxAndContext:true,billingCalls:0,screenshotSha256:createHash("sha256").update(a).digest("hex")});await reference.page.close();await adapted.page.close();
     const menu=await open(locale,"menu","adapted");
+    assert.equal(await menu.page.evaluate(() => window.__ACCOUNT_PARITY__.notificationActive), true, "signed-in menu renders the official notification extension");
     await menu.page.click("#root button");await menu.page.waitForSelector('[role="menuitem"]');
     await menu.page.evaluate(()=>[...document.querySelectorAll('[role="menuitem"]')].find(item=>item.textContent.trim()===window.__ACCOUNT_PARITY__.copy.signOut).click());
     await menu.page.waitForSelector('[role="dialog"]');

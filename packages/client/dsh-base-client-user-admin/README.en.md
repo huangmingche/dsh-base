@@ -4,4 +4,4 @@ Independent client plugin `client:user-admin`, grouped under `dsh-base:user-admi
 
 The deployment allowlist determines administrator authority; editing a role label does not grant it. Supports pagination, search, suspension/restoration, role labels and session revocation. Every operation is authorized again by the server.
 
-The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. The default workbench requires sign-in. The panel and server authorize account and administrator actions. Unloading removes the registration and never exposes private row configuration.
+The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. Guests can inspect status; account and administrator actions retain panel and server authorization. Unloading removes the registration and never exposes private row configuration.

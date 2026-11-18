@@ -4,4 +4,4 @@ Independent client plugin `client:files`, grouped under `dsh-base:files` through
 
 Uploads raw binary files up to 10 MiB. Lists use 50-item pages; downloads and deletion are owner-authorized by the server. Refresh returns to the first page.
 
-The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. The default workbench requires sign-in. The panel and server authorize account and administrator actions. Unloading removes the registration and never exposes private row configuration.
+The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. Guests can inspect status; account and administrator actions retain panel and server authorization. Unloading removes the registration and never exposes private row configuration.

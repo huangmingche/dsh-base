@@ -2,7 +2,7 @@
 
 本包是固定版本 `@deepseek-ai/dsh-permission-presets` 的完整标记分支。官方预设派生、默认值、命令、投影和三个权限事件的算法保持原样；只把必需的原生 shell 执行器依赖替换为实际执行检查的逻辑 R2 文件边界。它不是原生 shell、PTY 或操作系统沙箱。
 
-来源为 `.submodules/deepseek-harness/packages/interaction/permission-presets`，提交 `66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`，MIT。`src/presets.ts` 对应官方 `src/index.ts`；`src/types.ts`、`src/client.ts`、八种语言 JSON 和 MIT 许可证直接保留。元数据记录 `forkOf` 与 Worker 组合项 `cloudflare:worker:permissions`。
+来源为 `.submodules/deepseek-harness/packages/interaction/permission-presets`，提交 `9c2670d3bce5275e0d1610272958121af87787bb`，MIT。`src/presets.ts` 对应官方 `src/index.ts`；`src/types.ts`、`src/client.ts`、八种语言 JSON 和 MIT 许可证直接保留。元数据记录 `forkOf` 与 Worker 组合项 `cloudflare:worker:permissions`。
 
 修改范围：依赖 `permissionExecutor` 取代 `shell`；不伪造 Agent 服务，已有 Agent 的初始化监听仍保留，Host 通过公开适配方法调用相同初始化算法；新增 Host 同步接口和 R2 检查。官方 Session、SessionProjectionRegistry、ApprovalService 均从稳定导出原样装配。`read-only` 通过官方预设配置表加入，Auto review 未配置且不可选择。
 

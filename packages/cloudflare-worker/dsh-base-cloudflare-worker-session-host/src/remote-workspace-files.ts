@@ -3,7 +3,7 @@
  *
  * The Workers-native Host keeps immutable file versions in R2 with metadata in
  * the Session Host Durable Object SQLite store. This bridge maps the official
- * `workspaceFiles/{list,stat,read,readBytes,changes}` wire contract onto the
+ * `workspaceFiles/{list,stat,read,readBytes,search,changes}` wire contract onto the
  * owner-scoped `/api/session-host` methods, deriving `workspaceFileScope` from
  * the wire Session id exactly like the official Typert lookup.
  */
@@ -17,6 +17,7 @@ import type {
 import { SessionRpcFault } from "./remote-contract.ts";
 import { createHostCall } from "./host-call.ts";
 import { argsOf, isRecord, requestOf } from "./remote.ts";
+import { workspaceFileSearchRequest } from "./workspace-files.ts";
 
 type JsonRecord = Record<string, unknown>;
 
@@ -166,6 +167,17 @@ export function registerWorkspaceFilesRemoteEndpoints(wireRpc: WireRpc): () => v
   const register = (method: string, handler: (payload: unknown, invocation: WireInvocation) => Promise<unknown> | unknown): void => {
     disposers.push(wireRpc.register(`workspaceFiles/${method}`, handler));
   };
+
+  register("search", async (payload, invocation) => {
+    const endpoint = "workspaceFiles/search";
+    const args = argsOf(payload, endpoint);
+    const request = isRecord(args.request) ? args.request : args;
+    const sessionId = scopeSessionId(args.workspaceFileScope === undefined ? request : args, endpoint);
+    const search = workspaceFileSearchRequest(request);
+    const call = createHostCall(invocation);
+    await ensureTranscript(call, sessionId);
+    return call("workspaceFileSearch", { sessionId, ...search });
+  });
 
   register("list", async (payload, invocation) => {
     const endpoint = "workspaceFiles/list";

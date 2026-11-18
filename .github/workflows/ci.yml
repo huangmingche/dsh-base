@@ -33,8 +33,7 @@ jobs:
         run: node scripts/check-release-version.mjs
       - run: pnpm install --frozen-lockfile
       - run: pnpm audit
-      - name: Fetch pinned source tag
-        run: git -C .submodules/deepseek-harness fetch --depth=1 origin tag dsh-v0.2.2-rc.1
+      - run: pnpm dsh:init
       # Browser pixel parity and browser source compatibility do not run on
       # every push: the Chromium screenshot pass is too slow for the push
       # budget. browser-parity.yml runs on relevant pull requests or manually; locally

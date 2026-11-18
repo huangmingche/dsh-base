@@ -4,4 +4,4 @@ Independent client plugin `client:contact`, grouped under `dsh-base:contact` thr
 
 The form requires Turnstile, a name of at most 80 characters and a message of 10–4000 characters. Success means the server accepted the request, not that the recipient received or read it.
 
-The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. The default workbench requires sign-in. The panel and server authorize account and administrator actions. Unloading removes the registration and never exposes private row configuration.
+The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. Guests can inspect status; account and administrator actions retain panel and server authorization. Unloading removes the registration and never exposes private row configuration.

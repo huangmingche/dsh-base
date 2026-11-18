@@ -27,7 +27,7 @@ const PARTS = ['title', 'intro', 'toolbar', 'tabs'] as const
 /**
  * Measure the existing resting and compact CSS layouts in an inert, out-of-flow copy.
  * Their independent flex wrapping requires pixel measurements; interpolating only positioned
- * contents leaves the real header's resting footprint and the scroll range unchanged.
+ * contents leaves the header bar's resting footprint and the scroll range unchanged.
  * @returns A ref callback that disposes its element observers and scroll listener on detachment.
  */
 export function createPluginHeaderRef(): (element: HTMLDivElement | null) => void {
@@ -53,7 +53,15 @@ function attach(bar: HTMLDivElement): () => void {
     for (const part of parts) {
       const progress = Math.min(1, offset / part.distance)
       part.element.style.translate = `${(part.to.x - part.from.x) * progress}px ${(part.to.y - part.from.y) * progress}px`
-      part.element.style.width = `${part.from.width + (part.to.width - part.from.width) * progress}px`
+      const width = part.from.width + (part.to.width - part.from.width) * progress
+      if (part.element.dataset.pluginHeaderPart === 'toolbar') {
+        // An intrinsic flex row must not rewrap when a fractional measured width
+        // rounds down on writeback. Keep its content width within the measured space.
+        part.element.style.width = 'max-content'
+        part.element.style.maxWidth = `min(100%, ${Math.ceil(width)}px)`
+      } else {
+        part.element.style.width = `${width}px`
+      }
       if (part.clipStart !== undefined && part.clipEnd !== undefined) {
         const clip = Math.max(0, Math.min(1, (offset - part.clipStart) / (part.clipEnd - part.clipStart)))
         part.element.style.clipPath = `inset(${clip * 100}% 0 0)`
@@ -77,7 +85,9 @@ function attach(bar: HTMLDivElement): () => void {
     clone.setAttribute('data-measuring', '')
     clone.setAttribute('aria-hidden', 'true')
     clone.inert = true
-    clone.style.width = `${bar.getBoundingClientRect().width}px`
+    // DOMRects include ancestor CSS zoom; the scroll offsets and CSS writes use local units.
+    const zoom = bar.currentCSSZoom || 1
+    clone.style.width = `${bar.getBoundingClientRect().width / zoom}px`
     for (const element of clone.querySelectorAll<HTMLElement>('[id], [data-plugin-header-part]')) {
       element.removeAttribute('id')
       if (element.hasAttribute('data-plugin-header-part')) element.removeAttribute('style')
@@ -90,9 +100,9 @@ function attach(bar: HTMLDivElement): () => void {
         const element = clone.querySelector<HTMLElement>(`[data-plugin-header-part="${name}"]`)
         if (element === null) continue
         const box = element.getBoundingClientRect()
-        boxes.set(name, { x: box.x - head.x, y: box.y - head.y, width: box.width, height: box.height })
+        boxes.set(name, { x: (box.x - head.x) / zoom, y: (box.y - head.y) / zoom, width: box.width / zoom, height: box.height / zoom })
       }
-      return { height: clone.getBoundingClientRect().height, boxes }
+      return { height: clone.getBoundingClientRect().height / zoom, boxes }
     }
     let resting: ReturnType<typeof snapshot>
     let compact: ReturnType<typeof snapshot>

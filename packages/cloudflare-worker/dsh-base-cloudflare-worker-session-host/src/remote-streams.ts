@@ -14,15 +14,18 @@ import type {
 } from "@dsh-base/cloudflare-worker-wire-rpc";
 import {
   buildSessionHistory,
+  cutSessionPage,
   SessionWireSequencer,
+  type SessionPageWindow,
   type SessionHistorySnapshot,
   type SessionLiveAttempt,
 } from "@dsh-base/session-wire";
 import { toOfficialProjections } from './remote-mapping.ts';
 import { SessionRpcFault } from "./remote-contract.ts";
 import { toolResultValueFor } from "./tool-result-mapping.ts";
+import type { SessionHost } from "./host.ts";
 import { createHostCall, readHostLive, hostChanges } from "./host-call.ts";
-import { argsOf, isRecord, requestOf } from "./remote.ts";
+import { argsOf, isRecord, pageWindowOf, requestOf } from "./remote.ts";
 
 /** One durable message row as the Host page read returns it. */
 type HostPage = SessionHistorySnapshot;
@@ -50,6 +53,7 @@ function followSessionId(request: Record<string, unknown>, endpoint: string): st
 async function* followStream(
   invocation: WireStreamInvocation,
   sessionId: string,
+  window: SessionPageWindow,
   signal: AbortSignal,
 ): AsyncIterable<unknown> {
   const call = createHostCall(invocation);
@@ -63,7 +67,7 @@ async function* followStream(
       yield {
         type: "snapshot",
         header: { version: 1, id: sessionId, createdAt: Date.now(), isSeeded: page.forkSeed !== undefined },
-        cursor: sequencer.cursor, records: [...sequencer.records], hasMore: false,
+        cursor: sequencer.cursor, ...cutSessionPage(sequencer.records, window),
         projections: toOfficialProjections(rawProjections),
         assistantStream: { revision: 0 },
       };
@@ -86,29 +90,28 @@ async function* controlStream(invocation: WireStreamInvocation, signal: AbortSig
   let first = true;
   for await (const change of hostChanges(invocation, signal)) {
     if (!first && change.topics.length > 0 && !change.topics.includes('sessions')) continue;
-    const sessions = new Map<string, { sessionId: string }>();
+    const projections: Record<string, unknown> = Object.create(null);
+    const deltas: unknown[] = [];
     const cursors = new Set<string>();
     let cursor: string | undefined;
     do {
-      const listing = await call('list', cursor === undefined ? {} : { cursor }) as { sessions: { sessionId: string }[]; cursor?: string };
-      for (const session of listing.sessions) sessions.set(session.sessionId, session);
-      cursor = listing.cursor;
+      const page = await call('controlProjectionPage', cursor === undefined ? {} : { cursor }) as Awaited<ReturnType<SessionHost['controlProjectionPage']>>;
+      if (signal.aborted) return;
+      for (const { sessionId, projections: raw } of page.items) {
+        const baseline = toOfficialProjections(raw);
+        const signature = JSON.stringify(baseline.values);
+        if (first) projections[sessionId] = baseline;
+        else if (previous.get(sessionId) !== signature) {
+          deltas.push({ type: 'projection', sessionId, seq: baseline.asOfSeq, changes: Object.entries(baseline.values).map(([key, val]) => ({ key, val })) });
+        }
+        previous.set(sessionId, signature);
+      }
+      cursor = page.cursor;
       if (cursor !== undefined) {
-        if (cursors.has(cursor)) throw new SessionRpcFault('gateway/result-invalid', 'Session list cursor did not advance', {});
+        if (cursors.has(cursor)) throw new SessionRpcFault('gateway/result-invalid', 'Control projection cursor did not advance', {});
         cursors.add(cursor);
       }
-    } while (cursor !== undefined && !signal.aborted);
-    const projections: Record<string, unknown> = {};
-    const deltas: unknown[] = [];
-    for (const { sessionId } of sessions.values()) {
-      if (signal.aborted) return;
-      const baseline = toOfficialProjections(await call('projections', { sessionId }) as Record<string, unknown>);
-      const { values, asOfSeq: cursor } = baseline;
-      projections[sessionId] = baseline;
-      const signature = JSON.stringify(values);
-      if (!first && previous.get(sessionId) !== signature) deltas.push({ type: 'projection', sessionId, seq: cursor, changes: Object.entries(values).map(([key, val]) => ({ key, val })) });
-      previous.set(sessionId, signature);
-    }
+    } while (cursor !== undefined);
     if (first) { first = false; yield { type: 'baseline', value: { projections } }; }
     else yield* deltas;
   }
@@ -162,7 +165,8 @@ export function registerSessionStreamEndpoints(wireStream: WireStreamRegistry): 
     const endpoint = "session/follow";
     const request = requestOf(argsOf(payload, endpoint), endpoint);
     const sessionId = followSessionId(request, endpoint);
-    return followStream(invocation, sessionId, invocation.request.signal);
+    const window = pageWindowOf({ maxMessages: request.maxMessages, turnWindow: request.turnWindow }, endpoint);
+    return followStream(invocation, sessionId, window, invocation.request.signal);
   });
 
   register("control", (payload, invocation) => {

@@ -15,6 +15,15 @@ function rejected(domain: string, error: unknown): Failure {
   } };
 }
 
+type HostCredential = { configured: boolean; writable: boolean; source?: string };
+
+function editorCredential({ configured, writable, source }: HostCredential) {
+  // rc.4 calls an owner-managed credential "file". Keep its mask independent
+  // of the secret; deployment-provided credentials are never owner-managed.
+  if (configured && source === "host") return { configured, writable, source: "file", masked: "••••••••" };
+  return { configured, writable, ...(source === undefined ? {} : { source }) };
+}
+
 /** Secrets remain Host-owned; an absent or failed carrier never reports success. */
 export function createCredentialsRemote(transport?: FeedbackTransport, account?: () => Promise<{ readonly id: string } | null>) {
   const authenticate = async () => {
@@ -28,10 +37,10 @@ export function createCredentialsRemote(transport?: FeedbackTransport, account?:
       try {
         await authenticate();
         const value = await transport.request("credentialsDescribe", { refs }) as {
-          entries: Record<string, { configured: boolean; writable: boolean; source?: string }>;
+          entries: Record<string, HostCredential>;
         };
         if (value.entries === undefined) throw new Error("The Host returned an invalid credential description.");
-        return { ok: true as const, value: value.entries };
+        return { ok: true as const, value: Object.fromEntries(Object.entries(value.entries).map(([ref, info]) => [ref, editorCredential(info)])) };
       } catch (error) { return rejected("credential", error); }
     },
     set: async (ref: string, value: string) => {
@@ -39,7 +48,7 @@ export function createCredentialsRemote(transport?: FeedbackTransport, account?:
       try {
         await authenticate();
         await transport.request("credentialsSet", { ref, value });
-        return { ok: true as const, value: { configured: true, writable: true } };
+        return { ok: true as const, value: editorCredential({ configured: true, writable: true, source: "host" }) };
       } catch (error) { return rejected("credential", error); }
     },
     unset: async (ref: string) => {

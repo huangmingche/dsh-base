@@ -11,8 +11,6 @@ import { getStaticModules } from "@deepseek-ai/dsh-client-web/src/seed.ts";
 import type { StaticPluginLoaderConfig, StaticPluginInspection, StaticPluginPhase } from "@dsh-base/plugin-loader-static";
 import { controlledComposition, ownerBootSelection } from "./control.ts";
 import { inspectComposition } from "./inspection.ts";
-import { accountSession } from './account-session.ts';
-import { splitLocalePath } from '../../../dsh-base-locale-path/src/index.ts';
 import { publicDocumentEntries } from "./document-routes.ts";
 import { ensureBrowserProcess } from "./process.ts";
 
@@ -42,10 +40,7 @@ export async function startClient(base: ClientComposition, container: HTMLElemen
     export: message => console[message.type](`[${message.name}]`, ...message.args),
   });
   try {
-    const path = splitLocalePath(location.pathname).path;
-    const declared = publicDocumentEntries(base.entries, path);
-    const documentEntries = path === '/' && declared && await accountSession.read() !== null ? undefined : declared;
-    if (documentEntries) document.body.dataset.dshDocument = path;
+    const documentEntries = publicDocumentEntries(base.entries, location.pathname);
     // Public documents run only their declared providers. Do not fetch private
     // control state, import app plugins, or mount the authenticated shell here.
     const composition = documentEntries === undefined

@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import {
   LOGIN_LOCALE_IDS, PENDING_LOGIN_LOCALES, REUSED_SIGN_IN_SOURCES, loginCopy, resolveLoginLocale,
 } from "../src/client/locales.ts";
@@ -37,6 +38,9 @@ for (const locale of LOGIN_LOCALE_IDS) {
   for (const key of englishKeys) assert.equal(typeof (copy as Record<string, unknown>)[key], "string", `${locale}.${key}`);
 }
 
+const pin = JSON.parse(readFileSync(new URL("../../../../dsh-source.lock.json", import.meta.url), "utf8")).commit.slice(0, 8);
+const officialLines = readFileSync(new URL("../../../../.submodules/deepseek-harness/packages/client/ui-settings-account/src/client/locales.ts", import.meta.url), "utf8").split("\n");
+
 // Officially reused vocabulary: values and their machine-checkable source
 // comments (`package@pin / file:line / key / value`) must agree for all 8 locales.
 for (const locale of LOGIN_LOCALE_IDS) {
@@ -44,7 +48,9 @@ for (const locale of LOGIN_LOCALE_IDS) {
   assert.match(source, /^ui-settings-account@[0-9a-f]{8} \/ locales\.ts:\d+ \/ signIn \/ .+$/u, `${locale}: source comment format`);
   const value = source.split(" / ").at(-1);
   assert.equal(loginCopy(locale).signIn, value, `${locale}: signIn matches the recorded official value`);
-  assert.equal(source.includes("@66491b05"), true, `${locale}: source records the current pin short sha`);
+  assert.equal(source.includes(`@${pin}`), true, `${locale}: source records the current pin short sha`);
+  const line = Number(source.match(/locales\.ts:(\d+)/u)?.[1]);
+  assert.ok(officialLines[line - 1]?.match(/'?(?:signIn)'?:\s*'([^']+)'/u)?.[1] === value, `${locale}: pinned source line contains the actual translation`);
 }
 assert.equal(loginCopy("ja").signIn, "ログイン", "ja uses the official ログイン, not サインイン");
 assert.equal(loginCopy("de").signIn, "Melden Sie sich an");

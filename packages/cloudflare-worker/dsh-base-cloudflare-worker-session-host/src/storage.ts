@@ -141,6 +141,8 @@ export interface SessionHostStorage {
   repairCompletedToolResults?(sessionId: string, messages: readonly { id: string; role: string; parts: readonly unknown[] }[]): Promise<number>;
   executeExportCommand?(input: { sessionId: string; line: string; attachments: readonly unknown[]; rpcId: string }): Promise<import('@deepseek-ai/dsh-commands/types').CommandExecution>;
   listSessions(): Promise<readonly SessionRecord[]>;
+  /** Session ids in stable primary-key order for bounded control projection reads. */
+  listSessionIdsAfter?(after: string | undefined, limit: number): Promise<readonly string[]>;
   getSession(sessionId: string): Promise<SessionRecord | undefined>;
   putSession(record: SessionRecord): Promise<void>;
   pageMessages(

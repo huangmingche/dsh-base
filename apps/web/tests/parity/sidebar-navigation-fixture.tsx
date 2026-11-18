@@ -1,7 +1,7 @@
 /** Official SidebarRoot and marked fork, selected through their real slot registrations. */
 import React, { useMemo, useState, useSyncExternalStore } from 'react';
 import { Context } from '@deepseek-ai/cordis';
-import { SlotRegistry } from '@deepseek-ai/dsh-client-ui-renderer/client';
+import { apply as installRenderer } from '@deepseek-ai/dsh-client-ui-renderer/client';
 import { createSnapshotStore } from '@deepseek-ai/dsh-client-store';
 import { apply as officialSidebar } from '@deepseek-ai/dsh-client-ui-sidebar/client';
 import { apply as officialEntries } from '@deepseek-ai/dsh-client-ui-entry-customization/client';
@@ -47,8 +47,15 @@ export function SidebarNavigationFixture({ locale, adapted }: { locale: Language
     ctx.provide('shortcuts', { catalog: createSnapshotStore([]) } as never);
     ctx.provide('uiWorkspace', { startSession: (_id: unknown, options: unknown) => { calls.push(options ? 'plugin:create' : 'session:new'); } } as never);
     ctx.provide('pluginNavigation', { openList: () => calls.push('plugin:browse') } as never);
-    new SlotRegistry(ctx); const slots = ctx.get('slots')!;
-    slots.register({ name: 'root', children: { sidebar: { kind: 'single', scope: 'root' }, 'shell.leading': { kind: 'single', scope: 'root' } } } as never, (() => null) as never);
+    installRenderer(ctx);
+    const slots = ctx.slots;
+    slots.installLocale({ ...localeStore, bind } as never);
+    const absentSession = createSnapshotStore({ key: undefined, hooks: {}, keyedHooks: {}, props: {} });
+    slots.installScope('session', { current: absentSession, bindingSource: () => absentSession });
+    const granted = createSnapshotStore(true);
+    slots.provideRoot({ hooks: { panelInfo }, keyedHooks: { remoteAccess: () => granted } } as never);
+    slots.register({ name: 'root', children: { sidebar: { kind: 'single', scope: 'root' }, 'shell.leading': { kind: 'single', scope: 'root' } } } as never,
+      (({ renderSlot, collapsed, width, drawer }: any) => renderSlot('sidebar', { collapsed, width, drawer })) as never);
     (adapted ? adaptedSidebar : officialSidebar)(ctx);
     slots.register({ name: 'sidebar.panellist', id: 'plugins', order: 0, label: () => pluginCopy[locale].panel } as never, (({ size }: { size: number }) => <IconPluginPinwheelOutlineRegular size={size} />) as never);
     slots.register({ name: 'sidebar.panellist', id: 'schedules', order: 10, label: () => scheduleCopy[locale].panel } as never, (({ size }: { size: number }) => <IconClockOutlineRegular size={size} />) as never);
@@ -79,36 +86,33 @@ export function SidebarNavigationFixture({ locale, adapted }: { locale: Language
       notifyArchivedNotOpenable: () => {}, renameWorkspace: async () => {}, deleteWorkspace: async () => {},
       unarchiveSession: async () => {}, insertWorkspaceBefore: async () => {},
     };
-    slots.register({ name: 'sidebar.workspaces', locale: 'workspace' } as never,
+    slots.register({ name: 'sidebar.workspaces', locale: 'workspace', children: {
+      'sidebar.workspaces.directoryFlow': { kind: 'single', scope: 'root' },
+      'sidebar.workspaces.session.row.action': { kind: 'list', scope: 'root' },
+      'sidebar.session.row.leading': { kind: 'list', scope: 'root', inline: true },
+      'sidebar.session.row.trailing': { kind: 'list', scope: 'root', inline: true },
+      'sidebar.session.row.hover': { kind: 'list', scope: 'root' },
+    } } as never,
       ((props: any) => <WorkspaceBrowser {...workspaceProps} {...props} />) as never);
     // The account child is identical; actual anonymous account composition is
     // covered by the real Worker acceptance instead of this signed-in fixture.
+    slots.register({ name: 'sidebar.brand.name' } as never, (() => <span>dsh-base</span>) as never);
     const account = { view: { status: 'credential-stored' }, details: { profile: { status: 'ready', value: { name: 'Local User' } } } };
-    slots.register({ name: 'sidebar.settings', locale: 'settings.account' } as never, ((props: any) => <AccountMenu {...props}
+    slots.register({ name: 'sidebar.settings', locale: 'settings.account', children: { 'settings.launcher.notifications': { kind: 'single', scope: 'root' } } } as never, ((props: any) => <AccountMenu {...props}
       useAccount={(select: any) => select(account)} useTheme={(select: any) => select({ active: { colorScheme: scheme } })}
       settingsOpen={false} openSettings={() => calls.push('settings:open')} refreshAccount={async () => {}}
       contactUs={() => calls.push('feedback:open')} hasRunningAccountTasks={async () => false} avatarFailed={() => {}}
       start={async () => {}} cancel={async () => {}} signOut={async () => {}} showLogin={() => {}}
       openOnboarding={() => {}} bonusNoticeShown={() => {}} bonusNoticeDismissed={() => {}} />) as never);
-    const registration = slots.entriesOfSlot('sidebar')[0]!;
-    (window as any).__SIDEBAR_NAV_PARITY__ = { calls, ready: true, labels: { plugins: pluginCopy[locale].panel, schedules: scheduleCopy[locale].panel },
+    (window as any).__SIDEBAR_NAV_PARITY__ = { calls, ready: true, labels: { plugins: pluginCopy[locale].panel, schedules: scheduleCopy[locale].panel,
+        unpinSchedule: bind('sidebar')('panels.unpin', { name: scheduleCopy[locale].panel }),
+        pinSchedule: bind('entryCustomization')('pin', { name: scheduleCopy[locale].panel }) },
       registered: slots.entriesOfSlot('sidebar.panellist').map(row => row.options.id),
       setAccess: (state: string) => navigationAccess.set(state), access: () => navigationAccess.getSnapshot() };
-    return { ctx, slots, bind, registration, panelInfo };
+    return slots;
   }, [locale, adapted, scheme]);
-  const renderSlot = (name: string, owner: any, options: any = {}): React.ReactNode => {
-    const entries = setup.slots.entriesOfSlot(name as never).filter(entry => options.only === undefined || entry.options.id === options.only);
-    return entries.length === 0 ? options.fallback ?? null : entries.map((entry, index) => <Registered key={`${name}:${entry.options.id ?? index}`} entry={entry} owner={owner} />);
-  };
-  function Registered({ entry, owner }: { entry: any; owner: any }) {
-    const injected = entry.inject?.() ?? {}, bound: any = {};
-    for (const [key, source] of Object.entries(injected.hooks ?? {})) bound[`use${key[0]!.toUpperCase()}${key.slice(1)}`] = (select: any) => watch(source, select);
-    const Component = entry.component;
-    return <Component {...injected} {...bound} {...owner} renderSlot={renderSlot} t={setup.bind(entry.locale ?? '')}
-      usePanelInfo={(select: any) => watch(setup.panelInfo, select)} useRemoteAccess={() => true} />;
-  }
   const width = collapsed && mode !== 'mobile' ? 56 : 300;
   return <aside data-sidebar-parity style={{ width, height: '100vh', background: 'var(--dsw-alias-bg-sidebar, var(--dsw-alias-bg-base))' }}>
-    <Registered entry={setup.registration} owner={{ collapsed, width: 300, drawer: mode === 'mobile' }} />
+    {setup.renderSlot('root', { collapsed, width: 300, drawer: mode === 'mobile' } as never)}
   </aside>;
 }

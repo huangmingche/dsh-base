@@ -4,4 +4,4 @@ Independent client plugin `client:crisp`, grouped under `dsh-base:crisp` through
 
 The fixed Crisp SDK loads only after an explicit Open support click. No account identity is passed. Missing configuration leaves a disabled button visible; load failures are explicit. Plugin disposal hides chat and removes its owned script.
 
-The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. The default workbench requires sign-in. The panel and server authorize account and administrator actions. Unloading removes the registration and never exposes private row configuration.
+The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. Guests can inspect status; account and administrator actions retain panel and server authorization. Unloading removes the registration and never exposes private row configuration.

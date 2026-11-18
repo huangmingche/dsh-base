@@ -1,11 +1,9 @@
-# Open in local application availability
+# Open in a local application
 
-The official `@deepseek-ai/dsh-client-ui-open-in-app` plugin and its controllers remain mounted. This seam reuses the pinned exports `OpenInAppAction` and `OpenTargetButton` through the public SlotRegistry to preserve the original session-header utility when local applications are unavailable. It copies no official source.
+The official `@deepseek-ai/dsh-client-ui-open-in-app` plugin registers Open in on the Session row and Session header context menus. When the workspace has a directory and a native application is available, the official submenu lists applications and its controller opens the selection.
 
-The Workers deployment has no local desktop application launcher. Without a real workspace directory and a recognized application, the control stays visible inside a disabled fieldset, blocking pointer and keyboard operations with an explanation in eight languages. Its opacity matches the official Button disabled state. No applications, directories, loading states or successful launches are fabricated. When both a real directory and an application are available, the original official component and controller handle them unchanged.
+Workers has no native desktop launcher. The seam subscribes to the application catalog exposed by the official Files action. When the official action is absent, it contributes a disabled item with the official menu icon, order and disabled styling, and an explanation in eight languages. The separate `@dsh-base/cloudflare-worker-open-in-app-availability` plugin serves the catalog through the official HTTP contract. Reading the existing state requires no additional request.
 
-The separate `@dsh-base/cloudflare-worker-open-in-app-availability` plugin explicitly returns an empty catalog through the official HTTP contract, so a missing-route 404 or SPA document is never mistaken for a capability response. The original controller requests the catalog once. No global fetch replacement or anonymous private-data access is introduced.
+The Files toolbar targets the current workspace directory. The original empty state appears without a workspace. When the catalog finishes loading with no eligible target, the toolbar shows the original compact `OpenTargetButton` in a disabled group with a localized explanation on hover. The official action opens the directory whenever an application is available.
 
-In the pinned `dsh-v0.2.2-rc.1` release, local opening is a separate header utility. This seam does not recreate another release’s combined More menu. Source exports and the tracked gap are recorded in `dshBase.reuse` for pin-upgrade review.
-
-Run `node packages/client/dsh-base-client-open-in-app-availability/tests/availability.test.mjs` to verify availability, the real SlotCore lifecycle and official component rendering. Browser acceptance separately compares the official menu and unavailable utility, including pointer, keyboard, themes and localization.
+`tests/availability.test.mjs` checks both menu targets, mount and disposal, disabled dispatch and localization. The browser regression in `apps/web/tests/parity/run-session-menu.mjs` compares the official menus and exercises submenu launch, keyboard interaction, themes and narrow screens.

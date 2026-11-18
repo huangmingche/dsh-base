@@ -13,7 +13,7 @@ const appRoot = fileURLToPath(new URL('../../../apps/web/', import.meta.url));
 const plugin = sourceDecorators({ appRoot });
 const sourceRoot = fileURLToPath(new URL('../../../.submodules/deepseek-harness/', import.meta.url));
 
-test('pinned attribution keeps the real exported version without runtime paths or Node imports', async () => {
+test('pinned attribution keeps the real exported version without runtime paths or Node imports', async t => {
   const path = join(sourceRoot, 'packages/llm/llm/src/attribution.ts');
   const manifestPath = join(sourceRoot, 'packages/llm/llm/package.json');
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
@@ -30,9 +30,19 @@ test('pinned attribution keeps the real exported version without runtime paths o
   const code = built.outputFiles[0].text;
   assert.doesNotMatch(code, /createRequire|import\.meta\.url|node:module/u);
   const attribution = await import(`data:text/javascript;base64,${Buffer.from(code).toString('base64')}`);
-  assert.deepEqual(attribution.APP_IDENTITY, { product: 'deepseek-harness', version: manifest.version, url: 'https://github.com/deepseek-ai/deepseek-harness' });
+  const configuredSuffix = process.env.DSH_USER_AGENT_SUFFIX;
+  t.after(() => {
+    if (configuredSuffix === undefined) delete process.env.DSH_USER_AGENT_SUFFIX;
+    else process.env.DSH_USER_AGENT_SUFFIX = configuredSuffix;
+  });
+  delete process.env.DSH_USER_AGENT_SUFFIX;
+  assert.deepEqual(attribution.APP_IDENTITY, { product: 'deepseek-harness', version: manifest.version, url: 'https://github.com/deepseek-ai/deepseek-harness', suffix: undefined });
   assert.equal(attribution.userAgent(), `deepseek-harness/${manifest.version} (+https://github.com/deepseek-ai/deepseek-harness)`);
   assert.deepEqual(attribution.attributionHeaders(), { 'user-agent': attribution.userAgent() });
+  process.env.DSH_USER_AGENT_SUFFIX = 'dsh-profile/web';
+  assert.ok(attribution.attributionHeaders()['user-agent'].endsWith(' dsh-profile/web'));
+  process.env.DSH_USER_AGENT_SUFFIX = 'invalid suffix';
+  assert.throws(() => attribution.userAgent(), /RFC 9110/);
   const custom = { product: 'consumer', version: '9.2.1', url: 'https://consumer.example' };
   assert.deepEqual(attribution.attributionHeaders(custom), { 'user-agent': 'consumer/9.2.1 (+https://consumer.example)' });
   assert.equal(metadata.transform.call({}, source, '/unrelated/attribution.ts'), null);

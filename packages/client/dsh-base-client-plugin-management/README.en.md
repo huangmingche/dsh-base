@@ -1,7 +1,5 @@
 # @dsh-base/client-plugin-management
 
-Application scope: the default workbench loads after sign-in. Signed-out states described below are component or Host contracts exercised in isolation.
-
 Management seam for the official Plugins page. It fills unavailable entries and
 management explanations through the pinned official `plugins.item`,
 `plugins.detail.section` and `plugins.row.config` slots; it never replaces the official Plugins list, install/update/uninstall,

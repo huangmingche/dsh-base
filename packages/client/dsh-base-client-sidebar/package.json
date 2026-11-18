@@ -57,7 +57,7 @@
     "forkOf": {
       "package": "@deepseek-ai/dsh-client-ui-sidebar",
       "path": "packages/client/ui-sidebar",
-      "commit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "commit": "9c2670d3bce5275e0d1610272958121af87787bb",
       "license": "MIT"
     },
     "reuse": {
@@ -70,10 +70,16 @@
       "reason": "The pinned official SidebarRoot hides New Session when session/create is denied and cannot separate anonymous navigation from account operations. This complete pinned runtime fork adds an optional checked-account hook and login action seam while preserving official geometry, styles, slots and dictionaries. Anonymous New Session opens the account login dialog. Plugins and Automation tasks navigate whenever their real public or authenticated panel registration exists; priority-1 inventory placeholders remain disabled when no panel is mounted. Real RemoteAccess and private Gateway authorization are unchanged.",
       "gaps": [
         "Anonymous New Session remains clickable and opens the login dialog. Public Plugins and Automation tasks can be browsed without sign-in; required account actions gate at execution. Checking/error states and genuinely missing Host capabilities remain disabled with localized reasons.",
-        "The optional Host hook leaves the unadapted official rendering contract intact. Official layout, collapsed rail, drawer, keyboard hints, icons, slots and dictionaries are retained.",
-        "This revision limits the workbench to authenticated accounts. The anonymous homepage uses the isolated sign-in and consent document providers."
+        "The optional Host hook leaves the unadapted official rendering contract intact. Official layout, collapsed rail, drawer, keyboard hints, icons, slots and dictionaries are retained."
       ],
-      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "sourceReviewCommit": "9c2670d3bce5275e0d1610272958121af87787bb",
+      "userApprovedDeviations": [
+        {
+          "surface": "anonymous sidebar navigation",
+          "change": "Anonymous New Session remains clickable and opens the login dialog. Public Plugins and Automation tasks can be browsed without sign-in; required account actions gate at execution. Checking/error states and genuinely missing Host capabilities remain disabled with localized reasons.",
+          "approval": "The user explicitly requested clickable anonymous navigation, public plugin/task browsing, and login prompts only at account-required actions on 2026-11-17."
+        }
+      ],
       "sourceEntries": [
         "@deepseek-ai/dsh-client-ui-plugin-manager/src/client/PluginsPanelIcon.tsx",
         "@deepseek-ai/dsh-client-ui-plugin-manager/src/client/locales.ts",

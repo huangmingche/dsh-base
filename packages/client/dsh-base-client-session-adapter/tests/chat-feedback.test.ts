@@ -76,9 +76,21 @@ const noCredentials = createCredentialsRemote();
 for (const result of [await noCredentials.describe(), await noCredentials.set("test", "secret"), await noCredentials.unset("test")]) assert.equal(result.ok, false);
 for (const result of [await createCredentialsRemote(failedTransport).describe(), await createCredentialsRemote(failedTransport).set("test", "secret"), await createCredentialsRemote(failedTransport).unset("test")]) assert.deepEqual(result, failedFeedback);
 const calls: unknown[] = [];
-const credentials = createCredentialsRemote({ async request(method, params) { calls.push([method, params]); return { entries: { test: { configured: true, writable: true } } }; } });
-assert.equal((await credentials.describe(["test"])).ok, true);
-assert.equal((await credentials.set("test", "secret")).ok, true);
+const hostEntries = {
+  test: { configured: true, writable: true, source: "host", value: "secret" },
+  locked: { configured: true, writable: false, source: "host" },
+  deployment: { configured: true, writable: false, source: "env" },
+  empty: { configured: false, writable: true },
+};
+const credentials = createCredentialsRemote({ async request(method, params) { calls.push([method, params]); return { entries: hostEntries }; } });
+const saved = { configured: true, writable: true, source: "file", masked: "••••••••" };
+assert.deepEqual(await credentials.describe(Object.keys(hostEntries)), { ok: true, value: {
+  test: saved,
+  locked: { ...saved, writable: false },
+  deployment: { configured: true, writable: false, source: "env" },
+  empty: { configured: false, writable: true },
+} });
+assert.deepEqual(await credentials.set("test", "secret"), { ok: true, value: saved });
 assert.equal((await credentials.unset("test")).ok, true);
 assert.deepEqual(calls.map((call: any) => call[0]), ["credentialsDescribe", "credentialsSet", "credentialsUnset"]);
 

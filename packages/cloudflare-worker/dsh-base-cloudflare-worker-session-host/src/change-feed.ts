@@ -59,11 +59,15 @@ export function observeHostWrites(sql: SqlStorage, feed: HostChangeFeed): SqlSto
     exec(query, ...bindings) {
       const result = sql.exec(query, ...bindings);
       const topic = topicFor(query);
-      if (topic !== undefined && Number(sql.exec('SELECT changes() AS affected').toArray()[0]?.affected ?? 0) > 0) {
+      if (topic === undefined) return result;
+      // workerd finishes a write with RETURNING when its cursor is drained.
+      // Until then changes() can still describe the preceding statement.
+      const rows = result.toArray();
+      if (Number(sql.exec('SELECT changes() AS affected').toArray()[0]?.affected ?? 0) > 0) {
         if (transactionTopics !== undefined) transactionTopics.add(topic);
         else feed.publish([topic]);
       }
-      return result;
+      return rows.length === 0 ? result : { toArray: () => rows.splice(0) };
     },
     ...(sql.transactionSync === undefined ? {} : { transactionSync<T>(operation: () => T): T {
       const parent = transactionTopics;

@@ -1,7 +1,5 @@
 # @dsh-base/client-deepseek-provider
 
-Application scope: the default workbench loads after sign-in. Signed-out states described below are component or Host contracts exercised in isolation.
-
 Complete marked fork of pinned `@deepseek-ai/dsh-client-ui-settings-models`. The
 original DeepSeek provider, key, endpoint and model-directory editor/semantics
 stay official; the fork adds the independent operator-managed Cloudflare AI
@@ -26,6 +24,6 @@ The controller contract contains only the `store` and `load` consumed by the com
 
 ## Provenance and validation
 
-The sole upstream source is `packages/client/ui-settings-models` in the pinned submodule, commit `66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`, under MIT. The full `src/` and `locale/` trees and license are retained; original CSS and editor source remain unchanged.
+The sole upstream source is `packages/client/ui-settings-models` in the pinned submodule, commit `9c2670d3bce5275e0d1610272958121af87787bb`, under MIT. The full `src/` and `locale/` trees and license are retained. The provider editor uses the original CSS. Think exposes no owner-selectable retry mode, so the official retry selector is disabled and shows a localized deployment-managed label. The Host rejects retry-policy edits while allowing credential and endpoint settings.
 
 [host-adaptations.json](host-adaptations.json) records earlier Gateway, Loader and copy changes under `baselineChanges`, and this public-presentation contract under `changes`. Run `node --test packages/client/dsh-base-client-deepseek-provider/tests/*.test.mjs` to reverse these adaptations and compare every source and resource byte for byte. Application acceptance additionally compares actual official rendering and interaction. These new parameters do not imply support for Platform billing, arbitrary providers or anonymous model calls.

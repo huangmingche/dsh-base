@@ -19,6 +19,7 @@ export function createWorkspaceFilesRemote(gateway: () => OfficialWorkspaceFiles
   };
   return {
     list: (...args: Parameters<OfficialWorkspaceFilesGateway["list"]>) => call(() => current().list(...args)),
+    search: (...args: Parameters<OfficialWorkspaceFilesGateway["search"]>) => call(() => current().search(...args)),
     stat: (...args: Parameters<OfficialWorkspaceFilesGateway["stat"]>) => call(() => current().stat(...args)),
     read: (...args: Parameters<OfficialWorkspaceFilesGateway["read"]>) => call(() => current().read(...args)),
     readBytes: (...args: Parameters<OfficialWorkspaceFilesGateway["readBytes"]>) => call(() => current().readBytes(...args)),

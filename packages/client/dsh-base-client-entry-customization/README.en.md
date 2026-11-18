@@ -1,8 +1,6 @@
 # More menu
 
-Application scope: the default workbench loads after sign-in. Signed-out states described below are component or Host contracts exercised in isolation.
-
-A complete browser fork of the pinned official `@deepseek-ai/dsh-client-ui-entry-customization`. Source: `.submodules/deepseek-harness/packages/client/ui-entry-customization`, commit `66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`, MIT licensed.
+A complete browser fork of the pinned official `@deepseek-ai/dsh-client-ui-entry-customization`. Source: `.submodules/deepseek-harness/packages/client/ui-entry-customization`, commit `9c2670d3bce5275e0d1610272958121af87787bb`, MIT licensed.
 
 The three official slots in the left sidebar, conversation views and right sidebar retain their complete menu structure, icons and copy. Before sign-in, Browse other plugins opens the mounted public catalog and Create your plugin opens the login dialog. No About, Support or Environment entries are added.
 

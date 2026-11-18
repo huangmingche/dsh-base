@@ -1,7 +1,5 @@
 # 官方设置导航的 slot 投影修正
 
-组合范围：默认应用只在登录后加载工作台。以下未登录分支属于组件或 Host 的独立契约，仅在隔离测试中使用。
-
 源码来自只读固定子模块 `packages/client/ui-settings-general`，版本和 MIT 许可记录于 `dshBase.forkOf`，原始声明保留于 LICENSE。完整保留官方浏览器实现、样式和八语言词典。
 
 唯一功能修改：设置导航及 onboarding 顺序从公共 `entriesOfSlot()` 读取每个 id 的有效注册，而非包含被遮蔽原件的原始 `entries()`。官方渲染器同样选择每个 id 的赢家，因此可用性接缝注册禁用组件后，导航应只出现一次。直接挂载原插件会重复导航；导出 SettingsRoot 不能重新声明原注册拥有的 child slots，故需要此最小 fork。额外 entry.ts 仅提供本项目 Loader 的 Config/name 契约。

@@ -28,7 +28,7 @@ async function waitForLogin(page, locale) {
     const buttons = [...document.querySelectorAll(`${selector} [data-auth-email]`)];
     return buttons.length === 2 && buttons.every(button => button.disabled && button.title === unavailable);
   }, {}, { selector: modal, unavailable });
-  assert.equal(await page.$eval(`${modal} [role="status"]`, node => node.textContent), unavailable, "unavailable email actions have a localized explanation");
+  assert.equal(await page.$(`${modal} [role="status"]`), null, "identifier entry has no repeated mail availability paragraph");
 }
 const luminance = ([red, green, blue]) => [red, green, blue].map(value => {
   const channel = value / 255; return channel <= 0.04045 ? channel / 12.92 : ((channel + 0.055) / 1.055) ** 2.4;

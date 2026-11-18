@@ -1,0 +1,8 @@
+package	dsh_fields	dsh-v0.2.2-rc.4..dsh-v0.2.2-rc.5
+@deepseek-ai/dsh-base	bundle	CT
+@deepseek-ai/dsh-client-ui-settings-web-search	client	FTD
+@deepseek-ai/dsh-tool-cordis	.	F
+@deepseek-ai/dsh-tool-web	.	FTD
+@deepseek-ai/dsh-web	.	FTD
+@deepseek-ai/dsh-web-deepseek-api	.	D
+@deepseek-ai/dsh-web-search-deepseek	.	FTD

@@ -47,7 +47,7 @@ try {
   const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
   const launch = acceptanceLaunchOptions();
   browser = await puppeteer.launch({ ...launch, protocolTimeout: 30_000, args: [...launch.args, '--disable-gpu'] });
-  async function open(locale, theme, width, side) {
+  async function open(locale, theme, width, side, files = false) {
     const page = await browser.newPage(); page.setDefaultTimeout(15000);
     await page.setViewport({ width, height: 900, deviceScaleFactor: 1 });
     page.on('pageerror', error => errors.push({ locale, theme, width, side, message: error.message }));
@@ -63,7 +63,7 @@ try {
         await request.respond({ status: exportStatus, contentType: 'application/zip' });
       } else { errors.push({ side, unexpectedRequest: request.url() }); await request.abort(); }
     });
-    await page.goto(`${origin}/?${new URLSearchParams({ surface: 'session-menu', locale, side })}`, { waitUntil: 'networkidle0' });
+    await page.goto(`${origin}/?${new URLSearchParams({ surface: 'session-menu', locale, side, ...(files ? {files: '1'} : {}) })}`, { waitUntil: 'networkidle0' });
     await page.waitForFunction(() => window.__SESSION_MENU__?.originalHeader === true);
     await page.evaluate(theme => document.body.toggleAttribute('data-ds-dark-theme', theme === 'dark'), theme);
     const words = await page.evaluate(() => window.__SESSION_MENU__.copy);
@@ -88,43 +88,94 @@ try {
     await writeFile(resolve(output, `${label}-official.png`), pair.a); await writeFile(resolve(output, `${label}-adapted.png`), pair.b);
     assert.ok(pair.equal, `${label}: exact pinned official pixels`);
   }
+  for (const locale of ['en', 'zh']) {
+    const reference = await open(locale, 'dark', 1280, 'reference', true), adapted = await open(locale, 'dark', 1280, 'adapted', true);
+    const selector = '[data-files-page] [data-open-target="directory"] button';
+    for (const target of [reference, adapted]) {
+      await target.page.evaluate(() => window.__SESSION_MENU__.setNativeState('missing-directory'));
+      await target.page.waitForSelector('[data-files-state="no-workspace"]');
+      assert.equal(await target.page.$(selector), null);
+      await target.page.evaluate(() => window.__SESSION_MENU__.setNativeState('loading'));
+      await target.page.waitForSelector('[data-files-page]');
+      assert.equal(await target.page.$(selector), null, 'waiting for the catalog preserves the official loading state');
+      await target.page.evaluate(() => window.__SESSION_MENU__.setNativeState('unavailable'));
+    }
+    assert.equal(await reference.page.$(selector), null);
+    const unavailable = await adapted.page.waitForSelector(selector + ':disabled');
+    assert.match(await unavailable.evaluate(node => node.getAttribute('aria-label')), locale === 'zh' ? /当前部署不支持/ : /unavailable in this deployment/);
+    await unavailable.click();
+    assert.deepEqual(await adapted.page.evaluate(() => window.__SESSION_MENU__.launches), []);
+    for (const target of [reference, adapted]) {
+      await target.page.evaluate(() => window.__SESSION_MENU__.setNativeState('available'));
+      await target.page.waitForSelector(selector + ':enabled');
+      assert.equal((await target.page.$$(selector)).length, 1, 'the official action is the only native opener when available');
+    }
+    await compare(`files-available-${locale}`, reference, adapted);
+    await adapted.page.click(selector);
+    await adapted.page.waitForFunction(() => window.__SESSION_MENU__.launches.length === 1);
+    assert.deepEqual(await adapted.page.evaluate(() => window.__SESSION_MENU__.launches), [{ app: 'vscode', path: '/workspace' }]);
+    await reference.page.close(); await adapted.page.close();
+    cases.push({ surface: 'Files directory toolbar', locale, exactComparisons: 1,
+      checks: ['no workspace', 'pending catalog', 'disabled without application', 'native target launches once'] });
+    console.log(`Files directory toolbar ${locale}: workspace, catalog loading, unavailable and official launch passed`);
+  }
   for (const locale of ['en', 'zh']) for (const theme of ['light', 'dark']) for (const width of [1280, 390]) {
     const label = `${locale}-${theme}-${width}`;
     const reference = await open(locale, theme, width, 'reference'), adapted = await open(locale, theme, width, 'adapted');
     console.log(`session menu ${label}: comparing header`);
     await compare(`${label}-header`, reference, adapted);
-    for (const { page } of [reference, adapted]) {
-      assert.equal(await page.$eval('[data-open-in-app-unavailable] button', node => node.matches(':disabled')), true, 'native application opener is visible and truly disabled');
-      assert.ok(await page.$eval('[data-open-in-app-unavailable]', node => node.title), 'native unavailable reason stays localized');
-      await page.$eval('[data-open-in-app-unavailable] button', node => node.click());
-      assert.deepEqual(await page.evaluate(() => window.__SESSION_MENU__.launches), [], 'unavailable native actions never dispatch');
-      await page.evaluate(() => window.__SESSION_MENU__.setNativeState('available'));
+    // Workers exposes a localized, disabled action in the original shared menu when
+    // the official contribution has no eligible native application.
+    await menu(reference); await menu(adapted);
+    const native = async target => target.page.evaluateHandle(label => [...document.querySelectorAll('[role="menuitem"]')]
+      .find(node => node.textContent.includes(label)), target.words.openIn);
+    assert.equal((await native(reference)).asElement(), null);
+    const disabled = (await native(adapted)).asElement();
+    assert.ok(disabled, 'the unavailable entry remains visible in its official position');
+    assert.equal(await disabled.evaluate(node => node.matches(':disabled,[aria-disabled=true]')), true);
+    await disabled.evaluate(node => node.click());
+    assert.deepEqual(await adapted.page.evaluate(() => window.__SESSION_MENU__.launches), []);
+    for (const target of [reference, adapted]) {
+      await target.page.bringToFront();
+      await target.page.keyboard.press('Escape');
+      await target.page.waitForSelector('[role="menu"]', { hidden: true });
+      await target.page.evaluate(() => window.__SESSION_MENU__.setNativeState('available'));
+      await menu(target);
+      assert.deepEqual(await target.page.$$eval('[role="menuitem"]', items => items.map(node => node.textContent.trim())),
+        ['menu.copyMarkdown', 'menu.download', 'openIn', 'menu.feedback'].map(key => target.words[key]), 'official order and translations');
     }
     await compare(`${label}-native-available`, reference, adapted);
-    for (const { page } of [reference, adapted]) {
-      await page.$eval('[data-native-open-fixture] button', node => node.click());
-      await page.waitForFunction(() => window.__SESSION_MENU__.launches.length === 1);
-      assert.deepEqual(await page.evaluate(() => window.__SESSION_MENU__.launches), [{ id: 'vscode', path: '/workspace' }], 'available native control preserves official launch intent');
-      await page.evaluate(() => window.__SESSION_MENU__.setNativeState('missing-directory'));
-      await page.waitForSelector('[data-open-in-app-unavailable]');
-      assert.equal(await page.$eval('[data-open-in-app-unavailable] button', node => node.matches(':disabled')), true);
-    }
-    console.log(`session menu ${label}: opening menus`);
     for (const target of [reference, adapted]) {
-      await menu(target);
-      const texts = await target.page.$$eval('[role="menuitem"]', items => items.map(node => node.textContent));
-      assert.deepEqual(texts, ['menu.copyMarkdown', 'menu.download', 'menu.feedback'].map(key => target.words[key]), 'pinned release menu order and translations');
+      await target.page.bringToFront();
+      const opener = (await native(target)).asElement();
+      assert.ok(opener);
+      await opener.focus(); await target.page.keyboard.press('ArrowRight');
+      await target.page.waitForFunction(() => [...document.querySelectorAll('[role="menuitem"]')].some(node => node.textContent.trim() === 'VS Code'));
     }
-    await compare(`${label}-menu`, reference, adapted);
+    await compare(`${label}-submenu`, reference, adapted);
+    for (const target of [reference, adapted]) {
+      await target.page.bringToFront();
+      const option = await target.page.evaluateHandle(() => [...document.querySelectorAll('[role="menuitem"]')].find(node => node.textContent.trim() === 'VS Code'));
+      await option.asElement().click();
+      await target.page.waitForFunction(() => window.__SESSION_MENU__.launches.length === 1);
+      assert.deepEqual(await target.page.evaluate(() => window.__SESSION_MENU__.launches), [{ app: 'vscode', path: '/workspace' }]);
+      await target.page.waitForSelector('[role="menu"]', { hidden: true });
+      await target.page.evaluate(() => window.__SESSION_MENU__.setNativeState('missing-directory'));
+      await menu(target);
+      const entry = (await native(target)).asElement();
+      if (target === adapted) assert.equal(await entry.evaluate(node => node.matches(':disabled,[aria-disabled=true]')), true);
+      else assert.equal(entry, null);
+    }
     console.log(`session menu ${label}: keyboard and downloads`);
     for (const target of [reference, adapted]) {
+      await target.page.bringToFront();
       const { page } = target;
-      await page.bringToFront();
       await page.focus('[role="menuitem"]'); await page.keyboard.press('Escape');
       await page.waitForFunction(() => !document.querySelector('[role="menu"]'));
       assert.equal(await page.$eval(target.more, node => document.activeElement === node), true, 'Escape returns focus to the original trigger');
       await page.keyboard.press('Enter'); await page.waitForSelector('[role="menu"]');
-      await page.keyboard.press('ArrowDown'); await page.keyboard.press('Enter');
+      await page.waitForFunction(label => document.activeElement?.textContent.trim() === label, {}, target.words['menu.copyMarkdown']);
+      await page.keyboard.press('Enter');
       await page.waitForFunction(() => window.__SESSION_MENU__.copyState().notice?.kind === 'success');
       assert.deepEqual(await page.evaluate(() => window.__SESSION_MENU__.copies), [transcript], 'keyboard copy preserves complete Host Markdown');
       await page.evaluate(() => window.__SESSION_MENU__.clear());
@@ -141,9 +192,12 @@ try {
     }
     await compare(`${label}-download`, reference, adapted);
     for (const target of [reference, adapted]) {
+      await target.page.bringToFront();
       const { page } = target;
       await page.keyboard.press('Escape'); await page.waitForFunction(() => !document.querySelector('[role="dialog"]'));
-      await menu(target); await choose(target, 2);
+      await menu(target);
+      const feedback = await page.evaluateHandle(label => [...document.querySelectorAll('[role="menuitem"]')].find(node => node.textContent.trim() === label), target.words['menu.feedback']);
+      await feedback.asElement().click();
       assert.deepEqual(await page.evaluate(() => window.__SESSION_MENU__.feedback), ['session-menu-中文'], 'feedback is delegated once to the existing official controller');
       assert.equal(target.requests.length, 2, 'opening feedback never submits data');
       target.failMarkdown(true);
@@ -174,7 +228,7 @@ try {
   }
   assert.deepEqual(errors, []);
   report.upstream = JSON.parse(await readFile(resolve(root, 'dsh-source.lock.json'), 'utf8')).commit;
-  report.ok = true; console.log(JSON.stringify({ ok: true, cases: cases.length, comparisons: cases.length * 4, output }));
+  report.ok = true; console.log(JSON.stringify({ ok: true, cases: cases.length, comparisons: cases.reduce((sum, row) => sum + row.exactComparisons, 0), output }));
 } catch (error) { report.error = String(error?.stack ?? error); throw error; }
 finally {
   await writeFile(resolve(output, 'report.json'), JSON.stringify(report, null, 2));

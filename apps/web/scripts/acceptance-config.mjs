@@ -1,5 +1,6 @@
 /** Explicit remote targets/credentials; importing this module never contacts a deployment. */
 import { existsSync, readFileSync } from "node:fs";
+import assert from "node:assert/strict";
 import { join } from "node:path";
 
 export function remoteAcceptanceConfig(env = process.env) {
@@ -18,24 +19,31 @@ export function remoteAcceptanceConfig(env = process.env) {
   return { base: url.origin, credentials };
 }
 
-/** Sign in once using the explicitly configured acceptance account. */
-export async function remoteBrowserCookie({ base, credentials }) {
-  const response = await fetch(base + '/api/auth/sign-in/username', {
-    method: 'POST', headers: { origin: base, 'content-type': 'application/json' },
-    body: JSON.stringify({ username: credentials.username, password: credentials.password }),
-    signal: AbortSignal.timeout(30_000),
-  });
-  if (response.status !== 200) throw new Error(`Acceptance account sign-in: HTTP ${response.status}`);
-  const cookie = response.headers.getSetCookie().join('; ').match(/((?:__Secure-)?better-auth\.session_token)=([^;]+)/u);
-  if (!cookie) throw new Error('Acceptance sign-in returned no session cookie');
-  return { name: cookie[1], value: cookie[2], url: base, secure: true, httpOnly: true, sameSite: 'Lax' };
-}
-
 export function registrationHeaders(env = process.env) {
   return env.AUTH_REGISTRATION_TOKEN ? { "x-dsh-registration-token": env.AUTH_REGISTRATION_TOKEN } : {};
 }
 
 export function mayRegisterAcceptance(env = process.env) { return env.DSH_ACCEPTANCE_REGISTER === "true"; }
+
+/** Preserve HTTP failures even when Chromium has already discarded the body.
+ * Keep only the operational error identifier and Cloudflare correlation headers. */
+export async function recordHttpFailure(failures, response, context) {
+  const browser = typeof response.status === "function";
+  const status = browser ? response.status() : response.status;
+  const headers = browser ? response.headers() : response.headers;
+  const header = name => browser ? headers[name] ?? null : headers.get(name);
+  const failure = { ...context, status, cfRay: header("cf-ray"), date: header("date") };
+  failures.push(failure);
+  if (status < 400 || !header("content-type")?.includes("application/json")) return;
+  const body = await response.json().catch(() => undefined);
+  const code = typeof body?.error === "string" ? body.error : body?.error?.code;
+  if (typeof code === "string" && /^[a-zA-Z0-9_/-]{1,100}$/u.test(code)) failure.code = code;
+}
+
+export async function assertHttpStatus(response, expected, failures, label) {
+  if (response.status !== expected) await recordHttpFailure(failures, response, { label });
+  assert.equal(response.status, expected, label);
+}
 
 /** Read-only barrier for a created Session before any model request. Only the
  * known old schema/version is retried; authentication/business failures propagate.

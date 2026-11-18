@@ -4,6 +4,7 @@
   "planes": {
     "client": [
       "@dsh-base/client-site-config",
+      "@dsh-base/client-brand",
       "@dsh-base/client-global-settings",
       "@dsh-base/client-google-analytics"
     ],

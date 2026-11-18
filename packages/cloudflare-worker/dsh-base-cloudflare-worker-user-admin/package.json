@@ -5,8 +5,8 @@
   "peerDependencies": { "@deepseek-ai/cordis": "*", "@dsh-base/cloudflare-worker-auth": "workspace:*", "@dsh-base/cloudflare-worker-http": "workspace:*" },
   "dshBase": {
     "worker": { "id": "cloudflare:worker:user-admin", "origin": "custom", "order": 12 },
-    "reuse": { "mode": "custom", "official": ["@deepseek-ai/dsh-deepseek-account", "@deepseek-ai/dsh-api-account-controller"],
-      "reason": "The pinned official account packages expose the signed-in DeepSeek Platform identity, not product user administration; no corresponding local-user admin plugin or UI implementation exists to mount or fork. This independently authored Worker adapter composes the pinned Better Auth admin plugin's exported API, schema and ban/session hooks, restricting exposed actions to listing, role assignment, ban/unban and session revocation. No purchased template or official DSH source is copied.",
+    "reuse": { "mode": "custom", "official": ["@deepseek-ai/dsh-deepseek-account"],
+      "reason": "The pinned DeepSeek account plugin exposes the signed-in DeepSeek Platform identity, not product user administration; no corresponding local-user admin plugin or UI implementation exists to mount or fork. This independently authored Worker adapter composes the pinned Better Auth admin plugin's exported API, schema and ban/session hooks, restricting exposed actions to listing, role assignment, ban/unban and session revocation. No purchased template or official DSH source is copied.",
       "gaps": ["User deletion, impersonation, administrator-set passwords and admin-created accounts are unavailable; their upstream Better Auth endpoints are not mounted. Schema migration and an explicit administrator allowlist are required. Stored role labels do not grant deployment-administrator authority."] }
   }
 }

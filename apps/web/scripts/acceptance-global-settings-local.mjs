@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 /** Full built Worker, real Better Auth and isolated D1: official plugin UI to public site metadata. */
-import { assertSidebarBrand } from './assert-sidebar-brand.mjs';
 import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { createRequire } from 'node:module';
@@ -98,7 +97,7 @@ async function capturePageState(page, label) {
       viewport: { width: innerWidth, height: innerHeight }, bodyScrollTop: document.querySelector('[data-plugin-body]')?.scrollTop,
       globalState: form?.getAttribute('data-state'), formRect: rect(form), detailRect: rect(detail),
       formHtml: form?.outerHTML, detailText: detail?.textContent?.slice(0, 4000),
-      fibers: (window.__DSH_BASE_PLUGINS__ ?? []).filter(row => /global-settings|site-config|plugin-manager/u.test(row.moduleName ?? row.id ?? '')).map(row => ({ id: row.id, moduleName: row.moduleName, enabled: row.enabled, origin: row.origin, fiberPhase: row.fiberPhase })),
+      fibers: (window.__DSH_BASE_PLUGINS__ ?? []).filter(row => /global-settings|site-config|client-brand|plugin-manager/u.test(row.moduleName ?? row.id ?? '')).map(row => ({ id: row.id, moduleName: row.moduleName, enabled: row.enabled, origin: row.origin, fiberPhase: row.fiberPhase })),
     };
   }).catch(error => ({ diagnosticError: String(error) }));
   report.diagnostics.push({ label, ...state });
@@ -212,7 +211,10 @@ try {
   report.adminUiSaved = true;
   const publishedBrand = await checkedJson(await request('/api/site-config'), 'public brand after UI save');
   assert.equal(publishedBrand.brand.name, accepted.values.seo.site.name);
-  await assertSidebarBrand(adminPage);
+  await adminPage.waitForFunction(name => document.querySelector('[class*="brandIdentity"]')?.textContent.trim() === name,
+    { timeout: 15_000 }, publishedBrand.brand.name);
+  report.sidebarBrandAfterSave = await adminPage.$eval('[class*="brandIdentity"]', element => element.textContent.trim());
+  assert.equal(report.sidebarBrandAfterSave, 'Local published site');
   await adminPage.waitForFunction(title => document.title === title, { timeout: 15_000 }, 'Global settings saved title');
   report.hydratedTitleAfterSave = await adminPage.title();
   await screenshotTop(adminPage, 'administrator-saved.png');
@@ -233,7 +235,8 @@ try {
   assert.ok(reloadedHtml.includes('rel="manifest"'), 'private app document retains its manifest');
   report.reloadedDocumentTitle = 'Global settings saved title';
   await openGlobal(adminPage);
-  await assertSidebarBrand(adminPage);
+  await adminPage.waitForFunction(name => document.querySelector('[class*="brandIdentity"]')?.textContent.trim() === name,
+    { timeout: 15_000 }, publishedBrand.brand.name);
   await adminPage.waitForFunction(title => document.title === title, { timeout: 15_000 }, 'Global settings saved title');
   report.hydratedTitleAfterReload = await adminPage.title();
   assert.equal(await adminPage.$eval(fieldSelector('seo.site.name'), input => input.value), 'Local published site');
@@ -281,7 +284,7 @@ try {
   assert.deepEqual(await readControls(admin), beforeControls.admin); assert.deepEqual(await readControls(reader), beforeControls.reader);
   assert.deepEqual(report.pluginMutations, []); assert.deepEqual(report.siteWrites, [{ account: 'administrator', method: 'PUT' }]);
   assert.deepEqual(report.browserErrors, []); assert.deepEqual(report.outboundRequests, []);
-  report.checks.push('administrator keyboard edits and real Save', 'official sidebar version and saved document title after reload', 'reload persistence', 'ordinary account readonly UI and PUT 403', 'shared public head/icons/manifest/robots/sitemap', 'plugin controls unchanged; no outbound AI request');
+  report.checks.push('administrator keyboard edits and real Save', 'sidebar brand refresh without reload and saved document title after reload', 'reload persistence', 'ordinary account readonly UI and PUT 403', 'shared public head/icons/manifest/robots/sitemap', 'plugin controls unchanged; no outbound AI request');
   report.revision = persisted.revision; report.upstream = JSON.parse(readFileSync(join(root, 'dsh-source.lock.json'), 'utf8')).commit;
   report.ok = true;
 } catch (error) {

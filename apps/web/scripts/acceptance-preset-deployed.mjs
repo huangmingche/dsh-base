@@ -7,7 +7,6 @@
  * declarations / Coding Tools / pointer+keyboard guards in en+zh, and archives
  * its blank Sessions afterwards. It never submits a prompt.
  */
-import { assertSidebarBrand } from './assert-sidebar-brand.mjs';
 import { remoteAcceptanceConfig, chromeExecutable, closeAcceptanceBrowser, waitForHostReadiness } from "./acceptance-config.mjs";
 import { loadOfficialDeclarations } from "./generate-preset-declarations.mjs";
 import assert from "node:assert/strict";
@@ -139,7 +138,8 @@ try {
     assert.equal(fork?.origin, "fork"); assert.equal(fork?.enabled, true); assert.equal(fork?.fiberPhase, "active");
     assert.equal(fork?.replaces, "@deepseek-ai/dsh-client-ui-agent-preset");
     assert.equal(original?.origin, "upstream"); assert.equal(original?.enabled, false); assert.equal(original?.fiberPhase, null);
-    const brand = await assertSidebarBrand(page);
+    const brand = await page.$eval('[class*="brandIdentity"]', element => element.textContent.trim());
+    assert.equal(brand, "dsh-base", "sidebar brand must stay the approved code name");
     assert.equal(await page.$('[class*="brandName"] [data-copy-version]'), null, "sidebar name must omit the version badge");
 
     const clickNav = async pattern => {

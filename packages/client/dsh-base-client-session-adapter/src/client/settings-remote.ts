@@ -22,6 +22,15 @@ export interface SettingsRemoteOptions {
   };
 }
 
+/** RC4's Web settings card requests the deployment's search/fetch provider registry. */
+export const unavailableWebRemote = {
+  listProviders: async () => ({ ok: false as const, error: {
+    code: "gateway/endpoint-unavailable",
+    message: "The deployment does not serve the DSH web provider registry.",
+    details: { endpoint: "web/listProviders" },
+  } }),
+};
+
 /** The Host owns schemas, durable values, revision CAS and rejection semantics. */
 export function createSettingsRemote(options: SettingsRemoteOptions) {
   const call = async <T>(method: string, args: Record<string, unknown>, signal?: AbortSignal): Promise<SettingsResult<T>> =>

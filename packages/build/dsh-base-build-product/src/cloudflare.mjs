@@ -75,7 +75,7 @@ return defineConfig({
       AI_GATEWAY_ID: bindings.text(deployment.aiGatewayId),
       FETCH_ALLOWLIST: bindings.text("https://developers.cloudflare.com/**,https://ai-sdk.dev/**"),
       // Optional site SEO override: one JSON binding keeps the whole structure in
-      // one deployment value.
+      // one deployment value (see docs/dsh-base-ADR-0006-seo-plugin.md).
       SITE_SEO_JSON: bindings.text(JSON.stringify(deployment.seo)),
       AUTH_BASE_URL: bindings.text(deployment.authBaseUrl),
     },

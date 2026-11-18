@@ -88,6 +88,10 @@ async function compare(surface, state, locale) {
     if (surface === "terminal" || surface === "session-log") {
       assert.ok(b.controls.length >= 1 && b.controls.every(control => control.disabled), `${surface}: every unavailable action stays visibly disabled`);
       assert.match(b.text, surface === "terminal" ? /PTY/ : locale === "zh" ? /上传服务/ : /upload service/);
+      if (surface === "terminal") {
+        const rosters = await adapted.page.evaluate(() => window.__PARITY__.calls.filter(call => call.endpoint === "terminal/observed-roster").map(call => call.args));
+        assert.deepEqual(rosters, [{ session: "terminal-session", roster: [] }], "the official session header mounts its Agent terminal watcher on the Workers seam");
+      }
       await adapted.page.click("button");
       assert.equal(await adapted.page.evaluate(() => window.__PARITY__.calls.filter(call => call.endpoint === "terminal/open").length), 0);
     }

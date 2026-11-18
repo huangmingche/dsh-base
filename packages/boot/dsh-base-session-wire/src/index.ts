@@ -9,6 +9,8 @@
 import { FIXED_AGENT_PRESET_ID } from "../../dsh-base-agent-presets/src/index.ts";
 import { providerForModelId } from "./model-routes.ts";
 
+export { cutSessionPage, DEFAULT_PAGE_MESSAGES, type SessionPageWindow } from "./history-window.ts";
+
 /** One durable transcript row as stored by the Session Host. */
 export interface SessionHistoryMessage {
   readonly id: string;

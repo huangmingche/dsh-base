@@ -42,9 +42,15 @@ export function createSessionExportHandler(auth: { session(request: Request, env
       }), env, user.id);
       signal.throwIfAborted();
       if (!response) throw new Error('Session Host unavailable');
-      const body = await response.json() as { result?: unknown; error?: { code?: unknown } };
+      const body = await response.json() as { result?: unknown; error?: { code?: unknown; details?: { reason?: unknown } } };
       signal.throwIfAborted();
       if (body.error?.code === 'not_found' || body.error?.code === 'session/not-found') throw new SessionPersistenceNotFoundError(SessionId(sessionId));
+      // Only a confirmed missing R2 object from this owner's admitted references
+      // belongs in the official ZIP's missing-attachment report.
+      if (method === 'logExportFile' && body.error?.code === 'session/attachment-invalid'
+        && body.error.details?.reason === 'ATTACHMENT_NOT_FOUND') {
+        throw Object.assign(new Error('Attachment not found'), { code: 'ATTACHMENT_NOT_FOUND' });
+      }
       if (body.error) throw new Error('Session Host export failed');
       if (!response.ok) throw new Error('Session Host unavailable');
       return body.result;

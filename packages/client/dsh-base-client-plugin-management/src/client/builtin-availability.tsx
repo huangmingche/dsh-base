@@ -37,6 +37,7 @@ function absentScope<T>(): SettingsFormScope<T> {
 /** The unavailable page owns no credentials or model requests; attempts remain explicit failures. */
 const unavailableContext = {
   remote: {
+    web: { listProviders: async () => ({ ok: false, error: { code: 'gateway/endpoint-unavailable', message: 'Web providers are unavailable.' } }) },
     credentials: {
       describe: async () => ({ ok: false, error: { code: 'gateway/endpoint-unavailable', message: 'The official web search provider is unavailable.' } }),
       set: async () => ({ ok: false, error: { code: 'gateway/endpoint-unavailable', message: 'The official web search provider is unavailable.' } }),
@@ -49,7 +50,7 @@ const unavailableContext = {
 export function createUnavailableBuiltinFaces() {
   const shell = new ShellCardController(absentScope())
   const loop = new AgentLoopCardController(absentScope())
-  const web = new WebSearchCardController({ web: absentScope(), messages: absentScope(), api: absentScope() }, unavailableContext)
+  const web = new WebSearchCardController({ web: absentScope(), api: absentScope(), legacy: absentScope() }, unavailableContext)
   const limits = new SubagentLimitsCardController(absentScope())
   const models = new SubagentModelSelectionCardController(absentScope(), unavailableContext)
   return {

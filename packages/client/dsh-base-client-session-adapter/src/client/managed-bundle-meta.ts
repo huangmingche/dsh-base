@@ -1,5 +1,6 @@
 import type { BundleInfo } from '@deepseek-ai/dsh-plugin-manager/types';
 import { CLOUDFLARE_PLUGIN_ICON } from './cloudflare-plugin-icon.ts';
+import { DSH_BASE_PLUGIN_ICON } from '../../../dsh-base-client-plugin-manager/src/client/brand-artwork.ts';
 
 type PluginMeta = NonNullable<BundleInfo['meta']>;
 type PluginBrand = 'Dsh-base' | 'Cloudflare';
@@ -14,7 +15,7 @@ function meta(en: string, zh: string, descriptionEn: string, descriptionZh: stri
   return {
     title: { en: brandedTitle(en, brand), zh: brandedTitle(zh, brand) },
     description: { en: descriptionEn, zh: descriptionZh },
-    ...(brand === 'Cloudflare' ? { icon: CLOUDFLARE_PLUGIN_ICON } : {}),
+    icon: brand === 'Cloudflare' ? CLOUDFLARE_PLUGIN_ICON : DSH_BASE_PLUGIN_ICON,
   };
 }
 
@@ -62,6 +63,8 @@ export const OWNED_PLUGIN_META: Readonly<Record<string, PluginMeta>> = {
     'Shows Agent presets and the plugins each preset includes.', '查看 Agent 预设及其包含的插件。'),
   '@dsh-base/client-auth-login': meta('Sign in', '账号登录',
     'Signs in to your account and shows whether registration is open.', '登录账号，并查看是否开放注册。'),
+  '@dsh-base/client-brand': meta('Site name', '站点名称',
+    'Shows the site name in the sidebar.', '在侧栏显示站点名称。'),
   '@dsh-base/client-commands': meta('Command menu', '命令菜单',
     'Provides slash commands and their options in the input box.', '在输入框中提供斜杠命令及其选项。'),
   '@dsh-base/client-deepseek-provider': meta('Model providers', '模型服务设置',

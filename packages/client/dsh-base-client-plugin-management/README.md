@@ -1,7 +1,5 @@
 # @dsh-base/client-plugin-management
 
-组合范围：默认应用只在登录后加载工作台。以下未登录分支属于组件或 Host 的独立契约，仅在隔离测试中使用。
-
 官方 Plugins 页的管理补充插件（seam）。它只通过 pinned 官方的
 `plugins.item`、`plugins.detail.section` 与 `plugins.row.config` slot 补足不可用入口和管理说明，不替换
 官方 Plugins 列表、安装/更新/卸载、错误/加载/空态或页面样式。

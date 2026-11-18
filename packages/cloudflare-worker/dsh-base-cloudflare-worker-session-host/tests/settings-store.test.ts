@@ -19,6 +19,24 @@ class NodeSqlStorage implements SqlStorage {
   }
 }
 
+// Provider retries are controlled by Think. Mixed or nested writes must be atomic.
+{
+  const store = new SettingsStore(new NodeSqlStorage());
+  const ns = 'llm-deepseek';
+  for (const write of [
+    () => store.update({ ns, patch: { baseURL: 'https://example.invalid', retryPolicy: { mode: 'always' } } }),
+    () => store.mutate({ ns, ops: [{ op: 'set', path: ['retryPolicy', 'mode'], value: 'always' }] }),
+  ]) {
+    const before = store.read();
+    assert.throws(write, /retry policy is managed/);
+    assert.deepEqual(store.read(), before);
+  }
+  store.restore({ [ns]: { retryPolicy: { mode: 'always' } } });
+  assert.doesNotThrow(() => store.update({ ns, patch: { apiKeyEnv: 'OWNER_KEY' } }));
+  const cleaned = store.mutate({ ns, ops: [{ op: 'unset', path: ['retryPolicy'] }] });
+  assert.deepEqual(cleaned.values[ns], { apiKeyEnv: 'OWNER_KEY' });
+}
+
 const sql = new NodeSqlStorage();
 const store = new SettingsStore(sql);
 assert.deepEqual(store.read(), { revision: 0, values: {} });

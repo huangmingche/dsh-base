@@ -1,8 +1,12 @@
 # @dsh-base/client-plugin-manager
 
-锁定官方 `@deepseek-ai/dsh-client-ui-plugin-manager` 的完整标记 fork，来源为 `.submodules/deepseek-harness/packages/client/ui-plugin-manager`，commit `66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`，MIT。完整 `src/`、`locale/` 与许可证保留；包根和 `/client` 仅导出浏览器入口，原 Host registry-probe 源码不导出、不加载、不启动。
+锁定官方 `@deepseek-ai/dsh-client-ui-plugin-manager` 的完整标记 fork，来源为 `.submodules/deepseek-harness/packages/client/ui-plugin-manager`，commit `9c2670d3bce5275e0d1610272958121af87787bb`，MIT。完整 `src/`、`locale/` 与许可证保留；包根和 `/client` 仅导出浏览器入口，原 Host registry-probe 源码不导出、不加载、不启动。
 
 官方插件已经直接挂载验证。列表 `PackageCard` 与 `packageStatus` 是内部实现，现有导出组件和 slots 不能单独替换列表状态胶囊与错误行，因此按官方复用协议 fork，而不是复制片段或用 CSS 隐藏错误。原页面结构、图标、配置、导航、安装流程、控制器、错误处理、全部 CSS 和官方语言字典保留。
+
+## 插件页缩放
+
+官方插件页头会测量展开和折叠布局。部分浏览器缩放比例下，把工具栏的宽度写回页面会因取整而触发换行，导致「添加插件」被裁切。派生包沿用官方按钮和断点，工具栏按内容宽度布局，并以测量值限制可用空间。页面存在 CSS 缩放时，测量值先换算为布局坐标。
 
 ## Host 可用性适配
 
@@ -44,3 +48,9 @@ Host 可为只读条目声明 `managementPolicy: "required" | "deployment"`，�
 按用户要求修正这一已确认的上游缺口：在现有滚动容器上使用元素引用和布局 effect，仅在实际显示的逻辑页面身份变化时于首帧前归顶，包括列表、更多、插件包、配置页及贡献标签页之间的导航。同页刷新、状态更新、语言与尺寸变化不触发复位。返回列表也从顶部显示，本次不引入滚动历史策略。不重挂载容器，不修改官方 CSS、表单或全局窗口滚动；返回主列表时同步原有折叠标题的滚动测量。差异与用户授权记录在包元数据中。
 
 浏览器专项 `run-plugin-navigation.mjs` 对照未修改的官方组件，从非零列表位置真实点击长详情；不在点击后人工归零，并验证同页更新不打断阅读。
+
+## 自有插件品牌图标
+
+用户批准 Dsh-base 插件包与组件统一使用网站鲸鱼。元数据提供真实 SVG data URL，由现有清单生成步骤从固定官方稳定导出 `FISH_LOGO_PATH`、`FISH_LOGO_VIEWBOX` 生成，生成文件不提交。`PackageArtwork` 只对这个精确值复用官方 `FishLogo`，使用官方主文字色；因此跟随界面手动明暗切换，不依赖操作系统主题。不解析或内联外部 SVG，Cloudflare 与其他图标、图标框、布局和权限保持原样。`/brand-artwork` 仅导出图标元数据合同。
+
+鲸鱼的原生视框紧贴轮廓，不能直接沿用带留白的官方插件画布尺寸。按用户确认的视觉校准，保留 36/30px 图标区域及 48/40px 外框，在卡片与详情中居中显示 24px 宽鲸鱼，在组件行中显示 20px 宽鲸鱼；比例、主题颜色及官方 CSS 保持不变。

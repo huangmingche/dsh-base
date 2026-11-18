@@ -9,6 +9,7 @@ import { readOfficialPluginCatalog } from './official-plugin-catalog-oracle.mjs'
 import { readOwnedPluginInventory } from './owned-plugin-inventory-oracle.mjs';
 import { managerCopy } from './plugin-manager-assertions.mjs';
 import { settle } from './stability.mjs';
+import { checkPluginToolbar } from './plugin-toolbar-assertions.mjs';
 import { navigationObservation, scrollToNavigationTarget, assertNavigationTop } from './plugin-navigation-assertions.mjs';
 const app = resolve(import.meta.dirname, '../..');
 const require = createRequire(resolve(app, 'package.json'));
@@ -27,6 +28,8 @@ try {
   server = await vite.preview({ configFile, logLevel: 'error', preview: { host: '127.0.0.1', port: 0, strictPort: true } });
   const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
   browser = await puppeteer.launch(acceptanceLaunchOptions());
+  const toolbar = await checkPluginToolbar({ browser, puppeteer, origin, official: official.bundles, owned, output });
+  await writeFile(resolve(output, 'toolbar.json'), JSON.stringify(toolbar, null, 2));
   for (const locale of ['en', 'zh']) for (const width of [1280, 720]) for (const side of ['reference', 'adapted']) {
     const page = await browser.newPage(), errors = [];
     page.setDefaultTimeout(15000);

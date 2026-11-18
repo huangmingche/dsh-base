@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';
+import { accountUpdates, platformNotifications } from '../src/client/account-updates.ts';
 import { createAccountSession } from '../src/client/account-session.ts';
 
 let reads = 0;
@@ -80,3 +81,20 @@ for (const change of ['logout', 'owner', 'failure'] as const) {
   assert.deepEqual(await ended, { value: undefined, done: true });
 }
 console.log('account session: shared checked reads, idle anonymous no polling, sign-in/logout refresh, truthful failures and cancellation passed');
+
+// RC4 account settings and notifications consume typed AccountUpdate frames.
+// Replacing one owner with another must invalidate cached account details.
+const owner = { id: 'a', username: 'A', email: 'a@example.test' };
+async function* owners() {
+  yield null; yield owner; yield { ...owner, username: 'renamed' }; yield { ...owner, id: 'b' }; yield null;
+}
+const updates = [];
+for await (const update of accountUpdates(owners(), user => user?.username ?? null)) updates.push(update);
+assert.deepEqual(updates, [
+  { type: 'snapshot', state: null }, { type: 'credentials-changed', state: 'A' },
+  { type: 'snapshot', state: 'renamed' }, { type: 'credentials-changed', state: 'A' },
+  { type: 'credentials-changed', state: null },
+]);
+assert.deepEqual(await platformNotifications.getNotifications(), { ok: true, value: null });
+assert.deepEqual(await platformNotifications.getNotificationContent(), { ok: true, value: null });
+assert.deepEqual(await platformNotifications.reportNotificationEvent(), { ok: true, value: false });

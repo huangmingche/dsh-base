@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 /** Exact-version staging acceptance for the two independent model providers. */
-import { assertSidebarBrand } from './assert-sidebar-brand.mjs';
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
@@ -259,9 +258,8 @@ try {
     await page.setViewport({ width: 1440, height: 900 });
     // General: language display, app/upstream version and real links.
     await clickDialogNav(locale === "zh" ? "通用设置" : "General");
-    await page.waitForFunction(() => /dsh-base 0\.1\.0 · (Upstream|上游) DeepSeek Harness/u.test(document.querySelector('[role="dialog"]')?.innerText ?? ""), { timeout: 20_000 });
-    const generalText = await page.$eval('[role="dialog"]', element => element.innerText);
-    assert.match(generalText, locale === "zh" ? /当前版本：dsh-base 0\.1\.0 · 上游 DeepSeek Harness：dsh-v0\.2\.2-rc\.1/u : /Current version: dsh-base 0\.1\.0 · Upstream DeepSeek Harness: dsh-v0\.2\.2-rc\.1/u);
+    const versionLine = locale === "zh" ? `当前版本：dsh-base ${appVersion} · 上游 DeepSeek Harness：${lock.tag}` : `Current version: dsh-base ${appVersion} · Upstream DeepSeek Harness: ${lock.tag}`;
+    await page.waitForFunction(expected => document.querySelector('[role="dialog"]')?.innerText.includes(expected), { timeout: 20_000 }, versionLine);
     const languageButton = await page.evaluate(() => {
       const button = [...document.querySelectorAll('[role="dialog"] button')].find(item => ["中文", "简体中文", "English"].includes((item.textContent ?? "").trim()));
       if (button === undefined) return null;
@@ -278,10 +276,11 @@ try {
     const links = await page.$$eval('[role="dialog"] a[href]', elements => elements.map(element => ({ href: element.getAttribute('href'), text: element.textContent?.trim() })));
     const repoLink = links.find(link => link.text === "DeepSeek Harness");
     const tagLink = links.find(link => link.text === lock.tag);
-    assert.ok(repoLink?.href.includes("github.com/deepseek-ai/deepseek-harness"));
-    assert.ok(tagLink?.href.endsWith(`/releases/tag/${lock.tag}`));
-    const brand = await assertSidebarBrand(page);
-    const versionLine = locale === "zh" ? `当前版本：dsh-base ${appVersion} · 上游 DeepSeek Harness：${lock.tag}` : `Current version: dsh-base ${appVersion} · Upstream DeepSeek Harness: ${lock.tag}`;
+    const upstreamRepository = lock.repository.replace(/\.git$/u, "");
+    assert.equal(repoLink?.href, upstreamRepository);
+    assert.equal(tagLink?.href, `${upstreamRepository}/releases/tag/${encodeURIComponent(lock.tag)}`);
+    const brand = await page.$eval('[class*="brandIdentity"]', element => element.textContent?.trim() ?? "");
+    assert.equal(brand, "dsh-base", `${locale}: sidebar brand has no version suffix`);
     await page.evaluate(text => {
       const row = [...document.querySelectorAll('[role="dialog"] div')].find(element => element.textContent?.trim() === text);
       row?.scrollIntoView({ block: "center" });

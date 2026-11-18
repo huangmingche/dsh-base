@@ -29,8 +29,9 @@ export async function assertSessionHeaderMenu({ page, browser, base, request, co
     } finally { await row.dispose(); }
   };
   await page.click(menuButton);
-  assert.deepEqual(await page.$$eval('[role="menuitem"]', rows => rows.map(row => row.textContent.trim())), [
-    'Copy Session as Markdown', 'Download session log', 'Feedback',
+  await page.waitForSelector('[role="menu"] [role="menuitem"]', { visible: true });
+  assert.deepEqual(await page.$$eval('[role="menuitem"]', rows => rows.map(row => row.matches(':disabled,[aria-disabled=true]') && row.textContent.includes('Opening local applications is unavailable') ? 'Open in app (unavailable)' : row.textContent.trim())), [
+    'Copy Session as Markdown', 'Download session log', 'Open in app (unavailable)', 'Feedback',
   ], 'preserve the menu owned by the pinned official release');
   await page.screenshot({ path: join(artifacts, 'session-menu.png') });
   await page.keyboard.press('Escape');

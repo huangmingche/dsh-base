@@ -1,5 +1,9 @@
 # @dsh-base/cloudflare-worker-session-host
 
+The Files panel calls the official `workspaceFiles.search` Remote for the current session’s workspace. SQLite uses the directory index to skip VCS directories and user exclusions and apply the hidden-file setting. Search then matches the first 2,000 eligible files in path order and their parent directories, returning up to 512 results. When the caller requests native ignore rules, an applicable ignore file in the search tree yields `workspace-file/search-failed`. Rules inside excluded directories do not affect other directories.
+
+Session follow opens a message- and turn-aligned window over longer histories. Earlier pages use the same journal cursor. Think persists terminal error text without the typed model attempt and failure code required for manual continuation. The Host returns a null `conversationContinuation` projection and rejects a new empty prompt with `session/agent-busy`.
+
 The raw Host `create` inserts Session metadata and Workspace membership in one SQLite transaction. A repeated ID preserves its model, title, timestamps, history, queue, state and placement. Official `session/create` reuses an unarchived blank Session in the requested Workspace and working directory; a nonblank, running or archived Session produces a real new ID without modifying the original. Directory conflicts return `session/conflict`, missing Workspaces return `workspace/not-found`, and specifying both `workspaceId` and `cwd` returns `gateway/bad-request`.
 
 The `cwd` face supports registered logical Workspaces only. Creating an ungrouped Session in an arbitrary unregistered directory is unavailable and returns `gateway/endpoint-unavailable`; it neither ignores the path nor silently creates a Workspace. Package reuse metadata tracks this limitation. The official composer's Workspace-based blank-session reuse is supported.
@@ -77,7 +81,7 @@ stream.
 
 - Package: `@deepseek-ai/dsh-api-session-controller`
 - Path: `packages/api/session-controller`
-- Commit: `66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`
+- Commit: `9c2670d3bce5275e0d1610272958121af87787bb`
 - License: MIT
 - Official source lives only in `.submodules/deepseek-harness`; this package is a
   Workers-native adaptation.

@@ -51,6 +51,15 @@ const savedModelProjection = { lastUsed: null, next: { provider: "deepseek-offic
 assert.deepEqual((await host.projections({ sessionId: "named" })).modelSelection, savedModelProjection);
 const officialProjection = await handlers.get("session/projections")!({ args: { request: { sessionId: "named" } } }, invocation);
 assert.deepEqual(officialProjection.values.modelSelection, savedModelProjection, "raw Host and official unary expose the same durable model fold");
+const prompt = (requestId: string, content: unknown[]) => handlers.get("session/prompt")!({
+  args: { request: { sessionId: "named", requestId, mode: "queue", content } },
+}, invocation);
+assert.equal(officialProjection.values.conversationContinuation, null);
+await assert.rejects(prompt("empty", []), {
+  code: "session/agent-busy", details: { reason: "NO_CONTINUABLE_FAILURE_OR_PENDING_INPUT" },
+});
+await assert.rejects(prompt("whitespace", [{ type: "text", text: "  " }]), { code: "gateway/bad-request" });
+assert.deepEqual(await unchanged("named"), blank, "an unavailable retry cannot enqueue or change the session");
 const reused = await Promise.all(Array.from({ length: 6 }, () => official({ sessionId: "named", workspaceId: "default" })));
 assert.ok(reused.every(result => result.sessionId === "named"));
 assert.deepEqual(await unchanged("named"), blank, "official composer create must preserve a blank Session's Pro/title/timestamps/placement");
@@ -63,7 +72,8 @@ assert.equal((await storage.listMemberships()).filter(row => row.sessionId === "
 
 // Preserve real admitted history, queue, running state and projections even
 // when legacy clients retry create with different title/default arguments.
-await host.prompt({ sessionId: "named", requestId: "first", text: "original question" });
+const first = await host.prompt({ sessionId: "named", requestId: "first", text: "original question" });
+assert.equal((await prompt("first", [])).submissionId, first.submissionId, "lost acknowledgements reuse the durable receipt");
 await storage.appendMessages("named", [{ id: "answer", seq: 2, role: "assistant", parts: [{ type: "text", text: "original answer" }] }]);
 await storage.putProjections("named", { usage: { input: 10, output: 3 } });
 const active = await unchanged("named");

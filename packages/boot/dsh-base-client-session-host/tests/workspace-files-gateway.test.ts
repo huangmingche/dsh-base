@@ -65,9 +65,15 @@ const connected = createOfficialWorkspaceFilesGateway({
   }) as never,
 });
 await connected.list("s1", "");
+const search = { query: "folder", excludedPaths: ["build"], includeHidden: false, respectGitignore: true };
+await connected.search("s1", search);
 assert.deepEqual(connectionCalls, [{
   channel: "/api",
   endpoint: WORKSPACE_FILES_ENDPOINTS.list,
   payload: { args: { workspaceFileScope: "s1", path: "" } },
+}, {
+  channel: "/api",
+  endpoint: WORKSPACE_FILES_ENDPOINTS.search,
+  payload: { args: { workspaceFileScope: "s1", request: search } },
 }]);
 console.log("session-host: official workspace files gateway passed");

@@ -1,7 +1,5 @@
 # Dsh-base account settings
 
-Application scope: the default workbench loads after sign-in. Signed-out states described below are component or Host contracts exercised in isolation.
-
 [简体中文](README.md)
 
 `@dsh-base/client-settings-account` is a complete runtime fork of the official account settings plugin. It preserves the account identity, balance, bonus balance, usage and top-up UI, adding one unavailable presentation explicitly selected by the Host. A separate account-launcher plugin still provides Dsh-base local sign-in.
@@ -9,10 +7,10 @@ Application scope: the default workbench loads after sign-in. Signed-out states 
 ## Official source and reuse decision
 
 - Official package: `@deepseek-ai/dsh-client-ui-settings-account`.
-- Sole source: `.submodules/deepseek-harness/packages/client/ui-settings-account`, pinned to `dsh-v0.2.2-rc.1`, commit `66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`, under the MIT license.
+- Sole source: `.submodules/deepseek-harness/packages/client/ui-settings-account`, pinned to `dsh-v0.2.2-rc.5`, commit `9c2670d3bce5275e0d1610272958121af87787bb`, under the MIT license.
 - The full `src/` and `locale/` trees, image assets inside the source tree, and upstream license are retained. The upstream checkout is not modified.
 
-Mounting the official plugin or reusing its exported `AccountSection` renders a centered sign-in prompt when genuinely signed out with no authorization in progress. The official component has no presentation parameter that shows complete account cards in this state. This fork exposes an optional full-unavailable presentation. The default application mounts account settings only after sign-in. The default branch, original registration, dictionaries and original CSS remain unchanged; it does not introduce a separate account UI.
+Mounting the official plugin or reusing its exported `AccountSection` renders a centered sign-in prompt when genuinely signed out with no authorization in progress. The official component has no presentation parameter that shows complete account cards in this state. The user explicitly requested the complete account content with only unavailable actions greyed out. This package therefore forks the complete official runtime and adds the smallest presentation parameter. The default branch, original registration, dictionaries and original CSS remain unchanged; it does not introduce a separate account UI.
 
 ## Presentation and permissions
 

@@ -13,6 +13,8 @@
  */
 import type { SqlStorage } from "./sqlite-storage.ts";
 
+import type { WorkspaceFileSearchMatch, WorkspaceFileSearchRequest, WorkspaceFileSearchResult } from "@deepseek-ai/dsh-api-workspace-files/types";
+
 /** Stable failure codes the workspace file store and its transport raise. */
 export type WorkspaceFileErrorCode =
   | "workspace-file/not-found"
@@ -21,6 +23,7 @@ export type WorkspaceFileErrorCode =
   | "workspace-file/not-text"
   | "workspace-file/not-directory"
   | "workspace-file/not-regular-file"
+  | "workspace-file/search-failed"
   | "workspace-file/unavailable"
   | "gateway/bad-request";
 
@@ -28,6 +31,7 @@ export type WorkspaceFileErrorCode =
 export class WorkspaceFileError extends Error {
   /** Stable failure code returned to the caller. */
   readonly code: WorkspaceFileErrorCode;
+  readonly details = {};
 
   /**
    * @param code - Stable failure code.
@@ -123,6 +127,20 @@ export interface WorkspaceFileBytesPage extends WorkspaceFileStat {
 
 /** Entry cap of one directory listing. */
 export const MAX_LIST_ENTRIES = 2000;
+const MAX_SEARCH_RESULTS = 512;
+const MAX_SEARCH_FILES = 2000;
+const VCS_NAMES = [".git", ".svn", ".hg", ".bzr", ".jj", ".sl"];
+
+/** Validate the official arguments at both the Remote and JSON Host boundaries. */
+export function workspaceFileSearchRequest(value: Record<string, unknown>): WorkspaceFileSearchRequest {
+  const { query, excludedPaths, includeHidden, respectGitignore } = value;
+  if (typeof query !== "string" || !query.trim() || !Array.isArray(excludedPaths)
+    || !excludedPaths.every(path => typeof path === "string")
+    || typeof includeHidden !== "boolean" || typeof respectGitignore !== "boolean") {
+    throw new WorkspaceFileError("gateway/bad-request", "Invalid workspace file search arguments");
+  }
+  return { query: query.trim(), excludedPaths, includeHidden, respectGitignore };
+}
 /** Byte cap of one complete text read. */
 export const MAX_TEXT_BYTES = 2 * 1024 * 1024;
 /** Default and maximum line count of one text page. */
@@ -368,6 +386,8 @@ export class WorkspaceFileStore {
       )`,
       `CREATE INDEX IF NOT EXISTS ${NODES_TABLE}_parent
         ON ${NODES_TABLE} (workspace_id, parent_path, name)`,
+      `CREATE INDEX IF NOT EXISTS ${NODES_TABLE}_files_by_name
+        ON ${NODES_TABLE} (workspace_id, name) WHERE kind = 'file'`,
       `CREATE TABLE IF NOT EXISTS ${VERSIONS_TABLE} (
         version_id TEXT PRIMARY KEY,
         workspace_id TEXT NOT NULL,
@@ -418,6 +438,69 @@ export class WorkspaceFileStore {
     });
     entries.sort((left, right) => (left.name < right.name ? -1 : left.name > right.name ? 1 : 0));
     return { path: relative, entries, truncated };
+  }
+
+  /** Search the owner's logical file index without reading private file bodies from R2. */
+  search(scope: WorkspaceFileScope, request: WorkspaceFileSearchRequest): WorkspaceFileSearchResult {
+    const bindings = [scope.workspaceId, JSON.stringify([...VCS_NAMES, ...request.excludedPaths]), Number(request.includeHidden)] as const;
+    const excluded = "excluded(value) AS (SELECT value FROM json_each(?2))";
+    const visible = `(?3 OR substr(node.name, 1, 1) <> '.')
+      AND node.name NOT IN (SELECT value FROM excluded)
+      AND node.path NOT IN (SELECT value FROM excluded)`;
+    if (request.respectGitignore) {
+      // Ripgrep loads a control file when it enters its directory, even if the
+      // file itself is hidden. Walk only ancestors of indexed control files.
+      const ignoreRules = this.sql.exec(
+        `WITH RECURSIVE ${excluded}, ancestors(path, needs_git) AS (
+          SELECT CASE WHEN name = 'exclude' THEN substr(path, 1, max(0, length(path) - length('/.git/info/exclude')))
+                 ELSE parent_path END, name = '.gitignore'
+            FROM ${NODES_TABLE} WHERE workspace_id = ?1 AND kind = 'file'
+             AND name IN ('.gitignore', '.ignore', '.rgignore', 'exclude')
+             AND (name <> 'exclude' OR path = '.git/info/exclude' OR path GLOB '*/.git/info/exclude')
+          UNION
+          SELECT node.parent_path, ancestors.needs_git AND NOT EXISTS (
+            SELECT 1 FROM ${NODES_TABLE} WHERE workspace_id = ?1 AND path = node.path || '/.git'
+          ) FROM ancestors
+            CROSS JOIN ${NODES_TABLE} AS node ON node.workspace_id = ?1 AND node.path = ancestors.path
+            WHERE node.kind = 'directory' AND ${visible}
+        ) SELECT 1 FROM ancestors WHERE path = '' AND (NOT needs_git OR EXISTS (
+          SELECT 1 FROM ${NODES_TABLE} WHERE workspace_id = ?1 AND path = '.git'
+        )) LIMIT 1`, ...bindings,
+      ).toArray();
+      if (ignoreRules.length > 0) {
+        throw new WorkspaceFileError("workspace-file/search-failed", "Native ignore-file rules are unavailable for this workspace");
+      }
+    }
+    // The parent index prunes excluded subtrees before they can consume the
+    // file budget. Order directories by their descendant prefix so the queue
+    // emits eligible files in full path order, including e.g. "a-b" vs "a/b".
+    const files = this.sql.exec(
+      `WITH RECURSIVE ${excluded}, tree(path, kind, sort_key) AS (
+        VALUES ('', 'directory', '')
+        UNION ALL
+        SELECT node.path, node.kind, CASE WHEN node.kind = 'directory' THEN node.path || '/' ELSE node.path END AS sort_key
+          FROM tree CROSS JOIN ${NODES_TABLE} AS node ON node.workspace_id = ?1 AND node.parent_path = tree.path
+          WHERE tree.kind = 'directory' AND ${visible}
+          ORDER BY sort_key
+      ) SELECT path FROM tree WHERE kind = 'file' LIMIT ?4`,
+      ...bindings, MAX_SEARCH_FILES + 1,
+    ).toArray();
+    const needle = request.query.toLowerCase();
+    const byPath = needle.includes("/");
+    const matches = new Map<string, WorkspaceFileSearchMatch>();
+    for (const row of files.slice(0, MAX_SEARCH_FILES)) {
+      const path = String(row.path);
+      let prefix = "";
+      for (const name of path.split("/")) {
+        prefix = prefix ? `${prefix}/${name}` : name;
+        if ((byPath ? prefix : name).toLowerCase().includes(needle)) {
+          matches.set(prefix, { path: prefix, type: prefix === path ? "file" : "directory" });
+        }
+      }
+    }
+    const ordered = [...matches.values()].sort((a, b) =>
+      a.path.split("/").length - b.path.split("/").length || (a.path < b.path ? -1 : 1));
+    return { matches: ordered.slice(0, MAX_SEARCH_RESULTS), truncated: matches.size > MAX_SEARCH_RESULTS, incomplete: files.length > MAX_SEARCH_FILES };
   }
 
   /**

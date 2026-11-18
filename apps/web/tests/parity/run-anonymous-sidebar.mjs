@@ -73,6 +73,21 @@ try {
         const label = await page.evaluate(() => window.__SIDEBAR_NAV_PARITY__.labels.plugins);
         await click(page, `button[aria-label=${JSON.stringify(label)}]`);
       }
+      if (mode !== 'collapsed') {
+        for (const { page } of [reference, adapted]) {
+          const labels = await page.evaluate(() => window.__SIDEBAR_NAV_PARITY__.labels);
+          const byName = value => `button[aria-label=${JSON.stringify(value)}]`;
+          const schedule = 'nav ' + byName(labels.schedules);
+          await page.focus(byName(labels.unpinSchedule));
+          await page.keyboard.press('Enter');
+          await page.waitForSelector(schedule, { hidden: true });
+          await click(page, 'nav button[aria-haspopup="menu"]');
+          await page.waitForSelector(byName(labels.pinSchedule));
+          await page.focus(byName(labels.pinSchedule));
+          await page.keyboard.press('Enter');
+          await page.waitForSelector(schedule, { visible: true });
+        }
+      }
       assert.deepEqual(await adapted.page.evaluate(() => window.__SIDEBAR_NAV_PARITY__.calls), await reference.page.evaluate(() => window.__SIDEBAR_NAV_PARITY__.calls));
       assert.deepEqual(reference.errors, []); assert.deepEqual(adapted.errors, []);
       cases.push({ locale, scheme, mode, screenshotPairs: 2, registeredThroughOfficialSlotRegistry: true, actionsEqual: true });

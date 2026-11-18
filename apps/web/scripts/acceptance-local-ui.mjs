@@ -1,8 +1,7 @@
 #!/usr/bin/env node
 /** Built Worker + real local D1/R2/DO + Chromium. Does not call an AI provider. */
-import { assertLoginReturn } from "./assert-login-return.mjs";
-import { assertSidebarBrand } from './assert-sidebar-brand.mjs';
 import assert from "node:assert/strict";
+import { assertLoginReturn } from "./assert-login-return.mjs";
 import { randomBytes } from "node:crypto";
 import { acceptanceLaunchOptions, closeAcceptanceBrowser } from "./acceptance-config.mjs";
 import { spawn } from "node:child_process";
@@ -246,20 +245,38 @@ try {
   // The public shell still mounts the official inventory, but private Host
   // transports must wait for a verified account instead of retrying 401s.
   publicRequests = []; publicSockets = [];
-  await page.goto(`${base}/?locale=en`, { waitUntil: "networkidle0" });
-  await page.waitForSelector('[data-auth-dialog]', { visible: true });
-  assert.deepEqual(await page.evaluate(() => window.__DSH_BASE_PLUGINS__.map(row => row.moduleName).sort()),
-    ['@dsh-base/client-auth-login', '@dsh-base/client-newsletter']);
-  assert.equal(await page.$('[data-plugin-panel], [contenteditable="true"], [data-signed-out]'), null);
-  assert.deepEqual([...publicRequests].sort(), ['/api/auth-policy', '/api/auth/get-session']);
-  assert.deepEqual(publicSockets, []);
-  const anonymousShell = { apiRequests: [...publicRequests], webSockets: [...publicSockets], signInRequired: true };
-  await page.screenshot({ path: join(artifacts, 'anonymous-login.png') });
+  await page.goto(`${base}/?locale=en`, { waitUntil: "domcontentloaded" });
+  await page.waitForSelector('button[aria-label="Account menu"]', { timeout: 20000 });
+  await page.click('button[aria-label="Account menu"]');
+  await page.waitForSelector('[role="menuitem"]');
+  await page.evaluate(() => {
+    const settings = [...document.querySelectorAll('[role="menuitem"]')].find(row => row.textContent.trim() === "Settings");
+    if (!(settings instanceof HTMLElement)) throw new Error("anonymous settings entry missing");
+    settings.click();
+  });
+  await page.waitForSelector('[role="dialog"] nav', { timeout: 10000 });
+  // Spans the previous two-second account polling and connection retry loop.
+  await new Promise(resolveWait => setTimeout(resolveWait, 5500));
+  const privateRequests = publicRequests.filter(path => !['/api/auth/get-session', '/api/site-config', '/api/public-pages'].includes(path));
+  assert.deepEqual(privateRequests, [], "anonymous shell/settings must not issue private Host requests");
+  assert.deepEqual(publicSockets, [], "anonymous shell must not start the authenticated Gateway");
+  assert.equal(publicRequests.filter(path => path === "/api/auth/get-session").length, 1, "account watchers share one snapshot without idle polling");
+  assert.equal(publicRequests.filter(path => path === '/api/site-config').length, 1, 'anonymous branding reads public site facts once without polling');
+  assert.equal(publicRequests.filter(path => path === '/api/public-pages').length, 1, 'anonymous navigation reads the published public page registry once without polling');
+  assert.deepEqual(errors, [], "anonymous shell/settings boot must have no browser errors");
+  const anonymousShell = { apiRequests: [...publicRequests], webSockets: [...publicSockets], idleObservationMs: 5500, settingsVisible: true };
+  await page.screenshot({ path: join(artifacts, "anonymous-settings.png") });
   page.off("request", recordRequest);
   await network.detach();
   await page.setCookie({ name: match[1], value: match[2], url: base, httpOnly: true, sameSite: "Lax" });
-  await page.reload({ waitUntil: "domcontentloaded" });
+  // A login completed in another tab must reboot the anonymous composition so
+  // persisted account plugin choices apply before private services start.
+  await Promise.all([
+    page.waitForNavigation({ waitUntil: "domcontentloaded", timeout: 20000 }),
+    page.evaluate(() => window.dispatchEvent(new Event("focus"))),
+  ]);
   await page.waitForFunction(() => window.__DSH_BASE_PLUGINS__?.filter(row => row.enabled).every(row => row.fiberPhase === "active"), { timeout: 20000 });
+  anonymousShell.signInReloadedComposition = true;
   const otherTab = await browser.newPage();
   await watchFailureNetwork(otherTab);
   await otherTab.setViewport({ width: 1440, height: 900 });
@@ -312,30 +329,36 @@ try {
         assert.equal(original.fiberPhase, null);
       }
     }
-    for (const name of ['@deepseek-ai/dsh-api-remote-access', '@deepseek-ai/dsh-typert-registry']) {
+    for (const name of [
+      '@deepseek-ai/dsh-api-remote-access', '@deepseek-ai/dsh-typert-registry',
+      '@deepseek-ai/dsh-client-ui-agent-team', '@deepseek-ai/dsh-client-ui-account-notifications',
+    ]) {
       const entry = inventory.find(row => row.moduleName === name);
       assert.equal(entry?.origin, 'upstream', `${name} uses the unchanged official composition entry`);
       assert.equal(entry?.enabled, true);
       assert.equal(entry?.fiberPhase, 'active');
     }
+    const chatImport = inventory.find(row => row.moduleName === '@deepseek-ai/dsh-deepseek-chat-import');
+    assert.equal(chatImport?.enabled, false, 'the on-demand chat importer remains discoverable without a Workers importer');
+    assert.equal(chatImport.fiberPhase, null);
     const retiredGeneration = inventory.find(row => row.moduleName === '@dsh-base/client-wire-bootstrap');
     assert.equal(retiredGeneration?.enabled, false, 'the unchanged Gateway owns the sole generation loop');
     assert.equal(retiredGeneration?.fiberPhase, null);
     const siteConfig = inventory.find(row => row.moduleName === '@dsh-base/client-site-config');
-    assert.equal(siteConfig?.enabled, true, 'public site settings are active');
+    assert.equal(siteConfig?.enabled, true, 'public site configuration has an active brand consumer');
     assert.equal(siteConfig?.fiberPhase, 'active');
     const retiredMenu = inventory.find(row => row.moduleName === '@dsh-base/client-shell-extras');
     assert.equal(retiredMenu?.enabled, false, 'site settings do not restore retired sidebar entries');
     assert.equal(retiredMenu?.fiberPhase, null);
     return inventory;
   };
-  const click = async pattern => {
-    await page.waitForFunction(source => {
+  const click = async (pattern, targetPage = page) => {
+    await targetPage.waitForFunction(source => {
       const re = new RegExp(source, "iu");
       return [...document.querySelectorAll('button, [role="button"], [role="menuitem"], a')].some(element =>
         [element.textContent, element.getAttribute("aria-label"), element.getAttribute("title")].some(label => re.test(label?.trim() ?? "")) && element.getBoundingClientRect().width > 0 && !element.matches(":disabled"));
     }, { timeout: 10000 }, pattern);
-    const count = await page.evaluate(source => {
+    const count = await targetPage.evaluate(source => {
       const re = new RegExp(source, "iu");
       const candidates = [...document.querySelectorAll('button, [role="button"], [role="menuitem"], a')].filter(element => {
         return [element.textContent, element.getAttribute("aria-label"), element.getAttribute("title")].some(label => re.test(label?.trim() ?? "")) && element.getBoundingClientRect().width > 0 && !element.matches(":disabled");
@@ -348,9 +371,9 @@ try {
   // the pane is re-rendering can be swallowed, so retry until the target pane's
   // ready marker appears (the earlier generic page click could also match a
   // same-named control outside the dialog).
-  const clickDialogNav = async (pattern, readySelector) => {
+  const clickDialogNav = async (pattern, readySelector, targetPage = page) => {
     for (let attempt = 0; attempt < 6; attempt += 1) {
-      const clicked = await page.evaluate(re => {
+      const clicked = await targetPage.evaluate(re => {
         const matcher = new RegExp(re, "iu");
         const button = [...document.querySelectorAll('[role="dialog"] nav button')]
           .find(candidate => matcher.test((candidate.textContent ?? "").trim()));
@@ -366,7 +389,7 @@ try {
       // to stay present across a couple of samples before returning.
       let stable = true;
       for (let sample = 0; sample < 3; sample += 1) {
-        if (await page.$(readySelector) === null) { stable = false; break; }
+        if (await targetPage.$(readySelector) === null) { stable = false; break; }
         await new Promise(resolveWait => setTimeout(resolveWait, 400));
       }
       if (stable) return;
@@ -669,17 +692,33 @@ try {
   // enables the platform route; DSH_EXPECT_PLATFORM_AI selects the expectation.
   const expectPlatformGateway = process.env.DSH_EXPECT_PLATFORM_AI === "true";
   {
-    for (const locale of ['en', 'zh']) {
+    const ref = "DEEPSEEK_OFFICIAL_API_KEY";
+    const keyInput = '[role="dialog"] input[type="password"]';
+    const describeKey = async () => (await call("credentialsDescribe", { refs: [ref] })).entries[ref];
+    const openModels = async locale => {
       await call("settingsUpdate", { ns: "locale", patch: { preference: locale } });
       await page.bringToFront();
       await gotoSessionPage(`${base}${prefixFor(locale === "zh" ? "zh" : "en")}/app/session/${encodeURIComponent(editorSessionId)}`);
       await click('account menu|账号菜单');
       await click('^settings\\b|^设置');
       await page.waitForSelector('[role="dialog"] nav button', { timeout: 20000 });
-      await page.evaluate(label => {
-        [...document.querySelectorAll('[role="dialog"] nav button')].find(item => (item.textContent ?? '').trim() === label)?.click();
-      }, locale === 'zh' ? '模型' : 'Models');
-      await page.waitForFunction(() => (document.querySelector('[role="dialog"]')?.innerText ?? '').includes('DeepSeek'), { timeout: 20000 });
+      await clickDialogNav(locale === 'zh' ? '^模型$' : '^Models$', '[data-gateway-provider]');
+    };
+    const openKey = async locale => {
+      if (await page.$(keyInput) === null) await click(locale === 'zh' ? '^编辑$' : '^Edit$');
+      await page.waitForSelector(keyInput, { visible: true, timeout: 10_000 });
+    };
+    const submitKey = async (locale, method) => {
+      const [response] = await Promise.all([
+        page.waitForResponse(response => new URL(response.url()).pathname === '/api/session-host'
+          && JSON.parse(response.request().postData() ?? '{}').method === method, { timeout: 15_000 }),
+        click(locale === 'zh' ? '^保存$' : '^Apply$'),
+      ]);
+      assert.equal(response.status(), 200);
+      assert.equal((await response.json()).error, undefined, method);
+    };
+    for (const locale of ['en', 'zh']) {
+      await openModels(locale);
       const settingsText = await page.$eval('[role="dialog"]', element => element.innerText);
       assert.match(settingsText, /DeepSeek/u, `${locale}: official DeepSeek provider remains`);
       // The restored card stays visible in both platform states (official rule:
@@ -699,6 +738,27 @@ try {
       await page.setViewport({ width: 720, height: 800 });
       await page.screenshot({ path: join(artifacts, `models-providers-narrow-${locale}.png`) });
       await page.setViewport({ width: 1440, height: 900 });
+      await openKey(locale);
+      if (locale === 'en') {
+        await page.waitForSelector(`${keyInput}[placeholder="••••••••"]`);
+        assert.equal(await page.$eval(keyInput, input => input.value), '');
+        await page.focus(keyInput);
+        await page.keyboard.press('Delete');
+        assert.equal((await describeKey()).configured, true, 'Delete only stages removal');
+        await submitKey(locale, 'credentialsUnset');
+        assert.deepEqual(await describeKey(), { configured: false, writable: true });
+      } else {
+        // The next cold load must forget the removed key, then persist a new
+        // synthetic key through the official editor on this disposable owner.
+        assert.notEqual(await page.$eval(keyInput, input => input.placeholder), '••••••••');
+        await page.type(keyInput, 'local-ui-replacement-not-a-provider-key');
+        await submitKey(locale, 'credentialsSet');
+        assert.deepEqual(await describeKey(), { configured: true, writable: true, source: 'host' });
+        await openModels(locale);
+        await openKey(locale);
+        await page.waitForSelector(`${keyInput}[placeholder="••••••••"]`);
+        assert.equal(await page.$eval(keyInput, input => input.value), '');
+      }
       await page.keyboard.press('Escape');
     }
   }
@@ -714,7 +774,11 @@ try {
     try { await page.waitForSelector('[contenteditable="true"]', { timeout: 20000 }); }
     catch (error) { throw new Error(`boot failed: ${(await page.evaluate(() => document.body.innerText)).slice(0,1800)}\n${errors.join("\n")}`, { cause: error }); }
     const inventory = await inspect();
-    const brand = await assertSidebarBrand(page);
+    await page.waitForFunction(name => document.querySelector('[class*="brandIdentity"]')?.textContent.trim() === name, { timeout: 10000 }, publicSite.brand.name);
+    const brand = await page.$eval('[class*="brandIdentity"]', element => element.textContent.trim());
+    // The approved brand name slot consumes public site settings while the
+    // official mark, layout and version-copy interaction remain unchanged.
+    assert.equal(brand, publicSite.brand.name, `sidebar brand reflects public site configuration: ${brand}`);
     const forkEntry = inventory.find(row => row.moduleName === "@dsh-base/client-agent-preset");
     const replacedEntry = inventory.find(row => row.moduleName === "@deepseek-ai/dsh-client-ui-agent-preset");
     assert.equal(forkEntry?.origin, "fork", "active preset UI comes from the marked official fork");
@@ -1117,22 +1181,48 @@ try {
     // Full reload of the session page (a bare reload could restore the Plugins
     // page and its official unavailable state instead of the composer).
     await gotoSessionPage(`${base}${prefixFor(locale === "zh" ? "zh" : "en")}/app/session/${encodeURIComponent(editorSessionId)}`);
-    await click("account menu|账号菜单");
-    await click("^settings\\b|^设置");
-    await click("^built-in plugins$|^内置插件$");
-    await page.waitForSelector('[data-plugin-scope="preset"]', { timeout: 15000 });
-    assert.equal(await page.$eval('[data-plugin-scope="preset"]', element => element.getAttribute("data-preset-id")), "dsh-base-think");
+    const presetPane = '[role="dialog"] [data-plugin-scope="preset"]';
+    const openPresetInventory = async targetPage => {
+      await click("account menu|账号菜单", targetPage);
+      await click("^settings\\b|^设置", targetPage);
+      await targetPage.waitForSelector('[role="dialog"] nav button', { visible: true });
+      await clickDialogNav("^built-in plugins$|^内置插件$", presetPane, targetPage);
+      assert.equal(await targetPage.$eval(presetPane, element => element.getAttribute("data-preset-id")), "dsh-base-think");
+    };
+    await openPresetInventory(page);
     await page.keyboard.press("Escape");
-    // Missing-session home surface: the same global Settings inventory must
-    // not require a selected session.
-    await page.goto(`${base}/`, { waitUntil: "domcontentloaded" });
+
+    // The signed-in home restores a session. Wait for the selection before
+    // interacting with Settings so that navigation cannot dismiss the dialog.
+    const homeUrl = new URL(prefixFor(locale) || "/", base);
+    await page.goto(homeUrl.href, { waitUntil: "domcontentloaded" });
+    await page.waitForFunction(prefix => {
+      const selection = JSON.parse(localStorage.getItem("dsh.sessions.current") ?? "null");
+      return selection?.sessionId && location.pathname === prefix + "/app/session/" + encodeURIComponent(selection.sessionId);
+    }, { timeout: 20000 }, prefixFor(locale));
     await page.waitForSelector('[contenteditable="true"], textarea, [role="textbox"]', { timeout: 120000 });
-    await click("account menu|账号菜单");
-    await click("^settings\\b|^设置");
-    await click("^built-in plugins$|^内置插件$");
-    await page.waitForSelector('[data-plugin-scope="preset"]', { timeout: 15000 });
-    assert.equal(await page.$eval('[data-plugin-scope="preset"]', element => element.getAttribute("data-preset-id")), "dsh-base-think");
+    await openPresetInventory(page);
     await page.keyboard.press("Escape");
+
+    // An isolated guest can open the same inventory without selecting a session.
+    const guestContext = await browser.createBrowserContext();
+    try {
+      const guestPage = await guestContext.newPage();
+      observeBrowserErrors(guestPage, "guest inventory: ");
+      await guestPage.setViewport({ width: 1440, height: 900 });
+      await guestPage.goto(homeUrl.href, { waitUntil: "domcontentloaded" });
+      await guestPage.waitForSelector('[data-signed-out="true"]', { visible: true });
+      const guestSelection = () => guestPage.evaluate(() => ({
+        path: location.pathname,
+        sessionId: JSON.parse(localStorage.getItem("dsh.sessions.current") ?? "null")?.sessionId ?? null,
+      }));
+      const expectedSelection = { path: homeUrl.pathname, sessionId: null };
+      assert.deepEqual(await guestSelection(), expectedSelection);
+      await openPresetInventory(guestPage);
+      assert.deepEqual(await guestSelection(), expectedSelection);
+    } finally {
+      await guestContext.close();
+    }
     const agentPresets = await agentPresetChecks(locale, editorSessionId);
     observations.push({ locale, gatewayBundle, ownedVisibility, categoryCounts, ownedNameCount: Object.keys(ownedTitles).length, versionLine: agentPresets.versionLine, upstreamLinks: { repository: upstreamRepository, release: upstreamRelease }, inventory, composerInput, scheduleTaskVisible: true, manualTaskCreated: true, settingsPersistedAfterReload: true, crossTabSettings: true, crossTabModelEffort: true, crossTabPermissions: true, crossTabScheduleCreateDelete: true, terminalDisabled: true, pluginInventoryVisible: true, pluginInventorySession: { groupTitle: presetGroupLabel, defaultPreset: "dsh-base-think", thinkRows: thinkPresetRows.length, officialPresets: Object.keys(officialPresetRows) }, versionLine: agentPresets.versionLine, installationDisabled: true, directoryCreated: true, workspaceConfirmed: true, agentPresets, agentPresetInventory: { fork: forkEntry, replacedOriginal: replacedEntry } });
   }
@@ -1162,7 +1252,7 @@ try {
     assert.ok(permissionConsole.filter(row => row.path === path).length <= observed.length, `${path}: every classified HTTP console message has a verified GET 403 response`);
   }
   assert.deepEqual(errors, [], "browser must have no plugin/runtime errors");
-  const report = { ok: true, loginReturns, testedAt: new Date().toISOString(), upstream: JSON.parse(readFileSync(join(repoRoot, "dsh-source.lock.json"), "utf8")).commit, browser: await browser.version(), scope: "built local Worker cold auth, isolated public login with no private RPC/WebSockets, real plugin fibers/provenance, official inventory, shell, official Session header menu with actual clipboard and ZIP download, desktop history composer rapid HTTPS typing and clearing without submission, rightbar, settings durability and real cross-tab push for settings/Schedule/model/effort/permission, manual Schedule creation, owner-scoped plugin management seam, and real official Agent preset roster/declarations/composer with Coding Tools and reload behavior en/zh-CN", compatibilityDate: localCompatibilityDate, aiExecutionTested: false, modelSelection: { unconfiguredRejected: true, credential: "local sentinel configured then removed", providerAuthenticationTested: false, inferenceTested: false, outboundRequests: 0 }, publicDocuments, observations };
+  const report = { ok: true, loginReturns, testedAt: new Date().toISOString(), upstream: JSON.parse(readFileSync(join(repoRoot, "dsh-source.lock.json"), "utf8")).commit, browser: await browser.version(), scope: "built local Worker cold auth, isolated public login with no private RPC/WebSockets, real plugin fibers/provenance, official inventory, shell, official Session header menu with actual clipboard and ZIP download, desktop history composer rapid HTTPS typing and clearing without submission, rightbar, settings durability and real cross-tab push for settings/Schedule/model/effort/permission, manual Schedule creation, owner-scoped plugin management seam, and real official Agent preset roster/declarations/composer with Coding Tools and reload behavior en/zh-CN", compatibilityDate: localCompatibilityDate, aiExecutionTested: false, modelSelection: { unconfiguredRejected: true, credential: "official editor cleared and replaced an owner sentinel across cold loads, then fixture removed it", providerAuthenticationTested: false, inferenceTested: false, outboundRequests: 0 }, publicDocuments, observations };
   report.anonymousShell = anonymousShell;
   report.expectedPermissionDenials = permissionDenials;
   writeFileSync(join(artifacts, "report.json"), JSON.stringify(report, null, 2));

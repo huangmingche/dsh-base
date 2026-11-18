@@ -1,7 +1,5 @@
 # Dsh-base 账号设置
 
-组合范围：默认应用只在登录后加载工作台。以下未登录分支属于组件或 Host 的独立契约，仅在隔离测试中使用。
-
 [English](README.en.md)
 
 `@dsh-base/client-settings-account` 是官方账号设置插件的完整运行时 fork，保留账号身份、余额、赠金、用量和充值界面。它新增一个由 Host 明确选择的不可用展示状态；Dsh-base 本地登录仍由独立的账号入口插件提供。
@@ -9,10 +7,10 @@
 ## 官方来源与复用决定
 
 - 官方包：`@deepseek-ai/dsh-client-ui-settings-account`。
-- 唯一来源：`.submodules/deepseek-harness/packages/client/ui-settings-account`，固定版本 `dsh-v0.2.2-rc.1`，提交 `66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`，MIT 许可证。
+- 唯一来源：`.submodules/deepseek-harness/packages/client/ui-settings-account`，固定版本 `dsh-v0.2.2-rc.5`，提交 `9c2670d3bce5275e0d1610272958121af87787bb`，MIT 许可证。
 - 完整保留 `src/`、`locale/`、源目录内的图片资源及上游许可证。上游 checkout 不做修改。
 
-直接挂载官方插件或复用它导出的 `AccountSection`，都会在真实未登录且没有进行中的授权时显示居中的登录提示。官方没有提供让这个状态显示完整账号卡片的展示参数。本包保留完整官方运行时并提供可选展示参数。默认应用登录后才挂载账号设置。默认分支、原注册逻辑、字典和原 CSS 保持不变；没有新建另一套账号界面。
+直接挂载官方插件或复用它导出的 `AccountSection`，都会在真实未登录且没有进行中的授权时显示居中的登录提示。官方没有提供让这个状态显示完整账号卡片的展示参数。用户明确要求保留完整账号内容，并仅将不可用操作置灰，所以本包完整 fork 官方运行时，新增最小展示参数。默认分支、原注册逻辑、字典和原 CSS 保持不变；没有新建另一套账号界面。
 
 ## 展示与权限
 

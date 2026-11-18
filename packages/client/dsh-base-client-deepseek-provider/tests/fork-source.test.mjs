@@ -31,7 +31,7 @@ test('reversing public Host additions and separately recorded existing changes r
   assert.equal(adaptations.upstreamCommit, json(resolve(root, 'dsh-source.lock.json')).commit);
   assert.deepEqual(adaptations.additions, []);
   assert.deepEqual(adaptations.files.map(file => file.path).sort(), [
-    'src/client/ModelsSection.tsx', 'src/client/index.ts', 'src/client/locales.ts',
+    'src/client/ModelsSection.tsx', 'src/client/RetryPolicyEditor.tsx', 'src/client/index.ts', 'src/client/locales.ts',
   ]);
   assert.deepEqual(runtimeFiles(fork), runtimeFiles(upstream), 'the full runtime and dictionary inventory remains intact');
   const byPath = new Map(adaptations.files.map(file => [file.path, file]));

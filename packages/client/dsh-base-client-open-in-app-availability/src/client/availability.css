@@ -1,0 +1,10 @@
+/* Keep the official compact OpenTargetButton dimensions inside the disabled group. */
+.dsh-open-directory-unavailable {
+  display: inline-flex;
+  align-self: center;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  min-inline-size: 0;
+  opacity: 0.4;
+}

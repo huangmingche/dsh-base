@@ -1,7 +1,5 @@
 # @dsh-base/client-gateway-provider
 
-Application scope: the default workbench loads after sign-in. Signed-out states described below are component or Host contracts exercised in isolation.
-
 Independent Cloudflare AI Gateway custom provider slot plugin (not a pure seam). The official Models
 plugin is mounted through the marked DeepSeek-provider Models fork; the original DeepSeek provider and editor stay official. Through the
 official `settings.models.provider-card` contract this plugin contributes the

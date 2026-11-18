@@ -68,12 +68,12 @@ try {
     };
     const stages = [await compareEditor('setup', true)];
     const state = await adapted.evaluate(() => {
-      const { host, officialCopy, copy } = window.__ANONYMOUS_MODELS_PARITY__, snapshot = host.controller.store.getSnapshot();
+      const { host, officialCopy, retryManaged, copy } = window.__ANONYMOUS_MODELS_PARITY__, snapshot = host.controller.store.getSnapshot();
       const root = document.querySelector('[data-anonymous-models]');
       return { status: snapshot.status, writable: snapshot.writable,
         rows: snapshot.rows.map(row => ({ id: row.entry.provider, active: row.entry.active, configured: row.configured, removable: row.removable, credentialUnknown: row.credential === undefined, apiKeyEnvAbsent: row.apiKeyEnv === undefined })),
         namespaces: [...snapshot.namespaces.values()].map(namespace => ({ ns: namespace.ns, user: namespace.user, secrets: namespace.secrets, revision: namespace.revision })),
-        officialCopy, copy, title: root.querySelector('h2').textContent, intro: root.querySelector('h2 + p').textContent,
+        officialCopy, retryManaged, copy, title: root.querySelector('h2').textContent, intro: root.querySelector('h2 + p').textContent,
         configuredDots: root.querySelectorAll('[class*="credentialDotConfigured"], [data-tone="success"]').length,
         enabledFields: [...root.querySelectorAll('input, select, textarea')].filter(element => !element.disabled).length,
       };
@@ -88,6 +88,9 @@ try {
     assert.deepEqual(await adapted.evaluate(() => window.__ANONYMOUS_MODELS_PARITY__.calls), []);
     for (const [page, selector] of [[reference, referenceEditor], [adapted, editor]]) await page.$eval(`${selector} summary`, element => element.click());
     stages.push(await compareEditor('customized', true));
+    const retry = await adapted.$eval(`${editor} select[aria-labelledby$="-retry-failure-label"]`, select =>
+      ({ disabled: select.disabled, options: [...select.options].map(option => option.textContent) }));
+    assert.deepEqual(retry, { disabled: true, options: [state.retryManaged] }, 'the Host exposes no selectable retry mode');
     const readonly = await adapted.$eval(provider, root => [...root.querySelectorAll('input, textarea, select')].every(element => element.disabled));
     assert.equal(readonly, true, 'advanced fields stay readable and readonly');
     await clickLabel(adapted, provider, state.officialCopy.cancel); await adapted.waitForSelector(editor, { hidden: true });
@@ -148,6 +151,18 @@ try {
     assert.equal(await adapted.$('[data-public-provider]'), null, 'default path has no declaration marker');
     report.defaultCases.push({ locale, theme, state, directOfficialReference: true, exactPixels: true });
     await reference.close(); await adapted.close(); console.log(`anonymous models: ${label} passed`);
+  }
+  for (const locale of staleOnly ? [] : ['en', 'zh']) {
+    const owner = await open({ locale, theme: 'dark', width: 1280, side: 'adapted', mode: 'workers-owner', state: 'no-key' });
+    const result = await owner.$eval('select[aria-labelledby$="-retry-failure-label"]', select => ({
+      disabled: select.disabled, options: [...select.options].map(option => option.textContent),
+      managed: window.__ANONYMOUS_MODELS_PARITY__.retryManaged,
+      writable: !document.querySelector('input[type="password"]').disabled,
+    }));
+    assert.ok(result.writable, 'owner can edit supported provider settings');
+    assert.ok(result.disabled, 'Workers publishes no owner-selectable retry modes');
+    assert.deepEqual(result.options, [result.managed]);
+    await owner.close();
   }
   for (const state of ['stale-configured', 'stale-missing']) {
     const page = await open({ locale: 'en', theme: 'light', width: 1280, side: 'adapted', mode: 'public-stale', state });

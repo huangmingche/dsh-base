@@ -190,6 +190,13 @@
       "unavailableReason": "Replaced by the marked account settings fork @dsh-base/client-settings-account."
     },
     {
+      "name": "@deepseek-ai/dsh-client-ui-account-notifications",
+      "module": "@deepseek-ai/dsh-client-ui-account-notifications/client",
+      "id": "client:ui-account-notifications",
+      "origin": "upstream",
+      "order": 70
+    },
+    {
       "name": "@dsh-base/client-account-launcher",
       "id": "client:account-launcher",
       "origin": "custom",
@@ -239,6 +246,13 @@
       "order": 71,
       "disabled": true,
       "unavailableReason": "Replaced by the complete marked fork @dsh-base/client-agent-preset: official roster/declarations with Host availability only."
+    },
+    {
+      "name": "@deepseek-ai/dsh-client-ui-agent-team",
+      "module": "@deepseek-ai/dsh-client-ui-agent-team/client",
+      "id": "client:ui-agent-team",
+      "origin": "upstream",
+      "order": 71
     },
     {
       "name": "@deepseek-ai/dsh-client-ui-subagent",
@@ -449,6 +463,13 @@
       "order": 107,
       "disabled": true,
       "unavailableReason": "Replaced by the marked Schedule UI fork with an optional Host account gate before manual task creation."
+    },
+    {
+      "name": "@dsh-base/client-brand",
+      "id": "client:brand",
+      "origin": "custom",
+      "order": 96,
+      "module": "@dsh-base/client-brand"
     },
     {
       "name": "@deepseek-ai/dsh-client-ui-brand-official",

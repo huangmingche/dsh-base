@@ -10,6 +10,6 @@
 
 请求体按流限制 4096 字节并拒绝额外字段。不能封禁部署管理员。公开 Better Auth `/api/auth/admin/*` 路径全部拒绝，只有 Worker 内部携带扩展 scope 的包装路由可调用已挂载端点。删除用户、代入用户、管理员改密码与创建用户均未挂载；文件与私有历史的删除联动尚未定义。
 
-`schema.sql` 为 pinned Better Auth schema 增加用户角色/封禁与 session 字段；初始化工具检查已有列后应用，勿在已迁移数据库直接重复执行原始 ALTER。参见 [Better Auth admin 文档](https://better-auth.com/docs/plugins/admin)。固定版本 DSH 的 `deepseek-account`、`api-account-controller` 只提供当前平台账户，不含可挂载/分叉的产品用户管理，因此本包独立实现适配，无商业模板或 DSH 代码复制。
+`schema.sql` 为 pinned Better Auth schema 增加用户角色/封禁与 session 字段；初始化工具检查已有列后应用，勿在已迁移数据库直接重复执行原始 ALTER。参见 [Better Auth admin 文档](https://better-auth.com/docs/plugins/admin)。固定版本 DSH 的 `deepseek-account` 的 `account` Remote 只提供当前平台账户，不含可挂载/分叉的产品用户管理，因此本包独立实现适配，无商业模板或 DSH 代码复制。
 
 运行 API-key 包的 `tests/runtime.test.mjs`，在真实本地 workerd、Better Auth 和临时 D1 上验证 allowlist 权限、角色越权拒绝、原生路径绕过、封禁/解禁、停用后的封禁保留与会话撤销。没有远端写入。

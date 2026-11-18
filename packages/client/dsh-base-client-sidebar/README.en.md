@@ -1,8 +1,8 @@
 # Sidebar navigation
 
-Application scope: the default workbench loads after sign-in. Signed-out states described below are component or Host contracts exercised in isolation.
+A complete browser fork of the pinned official `@deepseek-ai/dsh-client-ui-sidebar`. Source: `.submodules/deepseek-harness/packages/client/ui-sidebar`, commit `9c2670d3bce5275e0d1610272958121af87787bb`, MIT licensed.
 
-A complete browser fork of the pinned official `@deepseek-ai/dsh-client-ui-sidebar`. Source: `.submodules/deepseek-harness/packages/client/ui-sidebar`, commit `66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`, MIT licensed.
+The pinned panel controls, shared panel icon factory and Workspace scroll handoff come directly from the pinned official sidebar. The site-account checks apply when the corresponding actions activate.
 
 The official layout, brand slots, collapse animation, shortcut hints, panel list and footer remain intact. Before sign-in, New Session opens the login dialog and mounted public Plugins and Automation tasks pages can be browsed. More retains its official structure.
 

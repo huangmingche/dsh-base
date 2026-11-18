@@ -17,9 +17,7 @@ export const name = "@dsh-base/client-auth-login";
 
 /** Both public document and in-shell action gate share one real account flow. */
 export function apply(ctx: Context): void {
-  const guestHome = document.body.dataset.dshDocument === "/";
-  const standalone = guestHome || location.pathname === "/login";
-  const confirmationLink = guestHome && /^[a-f0-9]{64}$/u.test(new URL(location.href).searchParams.get("newsletterToken") ?? "");
+  const standalone = location.pathname === "/login";
   const navigation = loginNavigation(new URL(location.href), document.documentElement.lang || navigator.language);
   if (standalone) {
     document.body.dataset.dshLogin = "true";
@@ -60,22 +58,21 @@ export function apply(ctx: Context): void {
       root.render(null);
       // A protected next destination would immediately redirect a guest back to
       // /login. Dismissal returns to the public home; only success follows next.
-      if (guestHome) show();
-      else if (standalone) location.assign(navigation.home);
+      if (standalone) location.assign(navigation.home);
     };
     const show = (options: LoginRequest = {}) => {
       if (open) return;
       open = true;
       // Official modal shortcut ownership follows document order, including portals.
       document.body.append(container);
-      const next = options.next ?? (standalone && !guestHome ? loginDocumentReturnPath(new URL(location.href)) : `${location.pathname}${location.search}${location.hash}`);
+      const next = options.next ?? (standalone ? loginDocumentReturnPath(new URL(location.href)) : `${location.pathname}${location.search}${location.hash}`);
       root.render(<LoginSurface key={++sequence} mode={options.mode} next={next} onClose={close} onSignedIn={() => {
         location.assign(loginReturnPath(next, location.origin));
       }} />);
     };
     const listener = (event: Event) => show((event as CustomEvent<LoginRequest>).detail);
     window.addEventListener(LOGIN_REQUEST_EVENT, listener);
-    if (standalone && !confirmationLink) {
+    if (standalone) {
       const mode = new URL(location.href).searchParams.get("mode");
       show({ mode: mode === "register" || mode === "forgot-password" || mode === "reset-password" ? mode : "sign-in" });
     }

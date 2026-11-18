@@ -30,9 +30,13 @@ assert.deepEqual([...unary].sort(), [
   "workspaceFiles/list",
   "workspaceFiles/read",
   "workspaceFiles/readBytes",
+  "workspaceFiles/search",
   "workspaceFiles/stat",
 ]);
 const statHandler = handlers.get("workspaceFiles/stat")!;
+const searchHandler = handlers.get("workspaceFiles/search")!;
+await assert.rejects(async () => searchHandler({ args: { workspaceFileScope: "s", request: { query: " " } } }, {}),
+  { code: "gateway/bad-request", details: {} });
 await assert.rejects(async () => statHandler({ args: {} }, {}), /workspaceFileScope/);
 await assert.rejects(async () => statHandler({ args: { request: { workspaceFileScope: 42 } } }, {}), /workspaceFileScope/);
 disposeUnary();

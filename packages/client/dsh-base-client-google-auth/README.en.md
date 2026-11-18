@@ -4,4 +4,4 @@ Independent client plugin `client:google-auth`, grouped under `dsh-base:google-a
 
 This panel shows deployment Google OAuth enablement only. The existing login plugin provides the real sign-in action; client secrets are never edited in the browser.
 
-The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. The default workbench requires sign-in. The panel and server authorize account and administrator actions. Unloading removes the registration and never exposes private row configuration.
+The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. Guests can inspect status; account and administrator actions retain panel and server authorization. Unloading removes the registration and never exposes private row configuration.

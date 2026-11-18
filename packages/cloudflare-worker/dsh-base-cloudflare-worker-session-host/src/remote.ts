@@ -103,7 +103,7 @@ function pageSessionId(request: JsonRecord, endpoint: string): string {
 }
 
 /** Validate the official page window fields before the Host reads history. */
-function pageWindowOf(request: JsonRecord, endpoint: string): SessionPageWindow {
+export function pageWindowOf(request: JsonRecord, endpoint: string): SessionPageWindow {
   const throughSeq = optionalInteger(request.throughSeq, "throughSeq", endpoint, -1);
   const beforeSeq = optionalInteger(request.beforeSeq, "beforeSeq", endpoint, 0);
   const maxMessages = optionalInteger(request.maxMessages, "maxMessages", endpoint, 1);
@@ -354,13 +354,14 @@ export function registerSessionRemoteEndpoints(wireRpc: WireRpc): () => void {
       throw invalidRequest(endpoint, "content");
     }
     const text = texts.join("\n");
-    if (text.trim() === "" && attachments.length === 0 && receiptIds.length === 0) {
+    if (content.length > 0 && text.trim() === "" && attachments.length === 0 && receiptIds.length === 0) {
       throw new SessionRpcFault("gateway/bad-request", `${endpoint}: prompt must contain text or an image`, { endpoint });
     }
     const result = await call("prompt", {
       sessionId,
       text,
       requestId,
+      ...(content.length === 0 ? { continuation: true } : {}),
       ...(attachments.length === 0 ? {} : { attachments }),
       ...(receiptIds.length === 0 ? {} : { receiptIds }),
     }) as { readonly submissionId?: unknown };

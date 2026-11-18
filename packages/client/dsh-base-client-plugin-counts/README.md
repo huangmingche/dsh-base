@@ -4,7 +4,7 @@
 
 ## 官方复用
 
-已检查固定版本 `dsh-v0.2.2-rc.1`（`66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`）中的 `@deepseek-ai/dsh-client-ui-plugin-manager`。官方详情页已有组件总数和状态统计，但分类标题没有数量，也没有对应的标题插槽；官方的详情统计实现不适用于分类。
+已检查固定版本 `dsh-v0.2.2-rc.5`（`9c2670d3bce5275e0d1610272958121af87787bb`）中的 `@deepseek-ai/dsh-client-ui-plugin-manager`。官方详情页已有组件总数和状态统计，但分类标题没有数量，也没有对应的标题插槽；官方的详情统计实现不适用于分类。
 
 现有完整标记 fork `@dsh-base/client-plugin-manager` 只增加可选的 `dsh-base.plugins.group.summary` 行内插槽，将同一次渲染的分类数据和官方 `sectionCount` 样式类传入。本插件通过已导出的 `./group-summary` 类型契约贡献计数，不复制页面或官方筛选规则。新增计数是用户明确要求的界面差异，已记录在包元数据中。官方详情页的组件统计保持原样。
 

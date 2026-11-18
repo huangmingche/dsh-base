@@ -1,7 +1,5 @@
 # 官方客户端的 Workers Host 兼容接缝
 
-组合范围：默认应用只在登录后加载工作台。以下未登录分支属于组件或 Host 的独立契约，仅在隔离测试中使用。
-
 本插件向官方 DSH 客户端提供 Workers Host 服务。UI 布局和交互由官方插件负责，服务适配不复制官方源码。
 
 访问服务直接挂载原样官方 `dsh-api-remote-access/client` 与 Typert registry。接缝内部隔离的原样官方 Gateway 是真实 Connection 的唯一 generation owner，负责 `$events`、断连恢复和生成式 `$mount`；现有 Host namespace 由 Cordis facade 保留。官方生成器从固定子模块生成声明及 `/remote` 运行模块到忽略的 `.artifacts/typecheck`，不修改或复制上游源码。生成目录的第三方依赖按 Vite browser/import 条件解析到应用安装，不改写或 externalize 生成模块。Host 按认证用户解析真实 owner DO 后才发送访问 baseline，客户端在 baseline 到达前没有权限；共享非 owner Peer/grants 尚未实现，不伪造。旧 wire-bootstrap 保留为禁用库存。访问快照与智能体工具权限相互独立。
@@ -24,7 +22,7 @@ node --experimental-strip-types packages/client/dsh-base-client-session-adapter/
 
 固定版本升级时必须重新审查 `dshBase.reuse.sourceEntries`。完整复用说明见 [REUSE.md](REUSE.md)。
 
-凭据读取/写入直接返回 Host 结果，缺少传输或网络失败不会伪装成空配置或成功写入。旧的未注册 `sessions` 假实现已删除，实际会话生命周期归官方 api-session-controller。插件运行时库存来自实时 composition inspection，保留禁用原件、来源和观察到的 fiber 状态。官方设置中的内置插件页面展示完整客户端、Worker 与 Think 库存；插件页按功能展示自有组件，同时列出固定上游目录中的可选插件包。
+模型编辑器将 Host 中账号保存的密钥视为官方 `file` 来源，显示固定掩码，并按 Host 的写权限允许删除，缺少传输或网络失败不会伪装成空配置或成功写入。旧的未注册 `sessions` 假实现已删除，实际会话生命周期归官方 api-session-controller。插件运行时库存来自实时 composition inspection，保留禁用原件、来源和观察到的 fiber 状态。官方设置中的内置插件页面展示完整客户端、Worker 与 Think 库存；插件页按功能展示自有组件，同时列出固定上游目录中的可选插件包。
 
 日志反馈服务尚未实现，所有官方反馈入口保持可见禁用，Remote 和 `/feedback` 明确拒绝。settings sidecar helper 的双层 Result、版本冲突与 CAS 回归保留为未挂载协议测试，不代表日志反馈能力。
 
@@ -95,3 +93,5 @@ Cloudflare AI Gateway 通过官方 `BundleInfo.rows` 合并为一个管理入口
 自有插件的显示名称统一使用品牌前缀：通用自有实现及官方 fork 使用 `Dsh-base`，Cloudflare 集成（Gateway、R2、KV 及 Cloudflare 基础设施组件）使用 `Cloudflare`。该前缀表示功能归属，不表示由 Cloudflare 官方发布。中英文列表、详情与设置库存共用同一份元数据；官方原版名称、包名、组合 ID、来源字段和已保存的控制状态不变。
 
 侧栏可用状态由 `navigationAccess` 提供：区分正在检查、未登录、已登录和检查失败，不修改官方 RemoteAccess。目录浏览、选择和创建在未确认登录时先在客户端拒绝，不发送私有请求；服务端仍核验所有者权限。
+
+Dsh-base 品牌的插件包与组件统一使用与网站同源的官方鲸鱼图标，通过现有元数据和插件页图标合同显示。品牌由 `meta()` 的显式参数决定，不按 Worker 包名前缀或翻译后的标题猜测；Cloudflare 图标保持不变。清单生成与 `--check` 同时生成或校验鲸鱼资源。

@@ -70,8 +70,7 @@ test('production inventory reports every recorded fork as a fork, preserving cus
     assert.equal(row.origin, manifest.dshBase.forkOf === undefined ? 'custom' : 'fork', row.name);
   }
   assert.equal(rows.filter(row => row.origin === 'fork').length, 16);
-  assert.equal(rows.filter(row => row.origin === 'custom').length, 70);
-  assert.ok(!rows.some(row => row.name === '@dsh-base/client-brand'));
+  assert.equal(rows.filter(row => row.origin === 'custom').length, 71);
 });
 
 test('inventory refuses provenance drift in either the package or effective roster for all planes', () => {
@@ -100,7 +99,7 @@ test('site-wide settings and AI capabilities have distinct groups without changi
   const global = bundles.find(bundle => bundle.name === 'dsh-base:global');
   assert.equal(global.management, 'required', 'site editing permission does not grant permission to disable the group');
   assert.deepEqual(global.members.slice().sort(), [
-    '@dsh-base/client-global-settings', '@dsh-base/client-site-config',
+    '@dsh-base/client-brand', '@dsh-base/client-global-settings', '@dsh-base/client-site-config',
     '@dsh-base/client-google-analytics',
     '@dsh-base/cloudflare-worker-seo', '@dsh-base/cloudflare-worker-public-pages', '@dsh-base/cloudflare-worker-site-config', '@dsh-base/cloudflare-worker-google-analytics',
     '@dsh-base/cloudflare-worker-sitemap', '@dsh-base/cloudflare-worker-robots', '@dsh-base/cloudflare-worker-manifest', '@dsh-base/cloudflare-worker-llms',
@@ -113,7 +112,7 @@ test('site-wide settings and AI capabilities have distinct groups without changi
   for (const name of ['@dsh-base/client-public-navigation', '@dsh-base/client-sidebar', '@dsh-base/client-workspace', '@dsh-base/client-entry-customization', '@dsh-base/client-locale-label', '@dsh-base/client-locale-url', '@dsh-base/client-route-address', '@dsh-base/cloudflare-worker-assets', '@dsh-base/cloudflare-worker-permissions', '@dsh-base/client-open-in-app-availability', '@dsh-base/cloudflare-worker-open-in-app-availability']) {
     assert.ok(base.members.includes(name), `${name}: infrastructure remains in core features`);
   }
-  assert.equal(rows.find(row => row.entryId === 'client:site-config')?.declaredEnabled, true, 'the public site settings service is active');
+  assert.equal(rows.find(row => row.entryId === 'client:site-config')?.declaredEnabled, true, 'the public site snapshot has an active brand consumer');
   const retiredMenu = rows.find(row => row.entryId === 'client:shell-extras');
   assert.equal(retiredMenu?.packId, 'base');
   assert.equal(retiredMenu?.declaredEnabled, false, 'global settings do not restore removed sidebar links');
@@ -121,11 +120,11 @@ test('site-wide settings and AI capabilities have distinct groups without changi
   assert.equal(subagent?.declaredEnabled, true);
   assert.equal(subagent?.sourceAvailability, 'unavailable', 'regrouping does not claim a working subagent');
   assert.deepEqual(Object.fromEntries(bundles.map(bundle => [bundle.name, bundle.members.length])), {
-    'dsh-base:ai-chat-core': 18, 'dsh-base:base': 21, 'dsh-base:global': 11, 'dsh-base:plugin-management': 4,
+    'dsh-base:ai-chat-core': 18, 'dsh-base:base': 21, 'dsh-base:global': 12, 'dsh-base:plugin-management': 4,
     '@dsh-base/client-gateway-provider': 2, '@dsh-base/cloudflare-think-fetch': 1, '@dsh-base/cloudflare-think-memory': 1,
     ...Object.fromEntries(['waffo','email','google-auth','account-profile','user-admin','api-keys','entitlements','files','newsletter','contact','notifications','crisp','cache','dashboard'].map(id => [`dsh-base:${id}`, 2])),
   });
-  assert.deepEqual(Object.fromEntries(['client', 'worker', 'think'].map(plane => [plane, rows.filter(row => row.plane === plane).length])), { client: 47, worker: 32, think: 7 });
+  assert.deepEqual(Object.fromEntries(['client', 'worker', 'think'].map(plane => [plane, rows.filter(row => row.plane === plane).length])), { client: 48, worker: 32, think: 7 });
   for (const id of ['waffo','email','google-auth','account-profile','user-admin','api-keys','entitlements','files','newsletter','contact','notifications','crisp','cache','dashboard']) {
     const bundle = bundles.find(item => item.name === `dsh-base:${id}`);
     assert.equal(bundle.management, 'required', `${id}: client visibility never enables deployment management`);

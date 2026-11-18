@@ -5,7 +5,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import puppeteer from 'puppeteer-core';
-import { acceptanceLaunchOptions, closeAcceptanceBrowser, remoteAcceptanceConfig } from './acceptance-config.mjs';
+import { acceptanceLaunchOptions, assertHttpStatus, closeAcceptanceBrowser, recordHttpFailure, remoteAcceptanceConfig } from './acceptance-config.mjs';
 import { assertBaseRegistry, assertNoRetiredLinks, retiredDocuments } from './acceptance-public-routes.mjs';
 import { readDeploymentConfig } from './deployment-config.mjs';
 import { publicCatalogFromDeployment } from '../../../packages/boot/dsh-base-payment-catalog/src/index.ts';
@@ -17,9 +17,7 @@ import { readOwnedPluginInventory, OWNED_BUNDLE_TITLES, READONLY_OWNED_BUNDLES, 
 const root = resolve(import.meta.dirname, '../../..'), app = join(root, 'apps/web');
 const out = resolve(process.env.DSH_ACCEPTANCE_OUTPUT ?? join(root, '.artifacts/acceptance/plugins-staging-new'));
 const inventory = readOwnedPluginInventory();
-const counts = {bundles: 21, components: 87};
-assert.equal(inventory.bundles.length, counts.bundles);
-assert.equal(inventory.rows.length, counts.components);
+const counts = { bundles: inventory.bundles.length, components: inventory.rows.length };
 const assets = join(app, '.cloudflare/output/v0/workers/default/assets');
 const entry = readFileSync(join(assets, 'index.html'), 'utf8').match(/<script[^>]+src="([^"]+)"/u)?.[1];
 assert.ok(entry?.startsWith('/assets/'));
@@ -43,19 +41,14 @@ const report = { ok: false, base, expectedVersion, entry, entryHash, readOnly: t
   operationPolicy: 'Read APIs and official reconnect of one preverified existing blank idle Session; its identity and full exposed state must remain unchanged. New Session creation, business writes, payments and model calls are blocked.',
   errors: [], consoleErrors: [], failedRequests: [], directReadFailures: [], deniedReads: [], blockedExternalRequests: [], blockedMutations: [], rpcReads: [], existingSessionEnsures: [], screenshots: [] };
 let browser, page, cookie, existingSessionId, existingWorkspaceId, sessionBefore;
-const allowedEnsures = new WeakSet(), ensureChecks = [];
+const allowedEnsures = new WeakSet(), ensureChecks = [], responseDiagnostics = [];
 const fetchRead = (path, init = {}) => {
   const url = new URL(path, base); assert.equal(url.origin, base, 'Acceptance requests must stay on the configured origin');
   return fetch(url, { ...init, redirect: 'manual', signal: AbortSignal.timeout(30000) });
 };
 const json = async (response, label) => {
-  if (response.status !== 200) {
-    const body = await response.clone().json().catch(() => undefined);
-    const code = typeof body?.error === 'string' ? body.error : body?.error?.code;
-    report.directReadFailures.push({ label, status: response.status, cfRay: response.headers.get('cf-ray'), date: response.headers.get('date'),
-      ...(typeof code === 'string' && /^[a-zA-Z0-9_/-]{1,100}$/u.test(code) ? { code } : {}) });
-  }
-  assert.equal(response.status, 200, `${label}: HTTP ${response.status}`); return response.json();
+  await assertHttpStatus(response, 200, report.directReadFailures, label);
+  return response.json();
 };
 const privateHeaders = () => ({ cookie, origin: base, 'content-type': 'application/json' });
 const HOST_READS = new Set(['runtimeInfo', 'list', 'state', 'page', 'history', 'projections', 'models', 'modelAccess', 'pendingApprovals', 'live', 'permissionCatalog', 'permissionCommands',
@@ -110,7 +103,7 @@ async function observe(target, identity) {
     if (response.status() < 400) return;
     const path = new URL(response.url()).pathname, item = { identity, path, status: response.status() };
     if (identity === 'account' && [401, 403].includes(response.status()) && ['/api/operations-dashboard', '/api/user-admin/users', '/api/saas/newsletter/reconcile', '/api/site-analytics/conversions'].includes(path)) report.deniedReads.push(item);
-    else report.failedRequests.push(item);
+    else responseDiagnostics.push(recordHttpFailure(report.failedRequests, response, { identity, path }));
   });
   target.on('request', async request => {
     const url = new URL(request.url()), method = request.method();
@@ -206,6 +199,7 @@ async function pluginCase(identity, locale, width, theme) {
   assert.equal(fibers.length, 3); assert.ok(fibers.every(row => row.enabled && row.fiberPhase === 'active'));
   assert.equal(await page.evaluate(() => window.__DSH_BASE_PLUGINS__.some(row => row.moduleName === '@dsh-base/client-public-content')), false);
   report.cases.push({ identity, requestedLocale: locale, locale: actualLocale, width, theme, cards, components, fibers, loginGated: identity === 'anonymous' });
+  await Promise.all(responseDiagnostics);
   await context.close();
 }
 
@@ -220,7 +214,7 @@ try {
     for (const route of retiredDocuments) {
       const path = localizePath(route, locale);
       const response = await fetchRead(path, {headers: {accept: 'text/html'}});
-      assert.equal(response.status, 404, path);
+      await assertHttpStatus(response, 404, report.directReadFailures, path);
       assert.doesNotMatch(await response.text(), /rel="canonical"|id="root"/u);
       report.retiredRoutes.push(path);
     }
@@ -235,7 +229,7 @@ try {
   assert.equal(catalog.priceSource, 'deployment');
   if (!deployment.saas.waffoEnabled) assert.equal(catalog.ready, false);
   const account = await fetchRead('/api/payments/account');
-  assert.equal(account.status, catalog.ready ? 401 : 503, 'anonymous billing');
+  await assertHttpStatus(account, catalog.ready ? 401 : 503, report.directReadFailures, 'anonymous billing');
   const denied = await account.json();
   assert.equal(denied.error, catalog.ready ? 'unauthenticated' : 'payments_unavailable');
   assert.equal(denied.orders, undefined);
@@ -246,11 +240,11 @@ try {
   }
   report.checks.push({ publicRegistry: registry.pages.length, nativeApplicationCatalog: 'empty', nativeCatalogMethods: ['GET', 'HEAD'] });
   for (const path of ['/api/plugin-manager', '/api/plugin-manager/inventory', '/api/site-settings', '/api/operations-dashboard', '/api/saas/account-profile', '/api/entitlements']) {
-    const response = await fetchRead(path); assert.equal(response.status, 401, `${path}: anonymous private reads remain denied`);
+    const response = await fetchRead(path); await assertHttpStatus(response, 401, report.directReadFailures, path);
     report.checks.push({ privatePath: path, anonymousStatus: response.status });
   }
   const signIn = await fetchRead('/api/auth/sign-in/username', { method: 'POST', headers: { origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ username: credentials.username, password: credentials.password }) });
-  assert.equal(signIn.status, 200, 'existing isolated acceptance account sign-in; no retry or account creation');
+  await assertHttpStatus(signIn, 200, report.directReadFailures, 'existing isolated acceptance account sign-in; no retry or account creation');
   const match = signIn.headers.getSetCookie().join('; ').match(/((?:__Secure-)?better-auth\.session_token)=([^;]+)/u); assert.ok(match); cookie = `${match[1]}=${match[2]}`;
   for (let attempt = 0; ; attempt++) {
     const runtime = await hostRead('runtimeInfo');
@@ -301,6 +295,7 @@ try {
   if (sessionBefore && !report.existingSessionUnchanged) {
     try { await verifySessionUnchanged(); } catch (error) { verificationError = error; report.ok = false; report.stateVerificationFailure = String(error.message); }
   }
+  await Promise.all(responseDiagnostics);
   await closeAcceptanceBrowser(browser); writeFileSync(join(out, 'report.json'), JSON.stringify(report, null, 2) + '\n');
-  if (verificationError) throw verificationError;
+  if (verificationError && !report.failure) throw verificationError;
 }

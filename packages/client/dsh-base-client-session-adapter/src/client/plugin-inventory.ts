@@ -192,7 +192,6 @@ export function createPluginInventoryRemotes(options: PluginInventoryOptions) {
         installed: true,
         optional,
         removable: false,
-        updatable: false,
         listedByDefault: true,
         ...optional ? {} : { readOnlyReason: "unaddressable" as const, managementPolicy: bundle.management },
         overrides: [],
@@ -206,7 +205,7 @@ export function createPluginInventoryRemotes(options: PluginInventoryOptions) {
       result.push({
         name: bundle.name, official: true, meta: bundle.meta,
         availability: "missing", enabled: false, installed: false,
-        optional: true, removable: false, updatable: false,
+        optional: true, removable: false,
         // Explicit product requirement: unavailable candidates remain visible.
         // Original visibility is retained in generated provenance; the unchanged
         // official page still owns HIDDEN_BUNDLES and main/More ordering.

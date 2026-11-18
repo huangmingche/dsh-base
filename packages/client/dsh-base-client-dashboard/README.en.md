@@ -4,4 +4,4 @@ Independent client plugin `client:dashboard`, grouped under `dsh-base:dashboard`
 
 Only site administrators read real aggregate counts. Missing modules are unavailable rather than replaced with zeros. Email accepted counts only provider acceptance.
 
-The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. The default workbench requires sign-in. The panel and server authorize account and administrator actions. Unloading removes the registration and never exposes private row configuration.
+The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. Guests can inspect status; account and administrator actions retain panel and server authorization. Unloading removes the registration and never exposes private row configuration.

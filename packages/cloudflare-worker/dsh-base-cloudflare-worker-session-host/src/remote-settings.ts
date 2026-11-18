@@ -101,7 +101,8 @@ export function settingsViewsFromSnapshot(snapshot: { readonly revision?: unknow
       const base = DEFAULT_VALUES[ns] ?? {};
       const stored = values[ns] ?? {};
       const visibleBase = base;
-      const visibleStored = stored;
+      const visibleStored = { ...stored };
+      if (ns === 'llm-deepseek') delete visibleStored.retryPolicy;
       return {
         ns,
         autoGenerate: false,

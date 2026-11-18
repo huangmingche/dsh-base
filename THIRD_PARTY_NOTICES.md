@@ -2,7 +2,7 @@
 
 DeepSeek Harness Base (code name `dsh-base`) is an independent derivative of [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness). It is not an official DeepSeek hosted service or an endorsement by DeepSeek. DeepSeek Harness Base（代码名 `dsh-base`）是 DeepSeek Harness 的独立衍生项目，并非 DeepSeek 官方托管服务或背书。
 
-The official source is pinned to `dsh-v0.2.2-rc.1`, commit `66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`, under `.submodules/deepseek-harness`. It remains unmodified. 官方代码仅来自锁定子模块，保持原样。
+The official source is pinned to `dsh-v0.2.2-rc.5`, commit `9c2670d3bce5275e0d1610272958121af87787bb`, under `.submodules/deepseek-harness`. It remains unmodified. 官方代码仅来自锁定子模块，保持原样。
 
 - DeepSeek Harness: Copyright (c) 2026 DeepSeek, MIT. The full license is retained at [.submodules/deepseek-harness/LICENSE](.submodules/deepseek-harness/LICENSE).
 - Upstream third-party notices, including Cordis and other vendored projects, are retained at [.submodules/deepseek-harness/THIRD_PARTY_NOTICES.md](.submodules/deepseek-harness/THIRD_PARTY_NOTICES.md); vendored license files remain with their source.

@@ -34,11 +34,17 @@ try{
     try{await page.waitForSelector('input[type="file"]');}catch(error){console.error(errors);throw error;}
     assert.equal(await page.$eval('input[type="file"]',element=>element.disabled),false,"shared file picker remains available");
     const before=requests.length;
-    for(const method of ["picker","drop"]){
+    for(const method of ["picker","drop","paste"]){
       const handled=await page.evaluate(method=>{
         const transfer=new DataTransfer();transfer.items.add(new File(["image"],"blocked.png",{type:"image/png"}));
         if(method==="picker") { const input=document.querySelector('input[type="file"]');input.files=transfer.files;input.dispatchEvent(new Event("change",{bubbles:true})); }
-        else { const event=new DragEvent("drop",{bubbles:true,cancelable:true,dataTransfer:transfer});document.dispatchEvent(event);return event.defaultPrevented; }
+        else {
+          const event = method === "paste"
+            ? new ClipboardEvent("paste", { bubbles: true, cancelable: true, clipboardData: transfer })
+            : new DragEvent("drop", { bubbles: true, cancelable: true, dataTransfer: transfer });
+          document.body.dispatchEvent(event);
+          return event.defaultPrevented;
+        }
         return true;
       },method);
       assert.equal(handled,true,`${locale}/${method}: real official intake handler must consume the event`);
@@ -50,6 +56,24 @@ try{
     await page.evaluate(()=>{const transfer=new DataTransfer();transfer.items.add(new File(["ordinary file"],"picked.txt",{type:"text/plain"}));const input=document.querySelector('input[type="file"]');input.files=transfer.files;input.dispatchEvent(new Event("change",{bubbles:true}));});
     await page.waitForFunction(()=>window.__UPLOAD_PARITY__.outcomes.length===1);
     assert.equal(await page.evaluate(()=>window.__UPLOAD_PARITY__.outcomes[0].value.receiptId),"receipt-picked.txt");
+    const pasted = await page.evaluate(() => {
+      const clipboard = new DataTransfer();
+      clipboard.items.add(new File(["document paste"], "pasted.txt", { type: "text/plain" }));
+      const fire = target => {
+        const event = new ClipboardEvent("paste", { bubbles: true, cancelable: true, clipboardData: clipboard });
+        target.dispatchEvent(event);
+        return event.defaultPrevented;
+      };
+      const otherInput = document.body.appendChild(document.createElement("input"));
+      const consumedFromInput = fire(otherInput);
+      otherInput.remove();
+      return { consumedFromInput, consumedFromPage: fire(document.body) };
+    });
+    assert.deepEqual(pasted, { consumedFromInput: false, consumedFromPage: true });
+    await page.waitForFunction(() => window.__UPLOAD_PARITY__.outcomes.length === 2);
+    assert.equal(await page.evaluate(() => window.__UPLOAD_PARITY__.outcomes[1].value.receiptId), "receipt-pasted.txt");
+    assert.deepEqual(await page.evaluate(() => window.__UPLOAD_PARITY__.calls), ["picked.txt", "pasted.txt"]);
+    cases.push({locale,kind:"page-paste",preservesOtherInputs:true,singleReceipt:true});
     const raw=await page.evaluate(()=>window.__UPLOAD_PARITY__.raw());assert.equal(raw.value.receiptId,"receipt-raw.txt");
     const encoded=await page.evaluate(()=>window.__UPLOAD_PARITY__.bytes());assert.equal(encoded.value.receiptId,"receipt-encoded.txt");
     const refusal=await page.evaluate(()=>window.__UPLOAD_PARITY__.raw("refuse.txt"));assert.equal(refusal.ok,false);assert.equal(refusal.error.details.reason,"FILE_NOT_STAGED");
@@ -60,6 +84,6 @@ try{
     await page.screenshot({path:resolve(output,`upload-${locale}-intake.png`),captureBeyondViewport:false});assert.deepEqual(errors,[]);await page.close();
     cases.push({locale,kind:"file-runtime",nativeWorker:true,rootRelativeDeepLink:true,receipt:true,encodedRpc:true,refusalPreserved:true,abort:true});
   }
-  await writeFile(resolve(output,"upload-contract-report.json"),JSON.stringify({ok:true,scope:"Unchanged official InputBar and ComposerAttachments reject image picker/drop locally under the truthful zero-image Host contract; shared file intake invokes real official FileUploadRuntime Worker and Connection RPC with controlled HTTP. Persistence and receipt consumption require separate real Host acceptance.",cases},null,2));
+  await writeFile(resolve(output,"upload-contract-report.json"),JSON.stringify({ok:true,scope:"Unchanged official InputBar and ComposerAttachments reject image picker, drop and document paste locally under the truthful zero-image Host contract; shared file intake invokes real official FileUploadRuntime Worker and Connection RPC with controlled HTTP. Persistence and receipt consumption require separate real Host acceptance.",cases},null,2));
   console.log(`official upload/intake contracts: ${cases.length} Chromium cases passed`);
 }finally{await closeAcceptanceBrowser(browser);await server?.close();}

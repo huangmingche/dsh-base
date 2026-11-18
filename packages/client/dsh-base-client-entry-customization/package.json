@@ -52,7 +52,7 @@
     "forkOf": {
       "package": "@deepseek-ai/dsh-client-ui-entry-customization",
       "path": "packages/client/ui-entry-customization",
-      "commit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "commit": "9c2670d3bce5275e0d1610272958121af87787bb",
       "license": "MIT"
     },
     "reuse": {
@@ -64,10 +64,16 @@
       "gaps": [
         "Anonymous More actions stay clickable: Browse opens the public plugin catalog, Create asks for sign-in before creating a private draft. Missing navigation, checking and error states keep localized unavailable semantics.",
         "All official menu rows, icons, labels and geometry remain unchanged; no About, Support or Environment entries are added.",
-        "Anonymous Creator defers the login request one animation frame so the unchanged official Menu can restore focus to its persistent trigger before the dialog captures it.",
-        "This revision limits the workbench to authenticated accounts. The anonymous homepage uses the isolated sign-in and consent document providers."
+        "Anonymous Creator defers the login request one animation frame so the unchanged official Menu can restore focus to its persistent trigger before the dialog captures it."
       ],
-      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db"
+      "sourceReviewCommit": "9c2670d3bce5275e0d1610272958121af87787bb",
+      "userApprovedDeviations": [
+        {
+          "surface": "anonymous entry-customization navigation",
+          "change": "Anonymous More actions stay clickable: Browse opens the public plugin catalog, Create asks for sign-in before creating a private draft. Missing navigation, checking and error states keep localized unavailable semantics.",
+          "approval": "The user explicitly requested clickable anonymous navigation, public plugin/task browsing, and login prompts only at account-required actions on 2026-11-17."
+        }
+      ]
     }
   }
 }

@@ -6,4 +6,4 @@
 
 恢复读取失败显示不可用；版本冲突不报告成功。普通用户的403不会泄露管理员列表，401清除私有状态。定向检查：`node --test packages/client/dsh-base-client-newsletter/tests/recovery.test.mjs`。
 
-本插件通过 `publicPluginConfigurations` 兼容服务按生命周期登记自己的公开 bundle 配置入口；默认工作台要求登录；面板和服务端根据账号权限提供对应操作。卸载插件会注销入口，不开放组件级私有配置。
+本插件通过 `publicPluginConfigurations` 兼容服务按生命周期登记自己的公开 bundle 配置入口；匿名用户可查看状态，账号和管理员动作仍由面板与服务端鉴权。卸载插件会注销入口，不开放组件级私有配置。

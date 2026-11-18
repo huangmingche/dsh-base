@@ -12,6 +12,7 @@
     "client": {
       "inject": [
         "@deepseek-ai/dsh-client-ui-open-in-app",
+        "@deepseek-ai/dsh-client-ui-context-menu",
         "@deepseek-ai/dsh-client-ui-renderer",
         "@deepseek-ai/dsh-client-locale"
       ],
@@ -25,6 +26,7 @@
     "@deepseek-ai/dsh-client-ui-slots": "*",
     "@deepseek-ai/dsh-client-ui-renderer": "*",
     "@deepseek-ai/dsh-client-locale": "*",
+    "@deepseek-ai/dsh-client-ui-context-menu": "*",
     "react": "*",
     "zod": "*"
   },
@@ -36,9 +38,13 @@
     },
     "reuse": {
       "mode": "seam",
-      "for": ["@deepseek-ai/dsh-client-ui-open-in-app"],
-      "official": ["@deepseek-ai/dsh-client-ui-open-in-app"],
-      "reason": "The unchanged official plugin owns native-open controllers and slots. This compatibility seam reuses its exported OpenInAppAction and OpenTargetButton with the original injected controller. An absent workspace directory or eligible Host application keeps the original header utility visible and disabled instead of returning null. Stable entries export types but not these components. No native applications, paths, successful launches or desktop services are fabricated.",
+      "for": [
+        "@deepseek-ai/dsh-client-ui-open-in-app"
+      ],
+      "official": [
+        "@deepseek-ai/dsh-client-ui-open-in-app"
+      ],
+      "reason": "RC4 contributes native opening through the Session context menus and the Files directory toolbar. The official action exposes the shared application catalog and returns null when it has no eligible target. The seam observes that catalog and provides a disabled menu action and the original compact OpenTargetButton with a localized reason. The stable client entry only exports types for the directory control. The original plugin owns all eligible launches.",
       "sourceEntries": [
         "@deepseek-ai/dsh-client-ui-open-in-app/src/client/OpenInAppAction.tsx",
         "@deepseek-ai/dsh-client-ui-open-in-app/src/client/OpenTargetButton.tsx",
@@ -46,9 +52,9 @@
         "@deepseek-ai/dsh-client-ui-open-in-app/src/client/controller.ts",
         "@deepseek-ai/dsh-client-ui-open-in-app/src/client/locales.ts"
       ],
-      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "sourceReviewCommit": "9c2670d3bce5275e0d1610272958121af87787bb",
       "gaps": [
-        "Workers has no local desktop application launcher. The pinned rc1 separate header utility is kept visible and disabled with a localized reason using official components; it is not moved into a newer-release combined menu. The disabled wrapper uses the official primitive Button opacity of 0.4."
+        "The official menus and Files toolbar omit native opening without an eligible application. Workers adds a disabled entry at the original position. The Files action is scoped to its workspace directory and appears only after the application catalog has settled."
       ]
     }
   }

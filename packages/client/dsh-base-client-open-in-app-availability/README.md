@@ -1,11 +1,9 @@
-# 本地应用打开状态
+# 在本地应用中打开
 
-保留官方 `@deepseek-ai/dsh-client-ui-open-in-app` 插件及其控制器，复用固定版本导出的 `OpenInAppAction` 和 `OpenTargetButton`。通过公开 SlotRegistry 在原会话标题栏插槽中补齐缺少本地应用时的禁用状态，不复制官方源码。
+官方 `@deepseek-ai/dsh-client-ui-open-in-app` 在会话行和会话标题的上下文菜单中注册「在应用中打开」。有工作区目录和可用本地应用时，官方二级菜单列出可选应用，由官方控制器执行打开操作。
 
-当前 Workers 部署没有本地桌面应用启动服务。没有真实工作区目录或可识别的应用时，入口保持可见，使用禁用 fieldset 阻止鼠标及键盘操作，并提供八种语言的说明。灰度采用官方 Button 的禁用透明度；不会伪造应用、目录、加载状态或打开成功。真实目录和应用同时可用时，直接交回原官方组件及控制器。
+Workers 没有本地桌面启动服务。兼容适配层从官方文件操作插槽读取同一份应用目录，在官方动作缺席时补上一项禁用菜单项，附八种语言的原因。此项沿用官方菜单的图标、排序和禁用样式。应用目录经独立的 `@dsh-base/cloudflare-worker-open-in-app-availability` 按官方 HTTP 契约返回；适配层订阅既有状态，无需额外请求。
 
-独立 Worker 插件 `@dsh-base/cloudflare-worker-open-in-app-availability` 按官方 HTTP 契约明确返回空应用目录，避免将缺失接口的 404 或 SPA 页面误当作能力探测结果。原控制器只请求一次；不修改全局 fetch，不读取匿名用户的私有数据。
+「文件」工具栏按官方规则使用当前工作区目录。没有工作区时显示官方空态。应用列表加载完成且没有可用目标时，原版 `OpenTargetButton` 以禁用状态显示，悬停可查看原因。有可用应用时，由官方按钮打开所选目录。
 
-固定版本 `dsh-v0.2.2-rc.1` 的本地打开入口是独立的标题栏工具。这里不拼接其他版本的“更多”菜单。源码导出及差距记录在 `dshBase.reuse`，随上游版本升级复审。
-
-执行 `node packages/client/dsh-base-client-open-in-app-availability/tests/availability.test.mjs` 验证可用性、实际 SlotCore 生命周期及官方组件渲染。浏览器验收另比较官方菜单与禁用入口，检查鼠标、键盘、主题及本地化行为。
+`tests/availability.test.mjs` 检查两个上下文菜单目标、官方插件的挂载与卸载、禁用时的零派发及本地化。浏览器回归 `apps/web/tests/parity/run-session-menu.mjs` 对照官方菜单，验证子菜单启动、键盘、明暗主题和窄屏。

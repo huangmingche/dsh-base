@@ -9,7 +9,9 @@
  * locale runtime sets to `zh-CN` for `zh` and to the bare id otherwise; the
  * resolver therefore normalizes by primary language subtag before matching.
  *
- * The sign-in button uses the official label. Other labels describe the local account flow.
+ * All eight tables are FINAL: approved by the CEO on 2026-11-13 with no changes
+ * (see docs/dsh-base-登录页8语言文案表.md). The only officially reused string is
+ * the sign-in button (`signIn`); everything else is product-authored copy.
  */
 const en = {
   createTitle: "Create your DeepSeek Harness Base account", signInTitle: "Sign in to DeepSeek Harness Base",
@@ -105,17 +107,17 @@ const ru: typeof en = {
  * machine-checkable: `package@<pin short sha> / file:line / key / value`.
  * Re-diff this block on every pin upgrade; the official package may change a word.
  * Source: .submodules/deepseek-harness/packages/client/ui-settings-account/src/client/locales.ts
- * Pin: 66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db
+ * Pin: 9c2670d3bce5275e0d1610272958121af87787bb
  */
 export const REUSED_SIGN_IN_SOURCES = {
-  en: "ui-settings-account@66491b05 / locales.ts:19 / signIn / Sign in",
-  zh: "ui-settings-account@66491b05 / locales.ts:55 / signIn / 登录",
-  ja: "ui-settings-account@66491b05 / locales.ts:104 / signIn / ログイン",
-  es: "ui-settings-account@66491b05 / locales.ts:150 / signIn / Iniciar sesión",
-  fr: "ui-settings-account@66491b05 / locales.ts:185 / signIn / Connectez-vous",
-  de: "ui-settings-account@66491b05 / locales.ts:220 / signIn / Melden Sie sich an",
-  pt: "ui-settings-account@66491b05 / locales.ts:290 / signIn / Faça login",
-  ru: "ui-settings-account@66491b05 / locales.ts:255 / signIn / Войти",
+  en: "ui-settings-account@9c2670d3 / locales.ts:19 / signIn / Sign in",
+  zh: "ui-settings-account@9c2670d3 / locales.ts:54 / signIn / 登录",
+  ja: "ui-settings-account@9c2670d3 / locales.ts:102 / signIn / ログイン",
+  es: "ui-settings-account@9c2670d3 / locales.ts:147 / signIn / Iniciar sesión",
+  fr: "ui-settings-account@9c2670d3 / locales.ts:181 / signIn / Connectez-vous",
+  de: "ui-settings-account@9c2670d3 / locales.ts:215 / signIn / Melden Sie sich an",
+  pt: "ui-settings-account@9c2670d3 / locales.ts:283 / signIn / Faça login",
+  ru: "ui-settings-account@9c2670d3 / locales.ts:249 / signIn / Войти",
 } as const;
 
 /** Every locale the deployment publishes, matching the official DSH dictionaries. */

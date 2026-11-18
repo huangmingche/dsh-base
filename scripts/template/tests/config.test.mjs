@@ -5,7 +5,7 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
 import { readDeploymentConfig, requireDeployableConfig } from "../../../apps/web/scripts/deployment-config.mjs";
-import { remoteAcceptanceConfig, waitForHostReadiness } from "../../../apps/web/scripts/acceptance-config.mjs";
+import { assertHttpStatus, recordHttpFailure, remoteAcceptanceConfig, waitForHostReadiness } from "../../../apps/web/scripts/acceptance-config.mjs";
 
 const config = (value = {}, env = {}) => readDeploymentConfig(env, undefined, value);
 test("template defaults close public signup and platform spending", () => {
@@ -55,6 +55,22 @@ test("remote acceptance never selects a deployment or public credentials implici
   assert.throws(() => remoteAcceptanceConfig({}), /explicitly/);
   assert.throws(() => remoteAcceptanceConfig({ DSH_BASE_URL: "https://app.example.test" }), /private/);
   assert.throws(() => remoteAcceptanceConfig({ DSH_BASE_URL: "https://app.example.test", DSH_ACCEPTANCE_USERNAME: "dshbaseacceptance", DSH_ACCEPTANCE_PASSWORD: "private-password" }), /Retired/);
+});
+test("deployed acceptance preserves HTTP failures and logs only correlation headers and error codes", async () => {
+  const failures = [];
+  const headers = { "cf-ray": "test-ray", "date": "Wed, 18 Nov 2026 00:00:00 GMT", "set-cookie": "private-cookie" };
+  const response = Response.json({ error: { code: "auth_unavailable", message: "private detail" } }, { status: 503, headers });
+  await assert.rejects(assertHttpStatus(response, 401, failures, "account"), { code: "ERR_ASSERTION" });
+  assert.deepEqual(failures, [{ label: "account", status: 503, cfRay: headers["cf-ray"], date: headers.date, code: "auth_unavailable" }]);
+
+  const chromium = { status: () => 503, headers: () => ({ ...headers, "content-type": "application/json" }), json: async () => { throw new Error("body unavailable"); } };
+  await recordHttpFailure(failures, chromium, { identity: "anonymous" });
+  assert.deepEqual(failures[1], { identity: "anonymous", status: 503, cfRay: headers["cf-ray"], date: headers.date });
+  const unexpectedSuccess = Response.json({ order: "private" });
+  await assert.rejects(assertHttpStatus(unexpectedSuccess, 401, failures, "orders"), { code: "ERR_ASSERTION" });
+  assert.equal(unexpectedSuccess.bodyUsed, false, "an unexpected successful private read must not be inspected");
+  await assertHttpStatus(new Response(null, { status: 401 }), 401, failures, "expected denial");
+  assert.equal(failures.length, 3);
 });
 test("readiness waits only for old Host schema/version, never submits models or masks errors", async () => {
   let time = 0; const calls = []; const notes = [];

@@ -28,8 +28,10 @@ test('offline bundle metadata matches all pinned official optional/on-demand res
     }
     assert.equal(row.meta.icon, `data:image/svg+xml;base64,${readFileSync(join(directoryPath, manifest.icon)).toString('base64')}`, 'artwork comes from the exported manifest icon declaration');
   }
-  assert.equal(entries.filter(row => !row.originalListedByDefault).length, 4, 'the upstream discovery policy stays auditable');
+  assert.deepEqual(entries.filter(row => !row.originalListedByDefault).map(row => row.name).sort(), [
+    '@deepseek-ai/dsh-experimental-liveshare', '@deepseek-ai/dsh-experimental-ralph-bundle', '@deepseek-ai/dsh-experimental-session-search',
+  ], 'the pinned discovery policy stays auditable');
   const visible = entries.filter(row => !HIDDEN_BUNDLES.has(row.name));
   assert.equal(visible.length, 16, 'unchanged official Hidden policy excludes terminal and worktree');
-  assert.equal(visible.filter(row => !MORE_BUNDLES.includes(row.name)).length, 6, 'explicitly visible unavailable catalog offers six main-list cards and sixteen More cards');
+  assert.equal(visible.filter(row => !MORE_BUNDLES.includes(row.name)).length, 5, 'explicitly visible unavailable catalog offers five main-list cards and sixteen More cards');
 });

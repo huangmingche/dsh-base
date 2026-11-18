@@ -9,6 +9,12 @@ import { join, resolve } from 'node:path';
 import puppeteer from 'puppeteer-core';
 import { acceptanceLaunchOptions, closeAcceptanceBrowser } from './acceptance-config.mjs';
 import { pluginSchemas, applyPluginSchema } from './plugin-schemas.mjs';
+import { registerOfficialSourceHooks } from '../../../scripts/build/official-source-hook.mjs';
+registerOfficialSourceHooks();
+const { en: sidebarCopy } = await import('@deepseek-ai/dsh-client-ui-sidebar/src/client/locales.ts');
+const newSessionLabel = sidebarCopy['session.new.label'];
+const newSessionSelector = `button[aria-label=${JSON.stringify(newSessionLabel)}][class*="newSession"]`;
+
 const app = resolve(import.meta.dirname, '..'), root = resolve(app, '../..');
 const artifacts = resolve(process.env.DSH_ACCEPTANCE_OUTPUT ?? join(root, '.artifacts/acceptance/auth-modal-local'));
 mkdirSync(artifacts, { recursive: true });
@@ -45,12 +51,17 @@ async function clickText(selector, text) {
 async function fill(selector, value) { await visible(selector); await page.$eval(selector, element => { element.focus(); element.select(); }); await page.keyboard.type(value); }
 async function submit() { await page.click(`${modal} button[type="submit"]`); }
 async function openGate() {
-  await page.goto(base, { waitUntil: 'domcontentloaded' });
-  await visible(modal);
+  await page.waitForFunction(mobile => Boolean(document.querySelector('[data-sidebar-drawer]')) === mobile, {}, page.viewport().width === 390);
+  if (await page.$('[data-sidebar-drawer][data-sidebar-collapsed]')) { await page.click('[data-sidebar-opener]'); }
+  await page.waitForFunction(selector => {
+    const button = document.querySelector(selector); if (!button) return false;
+    const box = button.getBoundingClientRect();
+    return !button.disabled && !button.closest('[inert]') && !document.querySelector('[data-sidebar-drawer][data-sidebar-collapsed]')
+      && button.getAttribute('aria-disabled') !== 'true' && box.width > 0 && box.x >= 0 && box.right <= innerWidth;
+  }, {}, newSessionSelector);
+  await page.click(newSessionSelector); await visible(modal);
 }
-async function closeGate() {
-  await page.goto('about:blank');
-}
+async function closeGate() { await page.keyboard.press('Escape'); await page.waitForSelector(modal, { hidden: true }); }
 async function checkFocusTrap() {
   await page.focus(`${modal} button`);
   for (let i = 0; i < 12; i++) {
@@ -70,7 +81,7 @@ async function anonymousPage() {
   page.on('response', response => { const path = new URL(response.url()).pathname; if (path.startsWith('/api/auth/')) report.authResponses.push({ path, method: response.request().method(), status: response.status() }); });
   await page.setViewport({ width: 1280, height: 900 });
   await page.goto(base, { waitUntil: 'domcontentloaded' });
-  await visible(modal);
+  await visible('[data-signed-out="true"]');
   return context;
 }
 
@@ -119,9 +130,10 @@ try {
     assert.equal(await page.$$eval(`${modal} button:disabled`, rows => rows.length >= 3), true, 'unimplemented social providers remain unavailable');
     await checkFocusTrap(); await page.screenshot({ path: join(artifacts, `${scheme}-${width}.png`), captureBeyondViewport: false });
     report.layouts.push({ scheme, width, geometry });
-    await page.keyboard.press('Escape');
-    await visible(modal);
-    assert.equal(await page.$('[contenteditable="true"]'), null, 'dismissing the login never exposes the workbench');
+    await page.click(`${modal} button[aria-label="Close"]`); await page.waitForSelector(modal, { hidden: true });
+    await openGate(); await page.mouse.click(1, 1); await page.waitForSelector(modal, { hidden: true });
+    await openGate(); await closeGate();
+    if (width === 1280) assert.equal(await page.evaluate(() => document.activeElement?.getAttribute('aria-label')), newSessionLabel, 'close restores trigger focus');
   }
   await page.setViewport({ width: 390, height: 360 }); await openGate();
   const shortScreen = await page.$eval(modal, element => {
@@ -132,14 +144,14 @@ try {
   assert.ok(shortScreen.y >= 24 && shortScreen.y + shortScreen.height <= shortScreen.viewportHeight - 24, 'short-screen modal retains official vertical insets');
   assert.ok(shortScreen.scrollHeight > shortScreen.clientHeight, 'short screen scrolls within the official modal content');
   assert.equal(shortScreen.closeVisible, true, 'close is visible before scrolling');
-  await page.click(`${modal} button[aria-label="Close"]`); await visible(modal);
+  await page.click(`${modal} button[aria-label="Close"]`); await page.waitForSelector(modal, { hidden: true });
   await openGate(); await fill(`${modal} input[name="username"]`, 'short-screen-layout'); await submit();
   await visible(`${modal} [data-auth-step="password"]`);
   await clickText(`${modal} button`, 'Back');
   await clickText(`${modal} button`, 'Create an account'); await visible(`${modal} [data-auth-step="register"]`);
   await page.$eval(`${modal} .dsh-auth-scroll`, element => { element.scrollTop = 0; });
   await page.screenshot({ path: join(artifacts, 'short-screen-register.png'), captureBeyondViewport: false });
-  await page.click(`${modal} button[aria-label="Close"]`); await visible(modal);
+  await page.click(`${modal} button[aria-label="Close"]`); await page.waitForSelector(modal, { hidden: true });
   report.shortScreen = { ...shortScreen, submitAndCreateReachable: true, closed: true };
   report.checks.push('short-screen modal scroll, visible close and reachable submit/create actions');
   await page.setViewport({ width: 1280, height: 900 });
@@ -168,7 +180,7 @@ try {
   assert.equal(session.user.id, userId, 'UI login uses the seeded actual Better Auth identity');
   assert.equal(await page.$(modal), null);
   await context.close();
-  report.checks.push('responsive modal and keyboard focus containment', 'unavailable providers and closed registration', 'invalid password 401 with visible error', 'successful username login returns to app with real cookie');
+  report.checks.push('responsive modal, keyboard focus containment and restoration', 'unavailable providers and closed registration', 'invalid password 401 with visible error', 'successful username login returns to app with real cookie');
 
   const emailContext = await anonymousPage();
   await page.goto(`${base}/login?next=${encodeURIComponent('https://example.com/unsafe-return')}`, { waitUntil: 'domcontentloaded' });

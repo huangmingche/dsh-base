@@ -69,8 +69,9 @@ export class UploadStore {
     const { receiptId } = this.admittedReference(sessionId, file);
     const row = this.resolve(sessionId, receiptId);
     if (row.bytes > MAX_UPLOAD_BYTES) throw uploadError('File exceeds the deployment limit', 'FILE_TOO_LARGE');
-    const object = await this.bucket?.get(row.object_key);
-    if (!object) throw uploadError('Attachment object is unavailable', 'ATTACHMENT_READ_FAILED');
+    if (!this.bucket) throw uploadError('Attachment storage is unavailable', 'STORAGE_UNAVAILABLE');
+    const object = await this.bucket.get(row.object_key);
+    if (!object) throw uploadError('The admitted attachment object no longer exists', 'ATTACHMENT_NOT_FOUND');
     const data = new Uint8Array(await object.arrayBuffer());
     const digest = [...new Uint8Array(await crypto.subtle.digest('SHA-256', data))].map(value => value.toString(16).padStart(2, '0')).join('');
     if (data.byteLength !== row.bytes || `sha256:${digest}` !== row.attachment_id) throw uploadError('Attachment integrity check failed', 'ATTACHMENT_READ_FAILED');

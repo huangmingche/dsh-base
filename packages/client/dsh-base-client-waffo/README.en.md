@@ -8,7 +8,7 @@ All eight official languages distinguish incomplete configuration, loading error
 
 Checks: `node --experimental-strip-types --test packages/client/dsh-base-client-waffo/tests/*.test.ts`, `node --test packages/client/dsh-base-client-waffo/tests/*.test.mjs`. Covers actual slot registration, rendered comparison with official controls, guest/disabled request isolation, typed boundaries, redirect hosts, idempotent retries and request lifetime.
 
-The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. The default workbench requires sign-in. The panel and server authorize account and administrator actions. Unloading removes the registration and never exposes private row configuration.
+The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. Guests can inspect status; account and administrator actions retain panel and server authorization. Unloading removes the registration and never exposes private row configuration.
 
 Browser check: `node packages/client/dsh-base-client-waffo/tests/payment-panel-browser.mjs`. The payment panel is tested in eight English/Chinese, light/dark and desktop/narrow-screen cases compare official button geometry/styles and exercise guest selection, login and restoration of the same intent. Local fixtures intercept hosted payment destinations, so no real payment occurs. Evidence is written to `.artifacts/waffo-payment-panel-browser/`.
 

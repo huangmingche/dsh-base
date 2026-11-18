@@ -55,7 +55,7 @@ interface AccountViewLike {
 /** The remote account face provided by the session adapter. */
 interface RemoteAccountLike {
   getState(): Promise<{ ok: true; value: AccountViewLike } | { ok: false; error: unknown }>
-  watch(signal: AbortSignal): AsyncGenerator<AccountViewLike>
+  watch(signal: AbortSignal): AsyncIterable<{ readonly state: AccountViewLike }>
 }
 
 /** Read-only plugin inventory face provided by the session adapter. */
@@ -433,7 +433,7 @@ export function apply(ctx: Context): void {
           sync()
           for await (const next of remote.watch(abort.signal)) {
             if (abort.signal.aborted) break
-            view = next
+            view = next.state
             sync()
           }
         } catch (error) {

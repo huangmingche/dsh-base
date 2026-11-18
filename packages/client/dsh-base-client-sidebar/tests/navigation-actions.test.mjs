@@ -42,6 +42,7 @@ function bench(state = 'anonymous') {
   ctx.provide('slots', {
     subscribe: () => () => {}, entriesOfSlot: name => name === 'sidebar.panellist' ? panels : [],
     register: options => { registrations.push(options); return () => {}; },
+    registerFactory: options => { registrations.push(options); return () => {}; },
     inject: (_name, factory) => { const value = factory(); if (value?.[Symbol.iterator]) for (const _entry of value) {} return () => {}; },
   });
   return { ctx, access, calls, panels, injected: name => registrations.find(item => item.name === name).inject() };

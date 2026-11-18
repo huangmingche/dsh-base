@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { registerHooks } from 'node:module';
 import { after, test } from 'node:test';
+import Schema from '@deepseek-ai/schemastery';
 
 // This test uses the repository's official-runtime-hook to resolve the actual
 // pinned store/selector implementation. Private services are never substituted.
@@ -96,6 +97,13 @@ test('public namespace defaults and schemas match the shared source and Worker d
   assert.deepEqual(deepseek.value, DEEPSEEK_SETTINGS_DEFAULTS);
   assert.deepEqual(deepseek.base, DEEPSEEK_SETTINGS_DEFAULTS);
   assert.deepEqual(deepseek.schema, workerDefaults.schema);
+  // The official provider editor validates the whole draft even when applying
+  // only a credential change. Exercise its actual Schemastery consumer.
+  const validate = new Schema(structuredClone(workerDefaults.schema));
+  assert.doesNotThrow(() => validate({}));
+  assert.doesNotThrow(() => validate(structuredClone(workerDefaults.base)));
+  assert.doesNotThrow(() => validate({ models: [{ id: 'owner-model' }] }));
+  assert.throws(() => validate({ models: [{ id: 3 }] }), /models\[0\]\.id.*expected string/u);
   assert.deepEqual(deepseek.value, workerDefaults.value);
   assert.deepEqual(deepseek.base, workerDefaults.base);
   assert.deepEqual(deepseek.value.models, declarations());

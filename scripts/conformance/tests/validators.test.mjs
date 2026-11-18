@@ -150,6 +150,14 @@ test("reuse gate audits every runtime package even when dshBase is absent", (t) 
   assert.equal(failures.filter(value => value.includes("must declare dshBase.client")).length, 2);
 });
 
+test("reuse candidates and seam targets must still exist after changing the official pin", t => {
+  const f = fixture(t);
+  for (const field of ["official", "for"]) {
+    f.pkg("boot", "@dsh-base/host", { dshBase: { reuse: { ...reuse, [field]: ["@deepseek-ai/dsh-retired"] } } });
+    assert.ok(checkOfficialReuse(f.root).failures.some(message => message.includes(`reuse.${field} names a package absent`)));
+  }
+});
+
 test("reuse gate rejects unknown packages and unexported side-effect imports", (t) => {
   const f = fixture(t);
   const source = f.pkg("boot", "@dsh-base/client-a");
@@ -157,14 +165,30 @@ test("reuse gate rejects unknown packages and unexported side-effect imports", (
   assert.equal(checkOfficialReuse(f.root).failures.length, 2);
 });
 
+test("reuse gate checks app source and skips generated Cloudflare output", (t) => {
+  const f = fixture(t);
+  const source = "apps/web/src/index.ts";
+  const specifier = `${target}/private`;
+  const code = `import "${specifier}";`;
+  f.write(source, code);
+  f.write("apps/web/.cloudflare/output/v0/workers/default/bundle/index.js", code);
+  const failures = checkOfficialReuse(f.root).failures;
+  assert.equal(failures.length, 1);
+  assert.ok(failures[0].includes(`${source}:1: ${specifier} is not exported`), failures[0]);
+});
+
 test("reuse gate requires pin-reviewed source imports and rejects stale reviews", (t) => {
   const f = fixture(t);
   const specifier = `${target}/src/Component.tsx`;
+  f.write(".submodules/deepseek-harness/packages/client/ui-sample/src/Component.tsx", "export const Component = () => null;");
   const source = f.pkg("boot", "@dsh-base/client-a");
   f.write(source, `import { Component } from '${specifier}';`);
   assert.equal(checkOfficialReuse(f.root).failures.length, 2);
   f.pkg("boot", "@dsh-base/client-a", { dshBase: { reuse: { ...reuse, sourceEntries: [specifier], sourceReviewCommit: commit } } });
   assert.deepEqual(checkOfficialReuse(f.root).failures, []);
+  f.write(source, `import "${target}/src/Removed.tsx";`);
+  assert.match(checkOfficialReuse(f.root).failures.join("\n"), /missing source export.*Removed/);
+  f.write(source, `import { Component } from '${specifier}';`);
   f.pkg("boot", "@dsh-base/client-a", { dshBase: { reuse: { ...reuse, sourceEntries: [specifier], sourceReviewCommit: "c".repeat(40) } } });
   assert.ok(checkOfficialReuse(f.root).failures.some((failure) => failure.includes("sourceReviewCommit")));
 });

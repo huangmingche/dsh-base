@@ -14,12 +14,13 @@
  * so the official unavailable copy stays covered.
  */
 import React, { useMemo, useState, useSyncExternalStore } from "react";
-import { PluginArtworkDefault, PluginArtworkSubagent, Tag } from "@deepseek-ai/dsh-client-ui-primitives";
+import { FishLogo, Tag } from "@deepseek-ai/dsh-client-ui-primitives";
 import { PluginManagerPage as OfficialPage } from "@deepseek-ai/dsh-client-ui-plugin-manager/src/client/PluginManagerPage.tsx";
 import { PluginManagerController as OfficialController } from "@deepseek-ai/dsh-client-ui-plugin-manager/src/client/manager-store.ts";
 import { PluginManagerPage as AdaptedPage } from "../../../../packages/client/dsh-base-client-plugin-manager/src/client/PluginManagerPage.tsx";
 import { PluginManagerController as AdaptedController } from "../../../../packages/client/dsh-base-client-plugin-manager/src/client/manager-store.ts";
 import { createPluginHeaderRef } from "@deepseek-ai/dsh-client-ui-plugin-manager/src/client/header-scroll.ts";
+import { createPluginHeaderRef as createAdaptedHeaderRef } from "../../../../packages/client/dsh-base-client-plugin-manager/src/client/header-scroll.ts";
 import * as copy from "@deepseek-ai/dsh-client-ui-plugin-manager/src/client/locales.ts";
 import { createPluginInventoryRemotes } from "../../../../packages/client/dsh-base-client-session-adapter/src/client/plugin-inventory.ts";
 import { createCountsFixture } from './plugin-counts-fixture.tsx';
@@ -78,6 +79,10 @@ function faultContract(bundles: any[], state: string, adapted: boolean) {
     plugins: [{ ...row, enabled: true, fiberPhase: 'active' }],
   };
   const bundle = { ...base, ...(adapted ? { deploymentAvailability: 'not-adapted' } : {}) };
+  if (state === 'skipped') return {
+    bundles: [{ ...base, installed: true, availability: 'installation', enabled: true, rows: [], error: { code: 'unsupported-platform' } }],
+    plugins: [],
+  };
   if (state === 'failure:invalid-marker') return { bundles: [{ ...bundle, deploymentAvailability: 'unknown', error: { code: 'unsupported-platform' } }], plugins: [] };
   if (state === 'failure:unmarked-platform') return { bundles: [{ ...base, error: { code: 'unsupported-platform' } }], plugins: [] };
   if (state === 'failure:operation') return { bundles: [{ ...bundle, error: { code: 'operation-error', diagnostic: 'Real Host operation failed.' } }], plugins: [] };
@@ -90,6 +95,7 @@ function faultContract(bundles: any[], state: string, adapted: boolean) {
 }
 
 export function PluginManagerFixture({ locale, state, adapted }: { locale: "en" | "zh"; adapted: boolean; state: string }) {
+  if (state === 'builtin:web-search:served') return <PluginManagerBuiltinFixture id="web-search" locale={locale} adapted={false} served />;
   if (state.startsWith('builtin:')) return <PluginManagerBuiltinFixture id={state.slice(8) as 'shell' | 'agent-loop' | 'web-search' | 'subagent'} locale={locale} adapted={adapted} />;
   return <ManagerFixture locale={locale} state={state} adapted={adapted} />;
 }
@@ -160,7 +166,15 @@ function ManagerFixture({ locale, state, adapted }: { locale: "en" | "zh"; adapt
         cancelInstall: unsupported,
         inspect: unsupported,
       })
-      : monitor("pluginManager", implementation!);
+      : monitor("pluginManager", state === 'toolbar-extensions' ? {
+        ...implementation,
+        listBundles: async () => {
+          const reply = await implementation!.listBundles();
+          if (!reply.ok) return reply;
+          return { ...reply, value: reply.value.map(pkg => pkg.name === 'dsh-base:ai-chat-core' ? { ...pkg, update: 'registry' } : pkg) };
+        },
+        listVersions: async () => ({ ok: true, value: { status: 'refused', problem: 'unknown', reason: 'Registry unavailable' } }),
+      } : implementation!);
     const inventory = remotes === undefined
       ? monitor("pluginInventory", {
         // Read-only projection; the fixture exposes the same contract as the
@@ -177,7 +191,8 @@ function ManagerFixture({ locale, state, adapted }: { locale: "en" | "zh"; adapt
     const Controller = useAdapted ? AdaptedController : OfficialController;
     const controller = new Controller(context as never);
     const config = siteFixture?.config ?? countsFixture?.config ?? NO_CONFIG;
-    const face = controller.inject(config, NO_TABS, (value: any) => typeof value === "string" ? value : value[locale] ?? value.en);
+    const tabs = state === 'toolbar-extensions' ? snapshot([{ id: 'discover', label: locale === 'zh' ? '发现' : 'Discover' }]) : NO_TABS;
+    const face = controller.inject(config, tabs, (value: any) => typeof value === "string" ? value : value[locale] ?? value.en);
     (window as any).__PLUGIN_PARITY__ = { source: face.hooks.pluginManager, calls, requests, entries: liveEntries, control: control.snapshot, copy: copy[locale], remotes, refresh: face.refresh,
       showView: (view: any) => setNavigation((current: any) => ({ ...current, view })),
       setStatus: setStatusOverride,
@@ -192,12 +207,12 @@ function ManagerFixture({ locale, state, adapted }: { locale: "en" | "zh"; adapt
   const observed = useSyncExternalStore(face.hooks.pluginManager.subscribe, face.hooks.pluginManager.getSnapshot);
   const details = useSyncExternalStore(face.hooks.bundleDetails.subscribe, face.hooks.bundleDetails.getSnapshot);
   const props = {
-    ...face, createHeaderRef: createPluginHeaderRef,
+    ...face, createHeaderRef: useAdapted ? createAdaptedHeaderRef : createPluginHeaderRef,
     t: (key: keyof typeof copy.en, values: Record<string, unknown> = {}) => String(copy[locale][key]).replace(/\{([^}]+)\}/g, (_, name) => String(values[name] ?? "")),
     usePluginManager: (select: any) => select(statusOverride === null ? observed : { ...observed, status: statusOverride, packages: [], error: statusOverride === 'error' ? { code: 'plugin-manager/transport', message: 'Count fixture failure' } : null }),
     useConfigurations: (select: any) => select({ view: { namespaces: [] } }),
     useConfigLedger: (select: any) => select((siteFixture?.config ?? countsFixture?.config ?? NO_CONFIG).getSnapshot()),
-    usePluginTabs: (select: any) => select([]),
+    usePluginTabs: (select: any) => select(face.hooks.pluginTabs.getSnapshot()),
     useBundleDetails: (select: any) => select(details),
     useLocale: (select: any) => select({ active: locale }),
     useStore: (select: any) => select(navigation),
@@ -206,9 +221,7 @@ function ManagerFixture({ locale, state, adapted }: { locale: "en" | "zh"; adapt
   };
   const Page = useAdapted ? AdaptedPage : OfficialPage;
   return <><span data-neutral-tag-reference style={{ position: 'absolute', left: -10000 }}><Tag tone="neutral">{locale === 'zh' ? '不可用' : 'Unavailable'}</Tag></span>
-    <div aria-hidden="true" style={{ position: 'fixed', left: -10000 }}>
-      <span data-default-bundle><PluginArtworkDefault size={36}/></span>
-      <span data-default-row><PluginArtworkSubagent size={30}/></span>
-    </div>
+    <div aria-hidden="true" style={{ position: 'fixed', left: -10000, top: 0, pointerEvents: 'none' }}>{[{ slot: 30, whale: 20 }, { slot: 36, whale: 24 }].map(({ slot, whale }) =>
+      <span key={slot} data-official-fish-reference={slot} style={{ display: 'inline-flex', width: slot, height: slot, alignItems: 'center', justifyContent: 'center', color: 'var(--dsw-alias-label-primary)' }}><FishLogo size={whale} /></span>)}</div>
     <Page {...props as any} /></>;
 }

@@ -7,7 +7,10 @@
  * `sidebar.settings` registrant's (ui-settings), followed by optional footer
  * actions in `sidebar.footer.action`.
  */
-import type { InjectFace, PropsLocale, PropsRenderSlots, PropsRuntime } from '@deepseek-ai/dsh-client-ui-slots'
+import type { RefCallback } from 'react'
+import type {
+  InjectFace, PropsLocale, PropsRenderFactories, PropsRenderSlots, PropsRuntime, SlotHookFactory,
+} from '@deepseek-ai/dsh-client-ui-slots'
 import type { ObservableSnapshot } from '@deepseek-ai/dsh-client-store'
 import type { WorkspaceId } from '@deepseek-ai/dsh-api-workspace-controller/client'
 import type { ShortcutCatalogEntry } from '@deepseek-ai/dsh-client-shortcuts/client'
@@ -93,6 +96,32 @@ export interface SidebarSectionOwnerProps {
   expandSidebar: () => void
 }
 
+/** Sidebar viewport capability handed to the `sidebar.workspaces` occupant. */
+export interface SectionScroller {
+  /**
+   * Ref callback for the occupant's own vertical scroller. While bound, wheel scrolling over
+   * the sidebar viewport moves the navigation away first and then continues into this element;
+   * scrolling up returns this element to its top before the navigation reappears.
+   */
+  readonly bindScrollerRef: RefCallback<HTMLElement>
+}
+
+/**
+ * Bind the occupant to the sidebar viewport it renders in.
+ * @returns The same object on every call for one sidebar.
+ */
+export type UseSectionScroller = () => SectionScroller
+
+/** Viewport capability supplied with each `sidebar.workspaces` render. */
+export interface SidebarSectionHookContext {
+  readonly useSectionScroller: UseSectionScroller
+}
+
+/** Slot-level Hook factory for the `sidebar.workspaces` occupant. */
+export interface SidebarSectionInjected {
+  hooks: { sectionScroller: SlotHookFactory<'sidebar.workspaces', UseSectionScroller> }
+}
+
 /**
  * Owner share of the sidebar settings seat: the column display state the
  * occupant's trigger row must render against (wide row vs rail icon).
@@ -104,6 +133,12 @@ export interface SidebarSettingsOwnerProps {
 
 /** Owner share of an action rendered beside Settings at the sidebar foot. */
 export interface SidebarFooterActionOwnerProps {
+  /** Whether the sidebar renders wide content (false = 56px rail). */
+  wide: boolean
+}
+
+/** Owner share of the New-session row's HOC layer. */
+export interface SidebarSessionActionOwnerProps {
   /** Whether the sidebar renders wide content (false = 56px rail). */
   wide: boolean
 }
@@ -153,13 +188,13 @@ export type SidebarRootComponentProps =
     | 'sidebar.brand.mark'
     | 'sidebar.brand.name'
     | 'sidebar.toggle.badge'
-    | 'sidebar.panellist'
     | 'sidebar.panellist.actions'
     | 'sidebar.workspaces'
     | 'sidebar.settings'
     | 'sidebar.footer.action'
+    | 'sidebar.session.action'
   >
-  & InjectFace<SidebarRootInjected> & PropsLocale<'sidebar'> & SidebarNavigationProps
+  & PropsRenderFactories & InjectFace<SidebarRootInjected> & PropsLocale<'sidebar'> & SidebarNavigationProps
 
 /** Optional Host availability; absent props retain the pinned official render. */
 export interface SidebarNavigationProps {

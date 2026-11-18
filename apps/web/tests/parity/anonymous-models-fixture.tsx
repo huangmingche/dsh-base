@@ -8,6 +8,7 @@ import { SettingsSchemaService } from '@deepseek-ai/dsh-client-ui-settings/src/c
 import { createSettingsSchemaOperations } from '@deepseek-ai/dsh-client-ui-settings-models/src/client/schema-operations.ts';
 import { ProviderEditor as OfficialProviderEditor } from '@deepseek-ai/dsh-client-ui-settings-models/src/client/ProviderEditor.tsx';
 import { ModelsSection as OfficialModelsSection } from '@deepseek-ai/dsh-client-ui-settings-models/src/client/ModelsSection.tsx';
+import * as deploymentModelCopy from "@dsh-base/client-deepseek-provider/src/client/locales.ts";
 import * as modelCopy from '@deepseek-ai/dsh-client-ui-settings-models/src/client/locales.ts';
 import officialStyles from '@deepseek-ai/dsh-client-ui-settings-models/src/client/ModelsSection.module.css';
 import { ModelsSection as AdaptedModelsSection } from '@dsh-base/client-deepseek-provider/client';
@@ -26,7 +27,7 @@ export function AnonymousModelsFixture({ locale, adapted }: { locale: 'en' | 'zh
   const query = new URLSearchParams(location.search), mode = query.get('mode') ?? 'public', state = query.get('state') ?? 'ready';
   const calls = useMemo(() => [] as string[], []);
   const schema = useMemo(() => createSettingsSchemaOperations(new SettingsSchemaService(new Context())), []);
-  const copy = modelsCopy(locale), t = (key: string) => (modelCopy[locale] as any)[key];
+  const copy = modelsCopy(locale), t = (key: string) => key === "retryManaged" ? deploymentModelCopy[locale].retryManaged : (modelCopy[locale] as any)[key];
   const [frame, setFrame] = useState({ x: 24, y: 24, width: 688, setup: true });
   const host = useMemo(() => createAnonymousModelsHost(copy), [schema, locale]);
   const referenceOperations = useMemo(() => ({
@@ -35,9 +36,19 @@ export function AnonymousModelsFixture({ locale, adapted }: { locale: 'en' | 'zh
     removeCredential: async () => { calls.push('removeCredential'); return 'Readonly'; },
     discoverModels: async () => { calls.push('public/discoverModels'); return { kind: 'found', models: DEPLOYMENT_MODELS.map(model => ({ id: model.id, name: model.label, contextWindow: model.contextWindow })) }; },
   }), []);
-  const global = { calls, setFrame, copy, officialCopy: modelCopy[locale], gatewayCopy: gatewayCopy[locale], expectedModels: DEPLOYMENT_MODELS, host, mode, state };
+  const global = { calls, setFrame, copy, officialCopy: modelCopy[locale], retryManaged: deploymentModelCopy[locale].retryManaged, gatewayCopy: gatewayCopy[locale], expectedModels: DEPLOYMENT_MODELS, host, mode, state };
   (window as any).__ANONYMOUS_MODELS_PARITY__ = global;
-  if (mode === 'default' || mode === 'public-stale') {
+  if (mode === 'default' || mode === 'workers-owner' || mode === 'public-stale') {
+    // Exercise the unchanged upstream editor with a Host that declares editable modes.
+    // The Workers owner and anonymous cases use the real deployment's empty mode list.
+    const namespace = mode === 'default' ? {
+      ...referenceNamespace,
+      schema: { ...DEEPSEEK_SETTINGS_SCHEMA, dict: { ...DEEPSEEK_SETTINGS_SCHEMA.dict,
+        retryPolicy: { type: 'union', list: ['normal', 'always'].map(value => ({
+          type: 'object', dict: { mode: { type: 'const', value } },
+        })) },
+      } },
+    } : referenceNamespace;
     const configured = state !== 'empty';
     const snapshot = {
       status: state === 'loading' ? 'loading' : state === 'error' ? 'error' : 'ready',
@@ -46,7 +57,7 @@ export function AnonymousModelsFixture({ locale, adapted }: { locale: 'en' | 'zh
         apiKeyEnv: 'DEEPSEEK_OFFICIAL_API_KEY', credential: state === 'no-key' ? undefined : { configured: !['missing-key', 'stale-missing'].includes(state), writable: false },
         ...(mode === 'public-stale' ? { derivedCredential: { configured: true, writable: false }, credentialChecks: { DEEPSEEK_OFFICIAL_API_KEY: { configured: state !== 'stale-missing', writable: false } } } : {}),
       }],
-      namespaces: new Map([['llm-deepseek', referenceNamespace]]),
+      namespaces: new Map([['llm-deepseek', namespace]]),
     };
     const controller = { store: { getSnapshot: () => snapshot, subscribe: () => () => {} }, load: async () => { calls.push('load'); } };
     const Component = adapted ? AdaptedModelsSection : OfficialModelsSection;
@@ -58,7 +69,8 @@ export function AnonymousModelsFixture({ locale, adapted }: { locale: 'en' | 'zh
   if (!adapted) return <main style={{ fontSize: 13, lineHeight: '22px' }}>
     <div className={frame.setup ? officialStyles.setupCard : officialStyles.rowCard} style={{ position: 'absolute', left: frame.x, top: frame.y, width: frame.width, padding: 0, border: 0, borderRadius: 0 }} data-reference-editor-container>
       <OfficialProviderEditor key={String(frame.setup)} {...{ provider: 'deepseek-official', displayName: 'DeepSeek', namespace: referenceNamespace,
-        settingsPath: [], schema, operations: referenceOperations, readOnly: true, t, onClose: () => { calls.push('close'); },
+        settingsPath: [], schema, operations: referenceOperations, readOnly: true,
+        t: (key: string) => t(key === 'retryModeDefault' ? 'retryManaged' : key), onClose: () => { calls.push('close'); },
       } as any} />
     </div>
   </main>;

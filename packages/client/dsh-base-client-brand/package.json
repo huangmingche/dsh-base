@@ -1,0 +1,59 @@
+{
+  "name": "@dsh-base/client-brand",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/client/index.tsx",
+    "./client": "./src/client/index.tsx",
+    "./src/*": "./src/*"
+  },
+  "dsh": {
+    "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-sidebar",
+        "@dsh-base/client-site-config"
+      ],
+      "platform": "web"
+    }
+  },
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-client-ui-brand-official": "*",
+    "@deepseek-ai/dsh-client-ui-sidebar": "*",
+    "react": "*",
+    "zod": "*",
+    "@dsh-base/client-site-config": "workspace:*",
+    "@deepseek-ai/dsh-client-ui-slots": "*"
+  },
+  "dshBase": {
+    "client": {
+      "id": "client:brand",
+      "origin": "custom",
+      "order": 96
+    },
+    "reuse": {
+      "mode": "seam",
+      "for": [
+        "@deepseek-ai/dsh-client-ui-brand-official"
+      ],
+      "official": [
+        "@deepseek-ai/dsh-client-ui-brand-official"
+      ],
+      "reason": "The official brand plugin registers nothing outside the official build profile. This seam fills only sidebar.brand.name with the reactive public site name supplied by siteConfig. The official mark fallback, geometry and interaction remain untouched; no official source is copied or replaced.",
+      "gaps": [
+        "User-approved global settings: the sidebar name follows the saved site identity, with the shared deployment default before the first public snapshot.",
+        "Unavoidable: the official name fallback renders the version line and click-to-copy version inside that slot, so occupying it removes them; the official mark fallback and the Settings version row remain."
+      ],
+      "userApprovedDeviations": [
+        {
+          "surface": "sidebar.brand.name",
+          "change": "Sidebar name follows the site administrator’s configured site identity.",
+          "approval": "User approved the editable global site settings and their site-name consumer on 2026-11-14."
+        }
+      ]
+    }
+  },
+  "license": "MIT"
+}

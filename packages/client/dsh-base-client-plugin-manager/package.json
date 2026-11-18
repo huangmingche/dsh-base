@@ -9,7 +9,8 @@
     "./client": "./src/client/index.ts",
     "./src/*": "./src/*",
     "./locale/*.json": "./locale/*.json",
-    "./group-summary": "./src/client/group-summary.ts"
+    "./group-summary": "./src/client/group-summary.ts",
+    "./brand-artwork": "./src/client/brand-artwork.ts"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "*",
@@ -57,7 +58,7 @@
     "forkOf": {
       "package": "@deepseek-ai/dsh-client-ui-plugin-manager",
       "path": "packages/client/ui-plugin-manager",
-      "commit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "commit": "9c2670d3bce5275e0d1610272958121af87787bb",
       "license": "MIT"
     },
     "reuse": {
@@ -65,13 +66,14 @@
       "official": [
         "@deepseek-ai/dsh-client-ui-plugin-manager"
       ],
-      "reason": "The original plugin was mounted unchanged first. PackageCard, packageStatus and RowSwitch are private and the exported Page/slots do not expose list status badges, list reasons or component refusal tooltips. This complete marked fork adapts explicit Host metadata: deploymentAvailability not-adapted uses the existing neutral Tag and disabled controls; managedByBundle explains why an unaddressable component follows its bundle switch. All unmarked states and genuine failures preserve official rendering and behavior. Original CSS, Switch disabled logic and locale dictionaries remain unchanged. Explicit managementPolicy preserves the visibility of required and deployment-managed plugins independently of their existing read-only controls. The existing neutral status class explains ownership in details; genuine error reasons retain their original error class. Validated ownership metadata is forwarded through the existing detail-slot subject without changing the official slot type or adding UI. The pinned page has no category-heading count and no heading contribution slot. A type-only group-summary contract exposes the exact existing card projection through an optional inline slot; the independent count plugin owns all counting and text. No CSS, additional reads or management behavior are introduced. The user-reported navigation defect also reproduces in the pinned official page: one retained pageBody carries list offsets into long details. A body ref and layout effect reset only when the rendered logical page identity changes; ordinary refreshes and state updates retain reading position. This documented correction leaves the original DOM structure, CSS, header measurement, forms and Host navigation intact. User-approved brand metadata maps only the exact generated Dsh-base whale image to the stable official FishLogo component in PackageArtwork. This preserves the native icon frames and primary theme ink, including manual theme changes; arbitrary SVG images retain the original isolated image renderer. The user-approved optical size correction retains the original 36/30px artwork slots and 48/40px frames while centering the tight-viewBox whale at 24/20px width, matching the whitespace of official plugin artwork.",
+      "reason": "The original plugin was mounted unchanged first. PackageCard, packageStatus and RowSwitch are private and the exported Page/slots do not expose list status badges, list reasons or component refusal tooltips. This complete marked fork adapts explicit Host metadata: deploymentAvailability not-adapted uses the existing neutral Tag and disabled controls; managedByBundle explains why an unaddressable component follows its bundle switch. All unmarked states and genuine failures preserve official rendering and behavior. Original CSS, Switch disabled logic and locale dictionaries remain unchanged. Explicit managementPolicy preserves the visibility of required and deployment-managed plugins independently of their existing read-only controls. The existing neutral status class explains ownership in details; genuine error reasons retain their original error class. Validated ownership metadata is forwarded through the existing detail-slot subject without changing the official slot type or adding UI. The pinned page has no category-heading count and no heading contribution slot. A type-only group-summary contract exposes the exact existing card projection through an optional inline slot; the independent count plugin owns all counting and text. No CSS, additional reads or management behavior are introduced. The user-reported navigation defect also reproduces in the pinned official page: one retained pageBody carries list offsets into long details. A body ref and layout effect reset only when the rendered logical page identity changes; ordinary refreshes and state updates retain reading position. This documented correction leaves the original DOM structure, CSS, forms and Host navigation intact. User-approved brand metadata maps only the exact generated Dsh-base whale image to the stable official FishLogo component in PackageArtwork. This preserves the native icon frames and primary theme ink, including manual theme changes; arbitrary SVG images retain the original isolated image renderer. The user-approved optical size correction retains the original 36/30px artwork slots and 48/40px frames while centering the tight-viewBox whale at 24/20px width, matching the whitespace of official plugin artwork.",
       "gaps": [
         "The user approved replacing error styling for known unadapted catalog capabilities with a neutral Unavailable badge, removing repetitive list reasons and moving installation facts to details. Availability never asserts installation or execution, and genuine Host/metadata/runtime failures retain their error presentation.",
         "The user approved one Cloudflare AI Gateway bundle switch with both real components retained in details. A validated managedByBundle Host extension gives its unaddressable component switches a truthful localized tooltip; source geometry, runtime state and disabled behavior are unchanged.",
         "The user approved complete owned-plugin visibility separated from operation permissions. The validated required/deployment Host policy gives existing disabled controls localized ownership labels and uses the existing neutral status paragraph for ordinary ownership; no layout or CSS is added.",
         "The user requested category plugin counts. An optional inline group-summary slot is the only page extension; category data comes from the same rendered arrays, while counting and presentation belong to a separate plugin. The existing official detail component summary remains unchanged.",
-        "User-approved correction of a reproduced pinned upstream navigation defect: different plugin pages start at the top of their shared scroller, including return navigation; same-page data refreshes do not reset reading position. No scroll-history restoration or global window behavior is introduced."
+        "User-approved correction of a reproduced pinned upstream navigation defect: different plugin pages start at the top of their shared scroller, including return navigation; same-page data refreshes do not reset reading position. No scroll-history restoration or global window behavior is introduced.",
+        "The pinned scroll header can wrap and clip Add plugin at fractional browser zoom. The fork keeps the toolbar at its intrinsic width within the measured cap and converts zoomed viewport geometry to local CSS units before positioning the official controls."
       ],
       "userApprovedDeviations": [
         {
@@ -98,6 +100,11 @@
           "surface": "Plugins internal navigation scroll position",
           "change": "Reset the existing page scroller before paint when the rendered list, More, package, configuration row/item or contributed tab changes; preserve reading position for updates within the same page.",
           "approval": "The user reported that opening a plugin package incorrectly lands in the component list and asked to compare official DSH and provide the best fix: 这里插件包点开详情，为什么自动滑到这里，这不对吧，你看下官方DSH插件，最佳实现."
+        },
+        {
+          "surface": "plugin bundle and component artwork",
+          "change": "Dsh-base-branded metadata uses the official website whale; Cloudflare and official plugin artwork stay unchanged. The canonical image is generated from pinned stable FISH_LOGO_PATH/FISH_LOGO_VIEWBOX exports, not a copied implementation. Keep the official square artwork slots and frames; render the whale at 24px in cards/details and 20px in component rows to restore optical whitespace.",
+          "approval": "User requested all Dsh-base plugin icons use the website whale on 2026-11-17. After reviewing the measured size mismatch, the user approved the 24/20px correction on 2026-11-17: 请修复，最佳实现."
         }
       ]
     }

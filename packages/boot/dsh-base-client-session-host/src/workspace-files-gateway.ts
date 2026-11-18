@@ -7,6 +7,7 @@
  * official `Uint8Array` value before the client provider sees it.
  */
 import type { ConnectionHandle } from "@deepseek-ai/dsh-client-connection/client";
+import type { WorkspaceFileSearchRequest, WorkspaceFileSearchResult } from "@deepseek-ai/dsh-api-workspace-files/types";
 import type { OfficialGatewayResult } from "./gateway.ts";
 import { openWireStream, type WireStreamSocketLike } from "./wire-stream.ts";
 
@@ -59,6 +60,7 @@ export type WorkspaceFileWatchFrame =
 /** Endpoint names this gateway calls. */
 export const WORKSPACE_FILES_ENDPOINTS = Object.freeze({
   list: "workspaceFiles/list",
+  search: "workspaceFiles/search",
   stat: "workspaceFiles/stat",
   read: "workspaceFiles/read",
   readBytes: "workspaceFiles/readBytes",
@@ -77,6 +79,7 @@ export interface OfficialWorkspaceFilesGatewayOptions {
 /** Official-style caller for workspace file reads and watches. */
 export interface OfficialWorkspaceFilesGateway {
   list(sessionId: string, path: string, signal?: AbortSignal): Promise<OfficialGatewayResult<WorkspaceDirectoryListing>>;
+  search(sessionId: string, request: WorkspaceFileSearchRequest, signal?: AbortSignal): Promise<OfficialGatewayResult<WorkspaceFileSearchResult>>;
   stat(sessionId: string, path: string, signal?: AbortSignal): Promise<OfficialGatewayResult<WorkspaceFileStat>>;
   read(sessionId: string, path: string, range?: { readonly offset?: number; readonly limit?: number }, signal?: AbortSignal): Promise<OfficialGatewayResult<WorkspaceFileText>>;
   readBytes(sessionId: string, path: string, options?: { readonly baseFile?: string; readonly range?: { readonly offset?: number; readonly length?: number } }, signal?: AbortSignal): Promise<OfficialGatewayResult<WorkspaceFileBytes>>;
@@ -138,6 +141,7 @@ export function createOfficialWorkspaceFilesGateway(options: OfficialWorkspaceFi
 
   return {
     list: (sessionId, path, signal) => call("workspaceFiles/list", { workspaceFileScope: sessionId, path }, signal),
+    search: (sessionId, request, signal) => call(WORKSPACE_FILES_ENDPOINTS.search, { workspaceFileScope: sessionId, request }, signal),
     stat: (sessionId, path, signal) => call("workspaceFiles/stat", { workspaceFileScope: sessionId, path }, signal),
     read: (sessionId, path, range = {}, signal) => call("workspaceFiles/read", {
       workspaceFileScope: sessionId,

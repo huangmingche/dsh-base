@@ -4,7 +4,7 @@ import { z } from "zod";
 import type { ConnectionHandle } from "@deepseek-ai/dsh-client-connection/client";
 import { createWebConnectionRpc } from "@deepseek-ai/dsh-client-connection/src/client/rpc.ts";
 import { installRemoteMount } from "./remote-mount.ts";
-import { createSettingsRemote } from "./settings-remote.ts";
+import { createSettingsRemote, unavailableWebRemote } from "./settings-remote.ts";
 import { createLocalSettingsDocument } from "./local-settings-document.ts";
 import { createScheduleRemote } from "./schedule-remote.ts";
 import { createRemoteInvalidations } from "./remote-events.ts";
@@ -34,14 +34,17 @@ import {
   type OfficialWorkspaceGateway,
   type OfficialWorkspaceView,
 } from "@dsh-base/client-session-host";
-import { openWireStream, WireStreamFailure } from "@dsh-base/client-session-host/wire-stream";
+import { openWireStream, wireFollowPayload, WireStreamFailure, type WireFollowInput } from "@dsh-base/client-session-host/wire-stream";
 import { createHostRemoteStream } from "@dsh-base/client-session-host/remote-stream";
 import type { RemoteStreamOptions } from "@deepseek-ai/dsh-api-gateway/client";
 import { fileReferenceCandidates, sessionReferenceCandidates } from "./chat-references.ts";
 import { signOutLocalAccount, type LocalAccountUser } from "./account-transport.ts";
 import { accountSession } from "./account-session.ts";
+import { accountUpdates, platformNotifications } from "./account-updates.ts";
 import { createNavigationAccess } from "./navigation-access.ts";
 import { createDirectoryRemote } from "./directory-remote.ts";
+import { sessionFollowInputs } from "./session-follow.ts";
+import { watchSessionLive } from "./session-live-socket.ts";
 import { createAttachmentRemotes } from "./attachment-remote.ts";
 import { createModelSelectionRemote, REASONING_UNAVAILABLE_REASON } from "./model-selection-remote.ts";
 import { createFixedAgentPresets } from "./fixed-agent-presets.ts";
@@ -54,7 +57,7 @@ import { createSessionModelCatalog } from "./session-model-catalog.ts";
 import { createCredentialsRemote } from "./persistence-remotes.ts";
 import { feedbackUnavailableReason } from "@dsh-base/client-feedback-availability/availability";
 import { CHAT_SKILLS } from "@dsh-base/chat-skills";
-import { buildSessionHistory, SessionWireSequencer, SessionLiveFrameSequencer, type SessionHistoryMessage, type SessionHistorySnapshot, type SessionTurnState, type SessionLiveAttempt, type SessionWireRecord } from "@dsh-base/session-wire";
+import { buildSessionHistory, cutSessionPage, SessionWireSequencer, SessionLiveFrameSequencer, type SessionHistorySnapshot, type SessionLiveAttempt, type SessionWireRecord } from "@dsh-base/session-wire";
 
 export const name = "@dsh-base/client-session-adapter";
 export const Config = z.object({}).default({});
@@ -197,8 +200,6 @@ let lastReportedClientTimeZone: string | undefined;
 const pendingPromptRequests: Array<{ requestId: string; text: string }> = [];
 /** Durable user message ids already associated with a submission request id. */
 const promptRpcByUserMessage = new Map<string, string>();
-/** Prompt receipts waiting to open the live Thinking process row. */
-const pendingPromptSignals: string[] = [];
 
 function rpcIdForUser(message: { id: string }, text: string): string | undefined {
   const known = promptRpcByUserMessage.get(message.id);
@@ -287,17 +288,6 @@ function textOf(message: { parts?: readonly unknown[] }): string {
     .map((part) => String(part.text ?? ""))
     .join("");
 }
-
-/** The page and both follow carriers share one causal journal projection. */
-function officialHistory(
-  messages: readonly SessionHistoryMessage[],
-  rpcIdOf?: (message: { id: string }, text: string) => string | undefined,
-  turns?: readonly SessionTurnState[],
-  forkSeed?: SessionHistorySnapshot["forkSeed"],
-): OfficialSessionPage["records"] {
-  return buildSessionHistory(messages, rpcIdOf, turns, forkSeed);
-}
-
 
 /** Poll the custom Host transport; used until a Workspace stream delivers its baseline. */
 async function* workspaceFollowLegacy(signal: AbortSignal): AsyncIterable<unknown> {
@@ -583,17 +573,7 @@ const remoteAccount = {
     try { return { ok: true as const, value: localAccountView(await localAccountUser()) }; }
     catch (error) { return hostError(error); }
   },
-  watch: async function* (signal: AbortSignal): AsyncGenerator<LocalAccountView> {
-    let previous = "";
-    for await (const user of accountSession.watch(signal)) {
-      const view = localAccountView(user);
-      const signature = JSON.stringify(view);
-      if (signature !== previous) {
-        previous = signature;
-        yield view;
-      }
-    }
-  },
+  watch: (signal: AbortSignal) => accountUpdates(accountSession.watch(signal), localAccountView),
   getProfile: async () => {
     try {
       const user = await localAccountUser();
@@ -606,8 +586,7 @@ const remoteAccount = {
   // The official nullable contract means no balance service. The availability
   // wrapper supplies the visible disabled state without inventing a balance.
   getBalance: async () => ({ ok: true as const, value: null }),
-  getUnnotifiedBonuses: async () => ({ ok: true as const, value: null }),
-  ackBonusNotified: async () => ({ ok: true as const, value: false }),
+  ...platformNotifications,
   hasRunningAccountTasks: () => ({ ok: true as const, value: false }),
   watchExpiry: async function* (signal: AbortSignal): AsyncGenerator<"session-expired"> {
     while (!signal.aborted) {
@@ -783,6 +762,7 @@ const remote = {
   account: remoteAccount,
   directoryPicker: remoteDirectoryPicker,
   fileUploads: attachmentRemotes.fileUploads,
+  web: unavailableWebRemote,
   settings: createSettingsRemote({
     rpc: connectionRpc,
     changed: (namespace) => invalidations.emit("settings/document-updated", namespace.ns, namespace.revision),
@@ -952,7 +932,6 @@ const remote = {
         try {
           const submission = await hostTransport.prompt(input.sessionId, text, input.requestId);
           pendingPromptRequests.push({ requestId: input.requestId, text });
-          pendingPromptSignals.push(input.sessionId);
           // The official SessionHost returns the durable admission receipt here;
           // the Turn runs on the Host and streams through `follow`.
           void observeClaim(submission.submissionId);
@@ -985,7 +964,6 @@ const remote = {
       );
       if (!official.ok) return official;
       pendingPromptRequests.push({ requestId: input.requestId, text });
-      pendingPromptSignals.push(input.sessionId);
       // The Worker bridge returns the durable submission as a compatible
       // extension so the browser can keep observing projections; the alarm
       // owns the turn even if this observation never settles.
@@ -1069,27 +1047,11 @@ const remote = {
       },
       );
     },
-    followLegacy: async function* (input: { address?: { sessionId?: string; childSessionId?: string } }, signal: AbortSignal) {
+    followLegacy: async function* (input: WireFollowInput, signal: AbortSignal) {
       const sessionId = input.address?.sessionId ?? input.address?.childSessionId;
       if (sessionId === undefined || hostTransport === undefined) return;
       let latestLive: SessionLiveAttempt | null | undefined;
-      let liveSocket: WebSocket | undefined;
-      const connectLiveSocket = (): void => {
-        if (typeof WebSocket === "undefined") return;
-        const socket = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/agent-live?sessionId=${encodeURIComponent(sessionId)}`);
-        liveSocket = socket;
-        socket.addEventListener("message", event => {
-          try { latestLive = (JSON.parse(String(event.data)) as { live?: SessionLiveAttempt | null }).live ?? null; } catch {}
-        });
-        socket.addEventListener("error", () => socket.close());
-        socket.addEventListener("close", () => {
-          if (signal.aborted || liveSocket !== socket) return;
-          setTimeout(() => { if (!signal.aborted && liveSocket === socket) connectLiveSocket(); }, 750);
-        });
-      };
-      connectLiveSocket();
-      const close = () => liveSocket?.close();
-      signal.addEventListener("abort", close, { once: true });
+      const stopLive = watchSessionLive(sessionId, signal, live => { latestLive = live; });
       try {
         const initial = await hostTransport.request<SessionHistorySnapshot>("history", { sessionId });
         const journal = new SessionWireSequencer(initial.records ?? [], { rpcIdOf: rpcIdForUser, turns: initial.turns, forkSeed: initial.forkSeed });
@@ -1097,7 +1059,7 @@ const remote = {
         for (const record of journal.records) liveFrames.accept(record);
         const initialProjections = await hostTransport.projections(sessionId) as Record<string, unknown>;
         yield { type: "snapshot", header: { version: 1, id: sessionId, createdAt: Date.now(), isSeeded: false },
-          cursor: journal.cursor, records: [...journal.records], hasMore: false,
+          cursor: journal.cursor, ...cutSessionPage(journal.records, input),
           projections: hostProjectionBlock(initialProjections), assistantStream: { revision: 0 } };
         let lastPageAt = 0;
         while (!signal.aborted) {
@@ -1120,8 +1082,7 @@ const remote = {
           for (const frame of liveFrames.observe(live)) yield frame;
         }
       } finally {
-        signal.removeEventListener("abort", close);
-        liveSocket?.close();
+        stopLive();
       }
     },
     page: async (input: {
@@ -1136,13 +1097,8 @@ const remote = {
       const customPage = async (): Promise<OfficialGatewayResult<OfficialSessionPage>> => {
         try {
           const page = await hostTransport.request<SessionHistorySnapshot>("history", { sessionId });
-          const all = officialHistory(page.records ?? [], rpcIdForUser, page.turns, page.forkSeed);
-          const through = input.throughSeq;
-          if (through === -1) return hostError(Object.assign(new Error("History cursor is not present in this session."), { code: "session/invalid-cursor" }));
-          const records = through === undefined
-            ? all
-            : all.filter((record) => record.event.seq <= through);
-          return { ok: true, value: { records, hasMore: records.length < all.length } };
+          const all = buildSessionHistory(page.records ?? [], rpcIdForUser, page.turns, page.forkSeed);
+          return { ok: true, value: cutSessionPage(all, input) };
         } catch (error) {
           return hostError(error);
         }
@@ -1187,7 +1143,6 @@ const remote = {
  * never replayed twice.
  * ------------------------------------------------------------------------- */
 
-type WireFollowInput = { address?: { sessionId?: string; childSessionId?: string } };
 type LegacyFollow = (input: WireFollowInput, signal: AbortSignal) => AsyncIterable<unknown>;
 type LegacyControl = (signal: AbortSignal) => AsyncIterable<unknown>;
 
@@ -1205,11 +1160,6 @@ function wireSleep(ms: number, signal: AbortSignal): Promise<void> {
 
 function wireMuxAvailable(): boolean {
   return typeof location !== "undefined" && typeof WebSocket !== "undefined" && hostTransport !== undefined;
-}
-
-/** Build the official follow args for the current Session address. */
-function wireFollowPayload(input: WireFollowInput): unknown {
-  return { args: { request: { address: input.address, activate: true, assistantStream: true } } };
 }
 
 /** Enrich one user/message event with the prompt receipt correlation id. */
@@ -1238,117 +1188,61 @@ async function* wireFollow(input: WireFollowInput, signal: AbortSignal): AsyncIt
   if (sessionId === undefined || hostTransport === undefined || typeof location === "undefined") {
     throw new WireStreamFailure("gateway/carrier-failed", "session follow has no address");
   }
-  let latestLive: unknown;
-  let liveSocket: WebSocket | undefined;
-  const connectLiveSocket = (): void => {
-    if (typeof WebSocket === "undefined") return;
-    const socket = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/api/agent-live?sessionId=${encodeURIComponent(sessionId)}`);
-    liveSocket = socket;
-    socket.addEventListener("message", (event) => {
-      try { latestLive = (JSON.parse(String(event.data)) as { live?: unknown }).live; } catch {}
-    });
-    socket.addEventListener("error", () => socket.close());
-    socket.addEventListener("close", () => {
-      if (signal.aborted || liveSocket !== socket) return;
-      setTimeout(() => { if (!signal.aborted && liveSocket === socket) connectLiveSocket(); }, 750);
-    });
-  };
-  connectLiveSocket();
-
-  const liveFrames = new SessionLiveFrameSequencer();
-  const liveAttempt = async (): Promise<unknown[]> => {
-    let live = latestLive as SessionLiveAttempt | null | undefined;
-    if (live === undefined) live = (await hostTransport!.live(sessionId)).live;
-    return liveFrames.observe(live);
-  };
-
-  const iterator = openWireStream<Record<string, unknown>>({
-    baseUrl: location.origin,
-    endpoint: "session/follow",
-    payload: wireFollowPayload(input),
+  const host = hostTransport;
+  const updates = sessionFollowInputs(
+    sessionId,
     signal,
-  })[Symbol.asyncIterator]();
-  let pending = iterator.next();
+    streamSignal => openWireStream<Record<string, unknown>>({
+      baseUrl: location.origin,
+      endpoint: "session/follow",
+      payload: wireFollowPayload(input),
+      signal: streamSignal,
+    }),
+    async () => (await host.live(sessionId)).live,
+  );
+  const liveFrames = new SessionLiveFrameSequencer();
+  let latestLive: SessionLiveAttempt | null | undefined;
   let snapshotSeen = false;
-  try {
-    while (!signal.aborted) {
-      // The prompt receipt queue is owned by the mux journal now; drain it so a
-      // later fallback does not replay a stale turn signal.
-      while (pendingPromptSignals.length > 0) {
-        const pendingSession = pendingPromptSignals.shift();
-        if (pendingSession === sessionId) break;
-      }
-      const result = await Promise.race([
-        pending.then((entry) => ({ kind: "frame" as const, entry })),
-        wireSleep(50, signal).then(() => ({ kind: "timeout" as const })),
-      ]);
-      if (signal.aborted) return;
-      if (result.kind === "timeout") {
-        for (const frame of await liveAttempt()) yield frame;
-        continue;
-      }
-      const { value, done } = result.entry;
-      if (done) {
-        if (!snapshotSeen) throw new WireStreamFailure("gateway/carrier-closed", "session follow ended before its snapshot");
-        return;
-      }
-      pending = iterator.next();
-      const frame = value as Record<string, unknown>;
+  for await (const update of updates) {
+    if ("live" in update) {
+      latestLive = update.live;
+    } else {
+      const frame = update.frame;
       if (frame.type === "snapshot") {
         snapshotSeen = true;
         for (const record of (frame.records ?? []) as SessionWireRecord[]) liveFrames.accept(record);
         yield wireDecorateSnapshot(frame, sessionId);
-        continue;
-      }
-      if (frame.type === "event") {
+      } else if (frame.type === "event") {
         const event = frame.event as { type?: string; seq?: number; data?: { id?: string; content?: unknown; source?: Record<string, unknown> } } | undefined;
         wireEnrichUserEvent(event);
         const settlements = liveFrames.accept(frame as unknown as SessionWireRecord);
         yield frame;
-        for (const settlement of settlements) yield settlement;
+        yield* settlements;
         if (event?.type === "assistant/message") refreshOfficialSessions();
-        continue;
+      } else {
+        yield frame;
       }
-      yield frame;
     }
-  } finally {
-    try { liveSocket?.close(); } catch {}
-    await iterator.return?.(undefined);
+    if (snapshotSeen) yield* liveFrames.observe(latestLive);
   }
+  if (!signal.aborted && !snapshotSeen) throw new WireStreamFailure("gateway/carrier-closed", "session follow ended before its snapshot");
 }
 
 /** Stream the official control baseline over the mux while keeping client-local projections. */
 async function* wireControl(signal: AbortSignal): AsyncIterable<unknown> {
   if (typeof location === "undefined") throw new WireStreamFailure("gateway/carrier-failed", "control stream has no origin");
-  const iterator = openWireStream<Record<string, unknown>>({
+  let baselineSeen = false;
+  for await (const frame of openWireStream<Record<string, unknown>>({
     baseUrl: location.origin,
     endpoint: "session/control",
     payload: { args: {} },
     signal,
-  })[Symbol.asyncIterator]();
-  let pending = iterator.next();
-  let baselineSeen = false;
-  try {
-    while (!signal.aborted) {
-      const result = await Promise.race([
-        pending.then((entry) => ({ kind: "frame" as const, entry })),
-        wireSleep(200, signal).then(() => ({ kind: "timeout" as const })),
-      ]);
-      if (signal.aborted) return;
-      if (result.kind === "timeout") continue;
-      const { value, done } = result.entry;
-      if (done) {
-        if (!baselineSeen) throw new WireStreamFailure("gateway/carrier-closed", "control stream ended before its baseline");
-        return;
-      }
-      pending = iterator.next();
-      const frame = value as { type?: string };
-      if (frame.type === "baseline") baselineSeen = true;
-      yield frame;
-    }
-  } finally {
-    await iterator.return?.(undefined);
+  })) {
+    if (signal.aborted) return;
+    if (frame.type === "baseline") baselineSeen = true;
+    yield frame;
   }
+  if (!signal.aborted && !baselineSeen) throw new WireStreamFailure("gateway/carrier-closed", "control stream ended before its baseline");
 }
 
 /** Wrap one wire stream with a fallback that only runs before its opening frame. */
@@ -1483,6 +1377,7 @@ export async function apply(ctx: Context): Promise<void> {
   ctx.provide("remote.commands", remote.commands);
   ctx.provide("remote.subagents", remote.subagents);
   ctx.provide("remote.settings", remote.settings);
+  ctx.provide("remote.web", remote.web);
   ctx.provide("remote.session", remote.session);
   ctx.provide("remote.workspace", remoteWorkspace);
   ctx.provide("remote.account", remoteAccount);

@@ -4,4 +4,4 @@ Independent client plugin `client:cache`, grouped under `dsh-base:cache` through
 
 Administrators can invalidate a single key in the public: namespace. No cache values, private data, bulk listing or flush action is exposed.
 
-The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. The default workbench requires sign-in. The panel and server authorize account and administrator actions. Unloading removes the registration and never exposes private row configuration.
+The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. Guests can inspect status; account and administrator actions retain panel and server authorization. Unloading removes the registration and never exposes private row configuration.

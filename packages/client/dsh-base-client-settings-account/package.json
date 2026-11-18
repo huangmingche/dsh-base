@@ -62,7 +62,7 @@
     "forkOf": {
       "package": "@deepseek-ai/dsh-client-ui-settings-account",
       "path": "packages/client/ui-settings-account",
-      "commit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "commit": "9c2670d3bce5275e0d1610272958121af87787bb",
       "license": "MIT"
     },
     "reuse": {
@@ -71,9 +71,13 @@
         "@deepseek-ai/dsh-client-ui-settings-account"
       ],
       "reason": "The pinned AccountSection exports the official complete account cards only through its credential or active-attempt branches. Its genuine signed-out branch returns a centered sign-in prompt, with no exported presentation option for unavailable account cards. The user requested those complete cards remain visible while unavailable, with a separate Dsh-base sign-in action below. A complete runtime fork adds only optional presentation=full-unavailable for genuine signed-out state with no attempt. It retains the default auto behavior, original registration, dictionaries, assets and CSS; no credential or attempt is fabricated, no private read is added, and unavailable Platform anchors have no navigation target or Host click handler. The local sign-in extension remains in the separate account-launcher plugin. A type-only AccountOnboarding import follows the deployed client-deepseek-provider replacement to share its settings.models namespace, avoiding a duplicate augmentation from the disabled original.",
-      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
-      "gaps": [
-        "This revision limits the workbench to authenticated accounts. The anonymous homepage uses the isolated sign-in and consent document providers."
+      "sourceReviewCommit": "9c2670d3bce5275e0d1610272958121af87787bb",
+      "userApprovedDeviations": [
+        {
+          "surface": "unavailable anonymous Platform account settings",
+          "change": "Show the official identity, account information, balance, bonus balance and usage/top-up controls with disabled Platform actions instead of the centered signed-out prompt. Keep the separate Dsh-base sign-in extension below; default owner rendering and behavior are unchanged.",
+          "approval": "The user requested the complete official account layout with only unavailable account-dependent controls greyed out on 2026-11-17."
+        }
       ]
     }
   }

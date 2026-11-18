@@ -4,6 +4,7 @@ import { Context } from "@deepseek-ai/cordis";
 import { createSnapshotStore } from "@deepseek-ai/dsh-client-store";
 import { bindSnapshotSelector } from "@deepseek-ai/dsh-client-ui-renderer/src/client/bind.ts";
 import { SessionInputShell } from "@deepseek-ai/dsh-client-ui-conversation/src/client/input/facade.ts";
+import { createComposerFileIntake } from "@deepseek-ai/dsh-client-ui-conversation/src/client/input/file-intake.ts";
 import { InputBar } from "@deepseek-ai/dsh-client-ui-conversation/src/client/skeleton/InputBar.tsx";
 import * as conversationCopy from "@deepseek-ai/dsh-client-ui-conversation/src/client/locales.ts";
 import * as commonCopy from "@deepseek-ai/dsh-client-locale/src/locales/index.ts";
@@ -22,18 +23,18 @@ export function ComposerRuntimeFixture({ locale }: { locale: "en" | "zh" }) {
     const constant = <T,>(value: T) => bindSnapshotSelector(createSnapshotStore(value));
     const hooks = {
       useInput: bindSnapshotSelector(input.state), useNotices: bindSnapshotSelector(input.notices),
-      useSession: constant({ promptError: null, running: false, subagent: null, removed: false }),
+      useSession: constant({ promptError: null, running: false, subagent: null, removed: false, pendingSubmissions: [] }),
       useBusyEnter: constant("queue"), useFileUploads: constant({}), useMenuLauncher: constant(null),
       useStopShortcut: constant([]), useLexicon: bindSnapshotSelector(input.lexicon),
     };
     (window as any).__COMPOSER_RUNTIME__ = { input, submitted, publications: () => publications, reactVersion: React.version };
-    return { ctx, input, hooks, unsubscribe };
+    return { ctx, input, hooks, unsubscribe, fileIntake: createComposerFileIntake() };
   }, []);
   useEffect(() => () => { setup.unsubscribe(); setup.input.dispose(); void setup.ctx.fiber.dispose(); }, [setup]);
   const dictionary = { ...commonCopy[locale], ...conversationCopy[locale] };
   const t = (key: string, values: Record<string, unknown> = {}) => String((dictionary as any)[key] ?? key).replace(/\{([^}]+)\}/g, (_, key) => String(values[key] ?? ""));
   return <section style={{ width: 760, margin: "120px auto" }}><InputBar {...{
-    ...setup.hooks, t, sessionId: "composer-runtime", variant: "session", keyboard: setup.input,
+    ...setup.hooks, t, sessionId: "composer-runtime", variant: "composer", occurrence: "main", registerFileIntake: setup.fileIntake, keyboard: setup.input,
     inputActions: setup.input.actions, useAccess: () => true, resolveDraftAttachments: () => [],
     useProjection: (_key: string, select?: (value: undefined) => unknown) => select ? select(undefined) : undefined,
     renderSlot: () => null, toggleCommandMenu: () => {},

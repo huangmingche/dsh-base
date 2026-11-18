@@ -143,17 +143,31 @@ function createAuth(env: AuthEnv & { AUTH_DB: D1Database; AUTH_BASE_URL: string;
 }
 
 function createAuthResolver(emailFor: () => EmailService | undefined, registry: AuthExtensions, analyticsFor: () => ConversionAnalyticsService | undefined) {
-  let cached: { readonly database: D1Database; readonly email: EmailService | undefined; readonly key: string; readonly auth: AuthInstance } | undefined;
-  return (env: unknown): AuthInstance | undefined => {
+  let cached: { readonly database: D1Database; readonly email: EmailService | undefined; readonly key: string; auth?: AuthInstance } | undefined;
+  return async (env: unknown): Promise<AuthInstance | undefined> => {
     const typed = (env ?? {}) as AuthEnv;
     if (typed.AUTH_DB === undefined || typed.AUTH_BASE_URL === undefined || typed.AUTH_SECRET === undefined || typed.AUTH_SECRET.length < 32) return undefined;
     const email = emailFor();
     const extensions = registry.resolve(env);
     const key = JSON.stringify([typed.AUTH_BASE_URL, typed.AUTH_SECRET, typed.AUTH_EMAIL_VERIFICATION_REQUIRED, typed.EMAIL_ENABLED, typed.EMAIL_PROVIDER,
       typed.EMAIL_FROM, typed.EMAIL_CLOUDFLARE_ACCOUNT_ID, typed.EMAIL_CLOUDFLARE_API_TOKEN, typed.RESEND_API_KEY, extensions.key]);
-    if (cached?.database === typed.AUTH_DB && cached.email === email && cached.key === key) return cached.auth;
+    if (cached?.database !== typed.AUTH_DB || cached.email !== email || cached.key !== key) {
+      cached = { database: typed.AUTH_DB, email, key };
+    }
+    const config = cached;
+    if (config.auth) return config.auth;
+    // Better Auth starts D1 schema validation during initialization. Its promise
+    // belongs to this Worker request; only publish an instance after success.
+    // Overlapping cold requests each initialize independently. Warm ones reuse
+    // the completed check, without storing an identity or bypassing D1.
     const auth = createAuth({ ...typed, AUTH_DB: typed.AUTH_DB, AUTH_BASE_URL: typed.AUTH_BASE_URL, AUTH_SECRET: typed.AUTH_SECRET }, email, extensions, analyticsFor);
-    cached = { database: typed.AUTH_DB, email, key, auth };
+    try {
+      const context = await auth.$context;
+      await context.checkSchema?.();
+    } catch (error) {
+      throw authFailure("initialize", error);
+    }
+    config.auth ??= auth;
     return auth;
   };
 }
@@ -162,9 +176,26 @@ function json(value: unknown, status = 200): Response {
   return Response.json(value, { status, headers: { "cache-control": "no-store" } });
 }
 
+function authFailure(stage: "configuration" | "initialize" | "session" | "http", error?: unknown): HttpError {
+  if (error instanceof HttpError && error.code === "auth_unavailable") return error;
+  const causes = [error, error instanceof Error ? error.cause : undefined];
+  let reason = stage === "configuration" ? "missing_binding" : "unknown";
+  for (const cause of causes) {
+    if (!(cause instanceof Error)) continue;
+    if ("code" in cause && cause.code === "SCHEMA_MISMATCH") { reason = "schema_mismatch"; break; }
+    if (/different request|request context|I\/O on behalf/i.test(cause.message)) { reason = "request_context"; break; }
+    if (/D1_ERROR|D1_EXEC_ERROR|SQLITE_/i.test(cause.message)) { reason = "database"; break; }
+    if (cause instanceof TypeError) reason = "type_error";
+  }
+  // Cloudflare correlates this event with the request. Raw exceptions can
+  // contain SQL parameters, OAuth state, cookies or user identifiers.
+  console.warn("auth.unavailable", { stage, reason });
+  return new HttpError(503, "auth_unavailable");
+}
+
 async function sessionFor(request: Request, env: unknown, authFor: ReturnType<typeof createAuthResolver>): Promise<AuthUser | undefined> {
-  const auth = authFor(env);
-  if (auth === undefined) throw new HttpError(503, "auth_unavailable");
+  const auth = await authFor(env);
+  if (auth === undefined) throw authFailure("configuration");
   // Authorization cannot forward refreshed Set-Cookie headers. The public auth
   // endpoint owns renewal; these checks only read the authoritative session.
   const session = await auth.api.getSession({ headers: request.headers, query: { disableRefresh: true } });
@@ -202,7 +233,7 @@ export function apply(ctx: Context): void {
   const session = (request: Request, env: unknown): Promise<AuthUser | undefined> => {
     const previous = sessions.get(request);
     if (previous !== undefined && previous.env === env) return previous.value;
-    const value = sessionFor(request, env, authFor).catch(() => { throw new HttpError(503, "auth_unavailable"); });
+    const value = sessionFor(request, env, authFor).catch(error => { throw authFailure("session", error); });
     sessions.set(request, { env, value });
     return value;
   };
@@ -218,8 +249,8 @@ export function apply(ctx: Context): void {
       const capabilities = { email: emailFor()?.status(env) ?? { enabled: false, ready: false, provider: null }, extensions: registry.resolve(env).policy };
       const denied = await authPolicyResponse(request, (env ?? {}) as AuthPolicyEnv, capabilities, extensionId);
       if (denied) return denied;
-      const auth = authFor(env);
-      if (!auth) return json({ error: "auth_unavailable" }, 503);
+      const auth = await authFor(env);
+      if (!auth) throw authFailure("configuration");
       const response = await auth.handler(request);
       if (new URL(request.url).pathname.replace(/\/+$/u, "") === "/api/auth/get-session" && response.ok) {
         const body = await response.clone().json().catch(() => undefined) as { user?: AuthUser } | undefined;
@@ -227,7 +258,10 @@ export function apply(ctx: Context): void {
       }
       const headers = new Headers(response.headers); headers.set("cache-control", "no-store");
       return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
-    } catch (error) { return error instanceof HttpError ? json({ error: error.code }, error.status) : json({ error: "auth_unavailable" }, 503); }
+    } catch (error) {
+      const failure = error instanceof HttpError ? error : authFailure("http", error);
+      return json({ error: failure.code }, failure.status);
+    }
   };
   const handler: WorkerHandler = async (request, env) => {
     const url = new URL(request.url);
@@ -304,7 +338,7 @@ export function apply(ctx: Context): void {
   ctx.provide("auth", { session, registerExtension: extension => registry.register(extension), handle,
     async invokeExtension(method, input, env) {
       if (!registry.resolve(env).plugins.some(plugin => Object.hasOwn(plugin.endpoints ?? {}, method))) throw new Error("auth_extension_method_unavailable");
-      const auth = authFor(env);
+      const auth = await authFor(env);
       const action = (auth?.api as Record<string, ((input: unknown) => Promise<unknown>)> | undefined)?.[method];
       if (!action) throw new Error("auth_extension_method_unavailable");
       return action(input);

@@ -161,6 +161,7 @@
         "disabled": true,
         "unavailableReason": "Replaced by @dsh-base/client-sidebar: pinned official UI with checked SaaS navigation availability."
       },
+      "@dsh-base/client-sidebar",
       {
         "name": "@deepseek-ai/dsh-client-ui-workspace",
         "module": "@deepseek-ai/dsh-client-ui-workspace/client",
@@ -170,7 +171,6 @@
         "disabled": true,
         "unavailableReason": "Replaced by @dsh-base/client-workspace: pinned official UI with checked SaaS navigation availability."
       },
-      "@dsh-base/client-sidebar",
       {
         "name": "@deepseek-ai/dsh-client-ui-settings",
         "module": "@deepseek-ai/dsh-client-ui-settings/client",
@@ -245,6 +245,13 @@
       },
       "@dsh-base/client-permission-availability",
       {
+        "name": "@deepseek-ai/dsh-client-ui-account-notifications",
+        "module": "@deepseek-ai/dsh-client-ui-account-notifications/client",
+        "id": "client:ui-account-notifications",
+        "origin": "upstream",
+        "order": 70
+      },
+      {
         "name": "@deepseek-ai/dsh-client-ui-permission-presets",
         "module": "@deepseek-ai/dsh-client-ui-permission-presets/client",
         "id": "client:ui-permission-presets",
@@ -259,6 +266,13 @@
         "order": 71,
         "disabled": true,
         "unavailableReason": "Replaced by the complete marked fork @dsh-base/client-agent-preset: official roster/declarations with Host availability only."
+      },
+      {
+        "name": "@deepseek-ai/dsh-client-ui-agent-team",
+        "module": "@deepseek-ai/dsh-client-ui-agent-team/client",
+        "id": "client:ui-agent-team",
+        "origin": "upstream",
+        "order": 71
       },
       "@dsh-base/client-account-availability",
       {
@@ -304,6 +318,7 @@
         "origin": "upstream",
         "order": 83
       },
+      "@dsh-base/client-entry-customization",
       {
         "name": "@deepseek-ai/dsh-client-ui-entry-customization",
         "module": "@deepseek-ai/dsh-client-ui-entry-customization/client",
@@ -313,7 +328,6 @@
         "disabled": true,
         "unavailableReason": "Replaced by @dsh-base/client-entry-customization: pinned official UI with checked SaaS navigation availability."
       },
-      "@dsh-base/client-entry-customization",
       {
         "name": "@deepseek-ai/dsh-client-ui-attachment",
         "module": "@deepseek-ai/dsh-client-ui-attachment/client",
@@ -350,7 +364,6 @@
         "order": 90
       },
       "@dsh-base/client-feedback-availability",
-      "@dsh-base/client-open-in-app-availability",
       {
         "name": "@deepseek-ai/dsh-client-ui-approval",
         "module": "@deepseek-ai/dsh-client-ui-approval/client",
@@ -456,6 +469,7 @@
         "origin": "upstream",
         "order": 105
       },
+      "@dsh-base/client-open-in-app-availability",
       {
         "name": "@deepseek-ai/dsh-client-ui-settings-models",
         "module": "@deepseek-ai/dsh-client-ui-settings-models/client",
@@ -465,6 +479,7 @@
         "disabled": true,
         "unavailableReason": "Replaced by the marked DeepSeek-provider UI fork."
       },
+      "@dsh-base/client-schedule",
       {
         "name": "@deepseek-ai/dsh-client-ui-schedule",
         "module": "@deepseek-ai/dsh-client-ui-schedule/client",
@@ -474,7 +489,6 @@
         "disabled": true,
         "unavailableReason": "Replaced by the marked Schedule UI fork with an optional Host account gate before manual task creation."
       },
-      "@dsh-base/client-schedule",
       {
         "name": "@deepseek-ai/dsh-client-ui-sidebar-terminal",
         "module": "@deepseek-ai/dsh-client-ui-sidebar-terminal/client",
@@ -614,8 +628,8 @@
         "unavailableReason": "Official DSH plugin is present in the roster but not started by this deployment."
       },
       {
-        "name": "@deepseek-ai/dsh-experimental-client-ui-agent-team",
-        "id": "client:official:client-ui-agent-team",
+        "name": "@deepseek-ai/dsh-deepseek-chat-import",
+        "id": "client:official:deepseek-chat-import",
         "origin": "upstream",
         "order": 1011,
         "disabled": true,

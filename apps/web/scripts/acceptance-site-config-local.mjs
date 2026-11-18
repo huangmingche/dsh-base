@@ -12,7 +12,6 @@
  * real Host settings API and restored, preserving an originally unset overlay.
  * Set DSH_EXPECTED_DEPLOYMENT_VERSION to verify the deployed Host before browsing.
  */
-import { assertSidebarBrand } from './assert-sidebar-brand.mjs';
 import assert from "node:assert/strict";
 import { randomBytes } from "node:crypto";
 import { spawn } from "node:child_process";
@@ -131,7 +130,7 @@ try {
     await page.goto(base + localizePath("/", locale), { waitUntil: "domcontentloaded", timeout: 60000 });
     await page.waitForFunction(() => window.__DSH_BASE_PLUGINS__?.filter(row => row.enabled).every(row => row.fiberPhase === "active"), { timeout: 45000 });
     await page.waitForFunction(language => document.documentElement.lang === language, { timeout: 30000 }, hreflangFor(locale));
-    await assertSidebarBrand(page);
+    await page.waitForFunction(name => document.querySelector('[class*="brandIdentity"]')?.textContent.trim() === name, { timeout: 30000 }, publicSite.brand.name);
     assert.equal(report.siteConfigRequests.length - siteReadsBeforeBoot, 1, 'the public site service reads once for each fresh application boot');
     report.observations.push(await assertOfficialSidebarMore(page, locale, { screenshot: join(artifacts, `sidebar-more-${locale}.png`) }));
     assert.equal(report.siteConfigRequests.length - siteReadsBeforeBoot, 1, 'opening More and browsing plugins does not reread public configuration');

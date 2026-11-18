@@ -1,7 +1,7 @@
 # @dsh-base/client-locale-label
 
 pinned 官方 `@deepseek-ai/dsh-client-locale` 的完整标记 fork（commit
-`66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`，MIT）。把内置 `zh` 的显示名从
+`9c2670d3bce5275e0d1610272958121af87787bb`，MIT）。把内置 `zh` 的显示名从
 “中文”改为用户明确要求的“简体中文”；内部 locale id 仍为 `zh`，持久化偏好、
 `/zh-CN` 路由、语言选择器、词典和 RPC 合同均保持官方实现不变。
 

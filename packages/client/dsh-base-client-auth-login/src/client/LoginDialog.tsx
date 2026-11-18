@@ -137,7 +137,6 @@ export function LoginSurface({ mode, next, onSignedIn, onClose }: LoginDialogPro
           <Button variant="outline" className="dsh-auth-secondary" disabled title={words.otherProvidersUnavailable} icon={<LinkIconRegular kind="url" href="https://apple.com" size={16} />}>{words.apple}</Button>
           <Button variant="outline" className="dsh-auth-secondary" disabled title={words.otherProvidersUnavailable} icon={<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true"><path d="M8 3H5a2 2 0 0 0-2 2c0 9 7 16 16 16a2 2 0 0 0 2-2v-3l-5-2-2 2a14 14 0 0 1-6-6l2-2-2-5Z" /></svg>}>{words.phone}</Button>
         </div>
-        <p className="dsh-auth-hint">{policy.googleEnabled ? words.otherProvidersUnavailable : words.unavailable}</p>
         <div className="dsh-auth-divider" aria-hidden="true"><span />{words.or}<span /></div>
       </>}
       <form className="dsh-auth-form" aria-busy={busy} onSubmit={event => { event.preventDefault(); void submit(); }}>
@@ -171,7 +170,7 @@ export function LoginSurface({ mode, next, onSignedIn, onClose }: LoginDialogPro
       {!register && !mailStep && <Button variant="ghost" className="dsh-auth-link" disabled={busy} onClick={() => changeStep('register')}>{copy.createSwitch}</Button>}
       {!recovery && <Button variant="ghost" className="dsh-auth-link" data-auth-email="reset" disabled={busy || !policy.passwordResetEnabled} title={!policy.passwordResetEnabled ? mailReason : undefined} onClick={() => { if (identifier.includes('@')) setEmail(identifier.trim()); changeStep('forgot-password'); }}>{mail.forgot}</Button>}
       {step === 'identifier' && <Button variant="ghost" className="dsh-auth-link" data-auth-email="verification" disabled={busy || !policy.emailVerificationEnabled} title={!policy.emailVerificationEnabled ? mailReason : undefined} onClick={() => changeStep('verification')}>{mail.resend}</Button>}
-      {(!policy.email.ready || (mailStep && !mailAllowed)) && <p className="dsh-auth-hint" role="status">{mailReason}</p>}
+      {mailStep && !mailAllowed && <p className="dsh-auth-hint" role="status">{mailReason}</p>}
       {register && !registrationAllowed && <p className="dsh-auth-hint" role="status">{policyReason}</p>}
     </div>
   </Modal>;

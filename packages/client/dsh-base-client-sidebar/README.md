@@ -1,8 +1,8 @@
 # 侧栏导航
 
-组合范围：默认应用只在登录后加载工作台。以下未登录分支属于组件或 Host 的独立契约，仅在隔离测试中使用。
+固定版本官方 `@deepseek-ai/dsh-client-ui-sidebar` 的完整浏览器 fork。来源为 `.submodules/deepseek-harness/packages/client/ui-sidebar`，提交 `9c2670d3bce5275e0d1610272958121af87787bb`，MIT 许可证。
 
-固定版本官方 `@deepseek-ai/dsh-client-ui-sidebar` 的完整浏览器 fork。来源为 `.submodules/deepseek-harness/packages/client/ui-sidebar`，提交 `66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`，MIT 许可证。
+可固定面板、共享面板图标和工作区滚动行为直接继承自官方。登录检查只作用于相应入口的激活。
 
 保留官方布局、品牌槽、折叠动画、快捷键提示、面板列表和页脚。未登录时新会话、插件和自动化任务均可点击：新会话打开登录弹窗，已挂载的插件和自动化任务公开面板可先浏览。“更多”保留官方结构。
 

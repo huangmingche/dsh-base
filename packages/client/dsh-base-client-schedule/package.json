@@ -68,7 +68,7 @@
     "forkOf": {
       "package": "@deepseek-ai/dsh-client-ui-schedule",
       "path": "packages/client/ui-schedule",
-      "commit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "commit": "9c2670d3bce5275e0d1610272958121af87787bb",
       "license": "MIT"
     },
     "reuse": {
@@ -77,9 +77,13 @@
         "@deepseek-ai/dsh-client-ui-schedule"
       ],
       "reason": "The pinned official Schedule plugin is otherwise mounted unchanged. Its exported TaskManagerPage opens manual creation entirely within component state and exposes no pre-create Host callback; an anonymous account cannot supply private workspace choices. A complete runtime fork adds only optional onBeforeCreate() to the injected Host contract and checks it before creating a local manual draft. The unchanged private registration omits the hook and preserves official behavior. The separate public-navigation plugin supplies the anonymous login gate, without label/DOM interception, fabricated catalog reads, or private RemoteAccess grants. Every copied source/resource is compared byte-for-byte with the pin after reversing these two declared additions.",
-      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
-      "gaps": [
-        "This revision limits the workbench to authenticated accounts. The anonymous homepage uses the isolated sign-in and consent document providers."
+      "sourceReviewCommit": "9c2670d3bce5275e0d1610272958121af87787bb",
+      "userApprovedDeviations": [
+        {
+          "surface": "anonymous task creation",
+          "change": "Request sign-in before opening the manual task editor; authenticated rendering and behavior are unchanged.",
+          "approval": "The user requested action-level login prompts while preserving the official task browser on 2026-11-17."
+        }
       ]
     }
   }

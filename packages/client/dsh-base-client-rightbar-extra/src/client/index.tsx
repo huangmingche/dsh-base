@@ -1,5 +1,5 @@
 /** Compatibility seam for the unavailable Host PTY; all terminal UI stays official. */
-import type { Context } from "@deepseek-ai/cordis";
+import type { Context, Service } from "@deepseek-ai/cordis";
 import type { PropsLocale } from "@deepseek-ai/dsh-client-ui-slots";
 import type { TerminalView, TerminalViewState } from "@deepseek-ai/dsh-api-terminal-controller/client";
 import { createSnapshotStore } from "@deepseek-ai/dsh-client-store";
@@ -69,12 +69,17 @@ export function apply(ctx: Context): void {
     close: async () => {},
     dispose: async () => {},
   } as unknown as TerminalView;
-  ctx.provide("webTerminals", {
+  const terminals = {
     retainTabs: () => {}, view: () => view,
+    // Workers cannot own PTYs. Every mounted Session header therefore observes
+    // an empty roster until release, without opening a Host stream.
+    watch: (_session, listener) => { listener([]); return () => {}; },
+    boundTerminal: () => undefined, isRepresented: () => false, bind: unavailable,
     launchShells: rejectUnavailable, selectShell: unavailable,
     close: async () => {}, recover: rejectUnavailable,
     closeFailures: createSnapshotStore([]), retryClose: unavailable,
-  } as unknown as Context["webTerminals"]);
+  } satisfies Omit<Context["webTerminals"], keyof Service>;
+  ctx.provide("webTerminals", terminals as unknown as Context["webTerminals"]);
   ctx.effect(() => ctx.slots.inject("sidebar.right.tab.guide.entry", () => ctx.slots.register({
     name: "sidebar.right.tab.guide.entry", key: ID, priority: -1, locale: NS,
     inject: () => ({ hooks: { shortcuts: ctx.shortcuts.catalog }, loadShells: rejectUnavailable, selectShell: unavailable }),

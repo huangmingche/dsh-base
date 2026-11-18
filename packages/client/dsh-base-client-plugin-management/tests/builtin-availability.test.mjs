@@ -91,6 +91,10 @@ test('real slot priority hands every missing item to its official owner without 
     publish([]);
     assert.equal(rows().find(row => row.options.id === item.id).options.priority, 100, 'removing the real namespace restores its unavailable entry');
   }
+  publish(['web-search-deepseek']);
+  assert.equal(rows().find(row => row.options.id === 'web-search').options.priority, 100, 'legacy settings alone cannot serve the rc.4 provider menus');
+  publish(['web']);
+  assert.equal(rows().find(row => row.options.id === 'web-search').options.priority, undefined, 'the web service owns the official provider page');
   publish(BUILTIN_ITEMS.flatMap(item => [...item.namespaces]));
   assert.equal(rows().length, 4);
   stop();

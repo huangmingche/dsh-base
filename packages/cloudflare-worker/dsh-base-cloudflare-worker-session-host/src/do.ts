@@ -1016,7 +1016,7 @@ export class SessionHostObject {
         return json({error:{code:'session/history-recovery-unavailable',message:'Stored tool results could not be reconciled from the Agent history; retry this read.'}},503);
       }
     }
-    if (requestBody.method === "prompt") {
+    if (requestBody.method === "prompt" && "result" in response) {
       // Grace period: the browser's fire-and-forget claim normally lands in
       // well under a second and cancels this alarm. Only a vanished tab (or a
       // lost claim request) lets the alarm own the turn.

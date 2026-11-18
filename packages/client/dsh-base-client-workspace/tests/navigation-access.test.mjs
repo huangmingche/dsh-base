@@ -141,12 +141,12 @@ function mountedBench() {
   b.ctx.provide('shortcuts', { register: () => () => {}, catalog: createSnapshotStore([]) });
   b.ctx.provide('contextMenus', { active: source, close: () => source.set(null), register: () => () => {} });
   b.ctx.provide('slots', {
-    provideRoot: () => {}, registerFactory: () => () => {}, entries: () => [], subscribe: () => () => {},
-    register: (options) => { registrations.push(options); return () => {}; },
+    provideRoot: () => {}, registerFactory: (options, component) => { registrations.push({ ...options, component }); return () => {}; }, entries: () => [], subscribe: () => () => {},
+    register: (options, component) => { registrations.push({ ...options, component }); return () => {}; },
     inject: (_name, factory) => { const result = factory(); if (result?.[Symbol.iterator]) for (const _item of result) {} return () => {}; },
   });
   applyWorkspace(b.ctx);
-  return { ...b, browser: () => registrations.find(item => item.name === 'sidebar.workspaces').inject(), injected: id => {
+  return { ...b, registrations, browser: () => registrations.find(item => item.name === 'sidebar.workspaces').inject(), injected: id => {
     const entry = registrations.find(item => item.id === id);
     assert.ok(entry, id); return entry.inject();
   } };
@@ -204,6 +204,33 @@ test('anonymous browser search and add callbacks request login before private wo
       assert.equal(loginRequests.length - beforeRequests, state === 'anonymous' ? 2 : 0, state);
       assert.deepEqual(browser.hooks.workspaceShortcuts.getSnapshot(), { searchRequest: 0, addRequested: false, directoryBusy: false, renameTarget: null });
       assert.deepEqual(b.calls, beforeCalls, state);
+    } finally { await b.ctx.fiber.dispose(); }
+  }
+});
+
+
+test('both the hero and reusable workspace picker withdraw private rows and recheck deferred creation', async () => {
+  const { createElement } = appRequire('react');
+  const { renderToString } = appRequire('react-dom/server');
+  for (const surface of ['conversation.hero.workspace', 'workspace.picker']) {
+    const b = mountedBench();
+    try {
+      const entry = b.registrations.find(row => row.name === surface);
+      assert.ok(entry, surface);
+      const { createWorkspace } = entry.inject();
+      const result = deferred();
+      let calls = 0;
+      b.workspaces.create = async () => { calls++; return result.promise; };
+      const pending = createWorkspace({ path: '/private' });
+      b.access.set('anonymous');
+      result.resolve({ id: 'private-workspace' });
+      await assert.rejects(pending);
+      await assert.rejects(() => createWorkspace({ path: '/private' }));
+      assert.equal(calls, 1);
+      assert.equal(renderToString(createElement(entry.component, {
+        open: true, onClose() {}, t: key => key,
+        useWorkspaces: () => assert.fail('private rows accessed while signed out'),
+      })), '');
     } finally { await b.ctx.fiber.dispose(); }
   }
 });

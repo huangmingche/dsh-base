@@ -31,6 +31,7 @@ import type { ModelSelectInjected } from './slots.ts'
 import { ModelSelect } from './ModelSelect.tsx'
 import { en, ja, es, fr, de, ru, pt, zh, type ModelKey } from './locales.ts'
 import { orderModelProviders } from './provider-order.ts'
+import { registerTeamModeAvailability } from './team-mode-availability.tsx'
 import { reasoningUnavailable } from './reasoning-availability.ts'
 
 export { ModelDirectory } from './directory.ts'
@@ -122,6 +123,7 @@ export const inject = ['commandUi', 'locale', 'sessions', 'slots', 'remote', 're
  * @param ctx - client root context.
  */
 export function apply(ctx: ClientContext): void {
+  registerTeamModeAvailability(ctx)
   ctx.effect(() => ctx.locale.register(NS, { zh, en, ja, es, fr, de, ru, pt }), 'ui-model-selection: dictionaries')
 
   // Non-slot faces (the command description, the popup option builder) read
@@ -183,6 +185,7 @@ export function apply(ctx: ClientContext): void {
       locale: NS,
       children: {
         'conversation.input.model.label': { kind: 'single', scope: 'session', inline: true },
+        'conversation.input.model.options': { kind: 'list', scope: 'session' },
       },
       inject: (sessionId): ModelSelectInjected => {
         const directory = models.directoryFor(sessionId)

@@ -72,13 +72,17 @@ const journal = [
   { type: "turn/end", seq: 12 },
 ].map(({ type, seq }) => ({
   type: "event" as const,
-  event: { type, seq, time: 0, data: {} },
+  event: { type, seq, time: 0, data: {}, ...(type.endsWith("/message") ? { surfaceOp: "append" as const } : {}) },
 }));
 
 assert.deepEqual(cutSessionPage(journal, { throughSeq: -1 }), { records: [], hasMore: false });
 const full = cutSessionPage(journal, {});
 assert.equal(full.records.length, journal.length);
 assert.equal(full.hasMore, false);
+const nonAppend = journal.map(entry => entry.event.seq === 10
+  ? { ...entry, event: { type: entry.event.type, seq: entry.event.seq, time: 0, data: {} } } : entry);
+assert.equal(cutSessionPage(nonAppend, { maxMessages: 1 }).records[0]?.event.seq, 9,
+  "only append-origin user/assistant messages consume the official page budget");
 const through = cutSessionPage(journal, { throughSeq: 10 });
 assert.deepEqual(through.records.map((record) => record.event.seq), [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 assert.equal(through.hasMore, false);
@@ -119,6 +123,9 @@ const projections = toOfficialProjections({ _dshBaseProjectionRevision: 12, usag
 assert.equal(projections.kind, "sequenced");
 assert.equal(projections.asOfSeq, 12);
 assert.deepEqual(projections.values.usage, { inputTokens: 3 });
+assert.equal(projections.values.conversationContinuation, null);
+assert.equal(toOfficialProjections({ _dshBaseProjectionRevision: 13, conversationContinuation: 4 }).values.conversationContinuation, null,
+  "a cached projection cannot authorize a retry without a typed provider failure");
 assert.equal((projections.values.imageLimits as { maxImagesPerMessage: number }).maxImagesPerMessage, 0);
 assert.deepEqual(toOfficialState({ running: true }, [
   { submissionId: "sub-1", requestId: "req-1", text: "hello", createdAt: 1 },

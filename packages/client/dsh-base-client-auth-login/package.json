@@ -22,8 +22,7 @@
       "origin": "custom",
       "order": 5,
       "documentRoutes": [
-        "/login",
-        "/"
+        "/login"
       ]
     },
     "reuse": {
@@ -35,16 +34,35 @@
         "@deepseek-ai/dsh-client-ui-settings-account",
         "@deepseek-ai/dsh-client-ui-settings-models"
       ],
-      "reason": "The pinned official AccountSection and SignInDialog use a Platform browser authorization attempt, not local Better Auth username/email/password authentication. Mounting or forking that flow retains the incompatible Platform account contract; the Models ApiKeyInput and SettingsSecretField manage provider credentials rather than local-account sign-in. This custom local-account plugin therefore owns only the account flow and composes unchanged Modal, Button, Input and icons from the stable ui-primitives export. The default official Modal header, description, close control, mask, focus lifecycle and theme tokens provide the presentation; local CSS only arranges the flow and semantic messages. The existing reviewed theme presenter supports standalone /login. Authentication policy is enforced by the Worker.",
+      "reason": "The pinned official AccountSection and SignInDialog use a Platform browser authorization attempt, not local Better Auth username/email/password authentication. Mounting or forking that flow retains the incompatible Platform account contract; the Models ApiKeyInput and SettingsSecretField manage provider credentials rather than local-account sign-in. This custom local-account plugin therefore owns only the account flow and composes unchanged Modal, Button, Input and icons from the stable ui-primitives export. The default official Modal header, description, close control, mask, focus lifecycle and theme tokens provide the presentation; local CSS only arranges the flow and semantic messages. The existing reviewed theme presenter supports standalone /login. The user retained the local multi-step flow but superseded the former ChatGPT appearance request with official DSH visuals on 2026-11-17. Authentication and registration policy remain server-owned.",
       "sourceEntries": [
         "@deepseek-ai/dsh-client-ui-theme/src/client/styles.ts",
         "@deepseek-ai/dsh-client-ui-theme/src/client/icon-sprite.ts",
         "@deepseek-ai/dsh-client-ui-theme/src/theme-settings.ts",
         "@deepseek-ai/dsh-client-ui-layout/src/client/theme-presenter.ts"
       ],
-      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
-      "gaps": [
-        "This revision limits the workbench to authenticated accounts. The anonymous homepage uses the isolated sign-in and consent document providers."
+      "sourceReviewCommit": "9c2670d3bce5275e0d1610272958121af87787bb",
+      "userApprovedDeviations": [
+        {
+          "surface": "local account login flow",
+          "change": "Retain local username/email then password, registration, action-level anonymous sign-in prompts and visible unavailable social/phone providers. The visual surface uses unchanged official Modal, Button and Input; the former ChatGPT dimensions, colors, typography and corner overrides are removed. This is a local account-flow adaptation, not a separate visual theme.",
+          "approval": "On 2026-11-17 the user retained the dialog structure and local-account flow while requiring official DSH components and styling, superseding the earlier ChatGPT visual request."
+        },
+        {
+          "surface": "local account recovery, email verification and Google sign-in",
+          "change": "Add forgotten-password, reset-token confirmation, required verification/resend and configured Google authorization-code flows using the same unchanged official Modal/Button/Input primitives and eight locales. Unconfigured email/Google and unavailable Apple/phone remain visibly disabled. No commercial template source is copied.",
+          "approval": "On 2026-11-17 the user selected and approved continued implementation of the SaaS plugin set including transactional email and Google authentication, while retaining the official DSH UI requirement."
+        },
+        {
+          "surface": "unavailable social sign-in explanation",
+          "change": "Remove the repeated visible provider-unavailability paragraph below the social sign-in buttons. Keep official disabled Button styling and localized button hints; server-owned provider availability is unchanged.",
+          "approval": "On 2026-11-17 the user explicitly requested removing the paragraph because the greyed-out buttons are sufficient."
+        },
+        {
+          "surface": "unavailable email authentication explanation",
+          "change": "Show email capability explanations on disabled recovery and verification buttons and when an email action is requested. The ordinary sign-in, password and registration steps omit the repeated mail-unavailability paragraph.",
+          "approval": "This correction was incorporated retrospectively at the user’s explicit request. The approval date is preserved in the separate chronology archive."
+        }
       ]
     }
   },

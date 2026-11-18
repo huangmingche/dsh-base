@@ -21,7 +21,7 @@ const { packageView } = await import('../src/client/manager-store.ts');
 const catalog = () => ({
   name: '@deepseek-ai/dsh-experimental-voice-input-bundle', official: true,
   availability: 'missing', installed: false, enabled: false, optional: true,
-  removable: false, updatable: false, listedByDefault: true, rows: [], overrides: [],
+  removable: false, listedByDefault: true, rows: [], overrides: [],
   deploymentAvailability: 'not-adapted',
 });
 

@@ -4,4 +4,4 @@ Independent client plugin `client:account-profile`, grouped under `dsh-base:acco
 
 Name, avatar and password have separate save actions. Avatar choices come from the account’s uploaded images; a name-only save preserves the existing avatar. Arbitrary remote avatar addresses are not accepted. Better Auth verifies passwords and revokes other sessions.
 
-The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. The default workbench requires sign-in. The panel and server authorize account and administrator actions. Unloading removes the registration and never exposes private row configuration.
+The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. Guests can inspect status; account and administrator actions retain panel and server authorization. Unloading removes the registration and never exposes private row configuration.

@@ -183,6 +183,10 @@ export class SettingsStore {
     }
     const namespace = isRecord(current.values[input.ns]) ? current.values[input.ns]! : {};
     const next = applyOperations(input.ns, namespace, input.ops);
+    if (input.ns === 'llm-deepseek' && Object.hasOwn(next, 'retryPolicy')
+        && JSON.stringify(next.retryPolicy) !== JSON.stringify(namespace.retryPolicy)) {
+      throw new SettingsInputError("DeepSeek retry policy is managed by this deployment");
+    }
     if (input.ns === 'permission') {
       try { validatePermissionSettings(next); }
       catch (error) { throw new SettingsInputError(error instanceof Error ? error.message : String(error)); }

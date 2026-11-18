@@ -4,11 +4,22 @@ import { checkClientContract } from "./client-contracts.mjs";
 import { checkPluginOrigin } from "./plugin-origin.mjs";
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync } from "node:fs";
+import { createRequire } from "node:module";
 import { dirname, join, relative, resolve, sep } from "node:path";
 import { clientRows, importsIn, isMain, isPackageExported, localPackages, officialPackages, packageName, printResult, readJson, repoRoot, runtimeGroups, walk } from "./lib.mjs";
 import { projectContext } from "../composition/project-context.mjs";
 
 const nonempty = (value) => typeof value === "string" && value.trim() !== "";
+// An exported wildcard can still match files removed in a new release.
+function hasSourceExport(pkg, specifier) {
+  if (!pkg) return false;
+  try {
+    createRequire(join(pkg.directoryPath, "package.json")).resolve(specifier);
+    return true;
+  } catch {
+    return false;
+  }
+}
 const stringList = (value) => Array.isArray(value) && value.every(nonempty);
 
 export function checkOfficialReuse(root, options = {}) {
@@ -64,12 +75,17 @@ export function checkOfficialReuse(root, options = {}) {
       if (!["custom", "seam", "fork"].includes(reuse.mode)) failures.push(`${label}: reuse.mode must be custom, seam, or fork`);
       if (!nonempty(reuse.reason)) failures.push(`${label}: reuse.reason must explain the official reuse decision`);
       if (!stringList(reuse.official ?? reuse.for)) failures.push(`${label}: reuse.official (or reuse.for) must list the official candidates considered; use [] only when none exist`);
+      for (const [field, names] of [["official", reuse.official], ["for", reuse.for]]) {
+        if (names === undefined) continue;
+        if (!stringList(names)) { failures.push(`${label}: reuse.${field} must be an array of package names`); continue; }
+        for (const name of names) if (!official.has(name)) failures.push(`${label}: reuse.${field} names a package absent from the pinned official source: ${name}`);
+      }
       if (reuse.mode === "fork" && fork === undefined) failures.push(`${label}: reuse.mode fork requires complete dshBase.forkOf metadata`);
       if (reuse.sourceEntries !== undefined) {
         if (!stringList(reuse.sourceEntries)) failures.push(`${label}: reuse.sourceEntries must list exact official source specifiers`);
         else for (const specifier of reuse.sourceEntries) {
           const name = packageName(specifier);
-          if (!specifier.startsWith("@deepseek-ai/") || !specifier.slice(name.length).startsWith("/src/") || !official.has(name) || !isPackageExported(official.get(name).manifest, `.${specifier.slice(name.length)}`)) failures.push(`${label}: unexported or invalid sourceEntries entry ${specifier}`);
+          if (!specifier.startsWith("@deepseek-ai/") || !specifier.slice(name.length).startsWith("/src/") || !hasSourceExport(official.get(name), specifier)) failures.push(`${label}: unexported or invalid sourceEntries entry ${specifier}`);
         }
         if (reuse.sourceReviewCommit !== lock.commit) failures.push(`${label}: reuse.sourceReviewCommit must match the pinned commit; re-audit ./src/* imports on pin changes`);
       }
@@ -102,6 +118,7 @@ export function checkOfficialReuse(root, options = {}) {
       const upstream = official.get(name);
       if (!upstream || !isPackageExported(upstream.manifest, subpath === "" ? "." : `.${subpath}`)) failures.push(`${label}: ${specifier} is not exported by a pinned official package`);
       if (!subpath.startsWith("/src/")) continue;
+      if (upstream && !hasSourceExport(upstream, specifier)) failures.push(`${label}: missing source export in the pinned package: ${specifier}`);
       let owner = dirname(file);
       while (owner !== scanRoot && !existsSync(join(owner, "package.json"))) owner = dirname(owner);
       const manifest = existsSync(join(owner, "package.json")) ? readJson(join(owner, "package.json")) : {};

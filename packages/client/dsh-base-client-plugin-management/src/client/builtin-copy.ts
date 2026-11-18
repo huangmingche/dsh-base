@@ -19,7 +19,7 @@ export function builtinAvailability(id: BuiltinId, locale: string) {
 
 export const BUILTIN_ITEMS = [
   { id: 'subagent', order: 10, namespaces: ['subagent', 'subagent-model-selection-settings'], locale: 'settings.subagent', title: 'subagentTitle' },
-  { id: 'web-search', order: 20, namespaces: ['web-search-deepseek'], locale: 'settings.webSearch', title: 'title' },
+  { id: 'web-search', order: 20, namespaces: ['web'], locale: 'settings.webSearch', title: 'title' },
   { id: 'agent-loop', order: 30, namespaces: ['agent-loop'], locale: 'settings.agentLoop', title: 'title' },
   { id: 'shell', order: 40, namespaces: ['bash-sandbox', 'pwsh-sandbox'], locale: 'settings.shell', title: 'title' },
 ] as const

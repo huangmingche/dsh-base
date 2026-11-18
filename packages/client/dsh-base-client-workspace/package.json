@@ -76,7 +76,7 @@
     "forkOf": {
       "package": "@deepseek-ai/dsh-client-ui-workspace",
       "path": "packages/client/ui-workspace",
-      "commit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "commit": "9c2670d3bce5275e0d1610272958121af87787bb",
       "license": "MIT"
     },
     "reuse": {
@@ -87,8 +87,19 @@
       "reason": "The pinned official workspace plugin assumes an authorized Host and offers no account-availability contract in its service, shortcuts or internally registered browser/picker. This complete browser fork retains official UI and Host semantics while isolating account-bound data and actions. Anonymous search, view options, add workspace and picker interactions request the account login dialog before opening private workflows; checking/error states remain disabled. Service calls, restoration, stale snapshots and asynchronous results remain fail-closed, and signed-in actions still require real RemoteAccess.",
       "gaps": [
         "Anonymous workspace navigation controls remain clickable and request sign-in before account-bound work. Checking/error states remain disabled. Private workspace/session rows stay hidden until the checked account is authenticated; no private read is made for the public empty state.",
-        "Anonymous workspace lists remain empty without a sign-in prompt; the heading and account-gated actions stay visible.",
-        "This revision limits the workbench to authenticated accounts. The anonymous homepage uses the isolated sign-in and consent document providers."
+        "Anonymous workspace lists remain empty without a sign-in prompt; the heading and account-gated actions stay visible."
+      ],
+      "userApprovedDeviations": [
+        {
+          "surface": "anonymous workspace navigation",
+          "change": "Anonymous workspace navigation controls remain clickable and request sign-in before account-bound work. Checking/error states remain disabled. Private workspace/session rows stay hidden until the checked account is authenticated; no private read is made for the public empty state.",
+          "approval": "The user explicitly requested clickable anonymous navigation, public plugin/task browsing, and login prompts only at account-required actions on 2026-11-17."
+        },
+        {
+          "surface": "anonymous workspace empty state",
+          "change": "Remove the extra icon, sign-in explanation and sign-in link beneath the Workspaces heading. Preserve its layout seat, checking/error feedback and login gates on account-required actions.",
+          "approval": "The user explicitly requested removing this redundant sidebar block on 2026-11-17."
+        }
       ]
     }
   }

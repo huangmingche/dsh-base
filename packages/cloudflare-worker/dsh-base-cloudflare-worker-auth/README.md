@@ -6,9 +6,9 @@
 
 仅信任 Cloudflare 边缘覆盖的 `cf-connecting-ip`，不信任客户端自行提供的 `X-Forwarded-For`。Better Auth 会规范化 IPv4 / IPv6，并按 IPv6 `/64` 网络共享预算。用户名、邮箱登录和开放注册各为每分钟 20 次；普通路径每分钟 600 次，`get-session` 每分钟 1200 次。超限返回 429 和 `X-Retry-After`。这是跨 isolate 的认证端点限流，不是按账户限制所有来源 IP 的攻击，也不是产品 API 或模型消费配额；内部 `auth.api.getSession` 不经过此 HTTP 限流。
 
-注册默认关闭；仅显式开启或受管理注册令牌保护的请求能够注册。公开 `/api/auth-policy` 返回注册、邮件、验邮、重置密码、Google 及已注册扩展的能力标记，不返回 secret。缓存实例随 D1 binding、认证 origin、secret、邮件配置或扩展 revision/cache key 的变化重新建立，不改写这些配置。
+注册默认关闭；仅显式开启或受管理注册令牌保护的请求能够注册。公开 `/api/auth-policy` 返回注册、邮件、验邮、重置密码、Google 及已注册扩展的能力标记，不返回 secret。每个 Worker isolate 只复用已完成初始化和 D1 表结构校验的认证实例。冷启动时，并发请求各自等待自己的检查；故障请求返回 503，后续请求可在数据库恢复后重新建立实例。D1 binding、认证 origin、secret、邮件配置或扩展 revision/cache key 变化时会重新校验。
 
-同一个 `Request` 与环境内的鉴权复用一次会话读取；新请求重新查询，撤销的会话不会被跨请求缓存保留。内部权限检查禁用会话续期写入，由真实认证 HTTP 端点处理需要返回 Cookie 的续期。数据库或认证服务读取失败返回 `503 auth_unavailable`，不会伪装成匿名 `401`；真实未登录和已撤销会话仍拒绝私有访问。此处理修复了错误分类路径，不代表已确认历史 Staging 间歇故障的根因。
+同一个 `Request` 与环境内的鉴权复用一次会话读取；新请求重新查询，撤销的会话不会被跨请求缓存保留。内部权限检查禁用会话续期写入，由真实认证 HTTP 端点处理需要返回 Cookie 的续期。数据库或认证服务读取失败返回 `503 auth_unavailable`，不会伪装成匿名 `401`；真实未登录和已撤销会话仍拒绝私有访问。Worker 通过请求关联的 `auth.unavailable` 事件记录固定的故障阶段和类别。错误详情、Cookie、SQL 和账号信息不进入该日志。
 
 邮件插件 ready 后接入真实验证邮箱、重发与重置密码 hooks；只有显式 `AUTH_EMAIL_VERIFICATION_REQUIRED=true` 才强制验邮。必需验邮但邮件不可用时注册拒绝。验证后不自动登录；重置 token 单次使用并撤销旧会话。回调必须同源。匿名重置返回相同通用结果，供应商发送通过 Workers `waitUntil` 在响应后有界执行；失败只记固定事件码，接受请求不等于邮件投递成功。重置请求与重发各每分钟 3 次，重置提交 10 次。上游可能包含 OAuth state 的诊断日志被关闭。
 

@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 /** Online rendered brand checks in both locales; only the isolated account's locale is changed and restored. */
-import { assertSidebarBrand } from './assert-sidebar-brand.mjs';
 import assert from "node:assert/strict";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve, join } from "node:path";
@@ -54,9 +53,13 @@ try {
     await page.waitForFunction(text => document.body.innerText.includes(text), { timeout: 30000 }, assistantText.slice(0, 50));
     await assertVisibleSessionStats(page, sessionStats, locale);
     await page.evaluate(() => document.fonts.ready);
-    const brand = await assertSidebarBrand(page);
+    await page.waitForFunction(name => document.querySelector('[class*="brandIdentity"]')?.textContent.trim() === name, { timeout: 30000 }, publicSite.brand.name);
+    const brand = await page.$eval('[class*="brandIdentity"]', element => ({ text: element.textContent.trim(), copyVersion: element.querySelector('[data-copy-version]') !== null, logo: Boolean(element.closest("button")?.querySelector("svg")) }));
+    // Only the official name slot is occupied; the official mark fallback keeps
+    // the version copy affordance while the visible name has no version line.
+    assert.deepEqual(brand, { text: publicSite.brand.name, copyVersion: true, logo: true });
     const active = await page.evaluate(() => {
-      const rows = window.__DSH_BASE_PLUGINS__;return ["@dsh-base/client-site-config", "@dsh-base/client-sidebar"].map(name => ({ name, enabled: rows.find(row => row.moduleName === name)?.enabled, phase: rows.find(row => row.moduleName === name)?.fiberPhase }));
+      const rows = window.__DSH_BASE_PLUGINS__;return ["@dsh-base/client-brand", "@dsh-base/client-site-config", "@deepseek-ai/dsh-client-ui-sidebar"].map(name => ({ name, enabled: rows.find(row => row.moduleName === name)?.enabled, phase: rows.find(row => row.moduleName === name)?.fiberPhase }));
     });
     for (const row of active) { assert.equal(row.enabled, true);assert.equal(row.phase, "active"); }
     const completedTurns = await page.$$eval('button[data-turn-process]', buttons => buttons
@@ -71,4 +74,4 @@ try {
   finally { await call("settingsMutate", { ns: "locale", ops: [originalPreference === undefined ? { op: "unset", path: ["preference"] } : { op: "set", path: ["preference"], value: originalPreference }] }); }
 }
 writeFileSync(join(output, "report.json"), JSON.stringify({ ok: true, base, deploymentVersion: process.env.DSH_ACCEPTANCE_VERSION, sessionId, observations, errors }, null, 2));
-console.log(JSON.stringify({ ok: true, deploymentVersion: process.env.DSH_ACCEPTANCE_VERSION, sessionId, locales: observations.map(row => row.locale), versionLine: true, output }));
+console.log(JSON.stringify({ ok: true, deploymentVersion: process.env.DSH_ACCEPTANCE_VERSION, sessionId, locales: observations.map(row => row.locale), exactName: publicSite.brand.name, versionLine: false, output }));

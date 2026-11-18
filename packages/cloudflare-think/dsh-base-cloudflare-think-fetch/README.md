@@ -7,6 +7,8 @@ Cloudflare Think 官方 `createFetchTools` 的部署/账号配置接缝。保留
 固定上游 DSH 的 `web-fetch-http` 使用 Node `undici`，`tool-web` 依赖原生工具服务；
 两者均未提供部署与账号白名单的子集校验。复用决策记录在 `package.json`。
 
+此插件提供 `fetch_url`，用于读取已知网址。DSH rc.5 的 `web_search` 根据发起请求的模型路由选择已注册的搜索提供方。当前 Workers 组合未注册搜索提供方，因此使用自带 DeepSeek API Key 或 Cloudflare AI Gateway 时，模型都只获得已启用的网页抓取工具。官方 DeepSeek Messages 搜索每次会额外执行一个模型轮次，消耗模型 token。
+
 `FETCH_ALLOWLIST` 是逗号分隔的部署白名单；未配置或空字符串时只允许
 `https://developers.cloudflare.com/**` 和 `https://ai-sdk.dev/**`。
 账号/会话配置 `{ "allowlist": [...] }` 只能缩小这个范围：

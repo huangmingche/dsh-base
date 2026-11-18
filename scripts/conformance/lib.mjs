@@ -12,7 +12,7 @@ export const isMain = (url) => process.argv[1] !== undefined && resolve(process.
 export function walk(directory, visit) {
   if (!existsSync(directory)) return;
   for (const name of readdirSync(directory).sort()) {
-    if (["node_modules", ".git", ".wrangler", ".cf", "lib", "dist", "coverage"].includes(name)) continue;
+    if (["node_modules", ".git", ".wrangler", ".cf", ".cloudflare", "lib", "dist", "coverage"].includes(name)) continue;
     const path = join(directory, name);
     if (statSync(path).isDirectory()) walk(path, visit);
     else visit(path);

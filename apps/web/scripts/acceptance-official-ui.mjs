@@ -20,7 +20,6 @@
  * Optional: CHROME_PATH, DSH_ACCEPTANCE_USERNAME, DSH_ACCEPTANCE_EMAIL,
  * DSH_ACCEPTANCE_PASSWORD.
  */
-import { assertSidebarBrand } from './assert-sidebar-brand.mjs';
 import { remoteAcceptanceConfig, chromeExecutable, closeAcceptanceBrowser, registrationHeaders, mayRegisterAcceptance, waitForHostReadiness } from "./acceptance-config.mjs";
 import assert from "node:assert/strict";
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
@@ -391,7 +390,8 @@ try {
     assert.equal(fork?.origin, "fork"); assert.equal(fork?.enabled, true); assert.equal(fork?.fiberPhase, "active");
     assert.equal(fork?.replaces, "@deepseek-ai/dsh-client-ui-agent-preset");
     assert.equal(original?.origin, "upstream"); assert.equal(original?.enabled, false); assert.equal(original?.fiberPhase, null);
-    const brand = await assertSidebarBrand(page);
+    const brand = await page.$eval('[class*="brandIdentity"]', element => element.textContent.trim());
+    assert.equal(brand, "dsh-base");
     assert.equal(await page.$('[class*="brandName"] [data-copy-version]'), null, "sidebar name must omit the version badge");
     assert.ok(!officialResponses.some(entry => entry.path === "/api/session/prompt"), "smoke mode must not submit a prompt");
     assert.deepEqual(consoleErrors, []); assert.deepEqual(pageErrors, []);

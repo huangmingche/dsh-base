@@ -4,7 +4,7 @@
 
 ## 复用与边界
 
-已直接检查固定上游版本 `dsh-v0.2.2-rc.1`（`66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`）的 `@deepseek-ai/dsh-api-account-controller` 与 `@deepseek-ai/dsh-deepseek-account` 源码和导出。它们提供 DeepSeek OAuth 和账户操作，没有产品事务邮件传输或可 fork 的邮件模板。因此按 `dshBase.reuse` 使用自有插件。参考 [TanStarter 邮件功能范围](https://docs.tanstarter.dev/email/)，实现由公开供应商 API 独立编写，没有复制已购模板源码、组件或样式。
+已直接检查固定上游版本 `dsh-v0.2.2-rc.5`（`9c2670d3bce5275e0d1610272958121af87787bb`）的 `@deepseek-ai/dsh-deepseek-account` 源码及其 `account` Remote。该插件提供 DeepSeek OAuth 和账户操作，没有产品事务邮件传输或可 fork 的邮件模板。因此按 `dshBase.reuse` 使用自有插件。参考 [TanStarter 邮件功能范围](https://docs.tanstarter.dev/email/)，实现由公开供应商 API 独立编写，没有复制已购模板源码、组件或样式。
 
 只支持 `verify-email`、`reset-password` 两种内部事务意图；不提供原始 HTML、任意标题、群发、联系表单、营销邮件或 newsletter 接口。调用方必须先确认收件人与真实账户操作的关系，并执行访问控制与频率限制。无 React、SMTP、容器、额外数据库或后台常驻进程；使用 Workers `fetch`、Web Crypto 和现有 `AUTH_DB` D1。
 

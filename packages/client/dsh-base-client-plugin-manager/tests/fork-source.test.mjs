@@ -16,8 +16,31 @@ const exactOnce = (source, needle, replacement = '') => {
   return source.replace(needle, replacement);
 };
 
-/** Undo only reviewed Host, contribution and navigation edits, then demand byte identity. */
+/** Undo only reviewed Host, contribution, navigation and layout edits, then demand byte identity. */
 function officialText(path, text) {
+  if (path === 'src/client/header-scroll.ts') {
+    text = exactOnce(text, [
+      "      const width = part.from.width + (part.to.width - part.from.width) * progress",
+      "      if (part.element.dataset.pluginHeaderPart === 'toolbar') {",
+      "        // An intrinsic flex row must not rewrap when a fractional measured width",
+      "        // rounds down on writeback. Keep its content width within the measured space.",
+      "        part.element.style.width = 'max-content'",
+      "        part.element.style.maxWidth = `min(100%, ${Math.ceil(width)}px)`",
+      "      } else {",
+      "        part.element.style.width = `${width}px`",
+      "      }",
+      "",
+    ].join("\n"), "      part.element.style.width = `${part.from.width + (part.to.width - part.from.width) * progress}px`\n");
+    text = exactOnce(text, [
+      "    // DOMRects include ancestor CSS zoom; the scroll offsets and CSS writes use local units.",
+      "    const zoom = bar.currentCSSZoom || 1",
+      "    clone.style.width = `${bar.getBoundingClientRect().width / zoom}px`",
+      "",
+    ].join("\n"), "    clone.style.width = `${bar.getBoundingClientRect().width}px`\n");
+    text = exactOnce(text, "        boxes.set(name, { x: (box.x - head.x) / zoom, y: (box.y - head.y) / zoom, width: box.width / zoom, height: box.height / zoom })\n", "        boxes.set(name, { x: box.x - head.x, y: box.y - head.y, width: box.width, height: box.height })\n");
+    text = exactOnce(text, "      return { height: clone.getBoundingClientRect().height / zoom, boxes }\n", "      return { height: clone.getBoundingClientRect().height, boxes }\n");
+    return text;
+  }
   if (path === 'src/client/index.ts') {
     text = exactOnce(text, "import type {} from './group-summary.ts'\n");
     text = exactOnce(text, "          'dsh-base.plugins.group.summary': { kind: 'single', scope: 'root', inline: true },\n");
@@ -39,6 +62,9 @@ function officialText(path, text) {
     return exactOnce(text, '    ...readDeploymentAvailability(bundle) === undefined ? {} : { deploymentAvailability: readDeploymentAvailability(bundle) },\n');
   }
   if (path === 'src/client/PluginManagerPage.tsx') {
+    text = exactOnce(text, "import { DSH_BASE_PLUGIN_ICON } from './brand-artwork.ts'\n");
+    text = exactOnce(text, '  Button, FishLogo, IconCheckCircleFillRegular,', '  Button, IconCheckCircleFillRegular,');
+    text = exactOnce(text, "  // Only our exact generated image maps to an official component; never inline arbitrary SVG.\n  // FishLogo's viewBox hugs its silhouette; retain the artwork slot and add optical whitespace.\n  if (src === DSH_BASE_PLUGIN_ICON) return <span data-dsh-brand-artwork style={{ display: 'inline-flex', width: size, height: size, alignItems: 'center', justifyContent: 'center', color: 'var(--dsw-alias-label-primary)' }}><FishLogo size={size * 2 / 3} /></span>\n");
     text = exactOnce(text, "import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'", "import { useEffect, useId, useRef, useState, type ReactNode } from 'react'");
     text = exactOnce(text, "  const bodyRef = useRef<HTMLDivElement>(null)\n");
     text = exactOnce(text, "  // The pinned page shares one scroller across views. Reset only on a logical\n  // page change, before paint; refreshes and state updates keep reading position.\n  const scrollPageKey = JSON.stringify(!onInstalled ? ['tab', tab]\n    : openPkg !== undefined ? ['package', openPkg.name, openRow?.rowId ?? null]\n      : openItem !== undefined ? ['item', openItem.id]\n        : [showsMoreList ? 'more' : 'list'])\n  useLayoutEffect(() => {\n    const body = bodyRef.current\n    if (body === null) return\n    body.scrollTop = 0\n    body.scrollLeft = 0\n    // Returning to the main list reattaches its original header measurement\n    // before layout effects run. Synchronize that header with the new offset.\n    body.dispatchEvent(new Event('scroll'))\n  }, [scrollPageKey])\n");
@@ -62,7 +88,9 @@ function officialText(path, text) {
     text = exactOnce(text, '      {...row.managedByBundle === undefined ? {} : { title: resolveText(managedByBundleLabels(row.managedByBundle)) }}\n');
     text = exactOnce(text, 'row={row} title={title} t={t} resolveText={resolveText} busy={toggle.busy(row)}', 'row={row} title={title} t={t} busy={toggle.busy(row)}');
     text = exactOnce(text, 'busy || readDeploymentAvailability(pkg) !== undefined || pkg.readOnlyReason', 'busy || pkg.readOnlyReason');
-    text = exactOnce(text, "function packageStatus(pkg: PackageView): 'running' | 'disabled' | 'problem' | 'unavailable' {\n  const capabilityStatus = deploymentAvailabilityStatus(pkg)\n  if (capabilityStatus !== undefined) return capabilityStatus\n", "function packageStatus(pkg: PackageView): 'running' | 'disabled' | 'problem' {\n");
+    text = exactOnce(text, " | 'problem' | 'unavailable'", " | 'problem'");
+    text = exactOnce(text, "  'unavailable': undefined,\n");
+    text = exactOnce(text, "  const capabilityStatus = deploymentAvailabilityStatus(pkg)\n  if (capabilityStatus !== undefined) return capabilityStatus\n");
     for (const indent of [12, 10]) text = exactOnce(text, `${' '.repeat(indent)}{status === 'unavailable' ? <span data-deployment-unavailable><Tag tone="neutral">{resolveText(UNAVAILABLE_LABEL)}</Tag></span> : null}\n`);
     return exactOnce(text, "pkg.availability === 'missing' && status !== 'unavailable' ? <Tag", "pkg.availability === 'missing' ? <Tag");
   }

@@ -4,4 +4,4 @@ Shows public email status from `/api/auth-policy` through the official `plugins.
 
 Failed reads and invalid configurations never appear ready. Supports all eight official languages, registers no settings section and reads no private account. Check: `node --experimental-strip-types --test packages/client/dsh-base-client-email/tests/*.test.ts`; real slot/control rendering is covered by the Waffo Pancake client package's `tests/panels.test.mjs`.
 
-The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. The default workbench requires sign-in. The panel and server authorize account and administrator actions. Unloading removes the registration and never exposes private row configuration.
+The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. Guests can inspect status; account and administrator actions retain panel and server authorization. Unloading removes the registration and never exposes private row configuration.

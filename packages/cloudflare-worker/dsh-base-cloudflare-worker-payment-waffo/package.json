@@ -28,11 +28,10 @@
     "reuse": {
       "mode": "custom",
       "official": [
-        "@deepseek-ai/dsh-api-account-controller",
         "@deepseek-ai/dsh-deepseek-account",
         "@deepseek-ai/dsh-client-ui-settings-account"
       ],
-      "reason": "Audited the initialized pinned DSH release 66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db. Official account packages expose DeepSeek OAuth and Platform wallet/billing, with no merchant checkout, Waffo Pancake webhook or SaaS order persistence contract. Mounting or forking them cannot provide merchant payments by adapting Host services alone. This independently implemented plugin composes existing local authentication and HTTP services with the MIT official Waffo Pancake SDK. It does not change the official account UI or copy commercial template source.",
+      "reason": "Audited the initialized pinned DSH release 9c2670d3bce5275e0d1610272958121af87787bb. Official account packages expose DeepSeek OAuth and Platform wallet/billing, with no merchant checkout, Waffo Pancake webhook or SaaS order persistence contract. Mounting or forking them cannot provide merchant payments by adapting Host services alone. This independently implemented plugin composes existing local authentication and HTTP services with the MIT official Waffo Pancake SDK. It does not change the official account UI or copy commercial template source.",
       "gaps": [
         "Provider integration is verified with local workerd/D1 and signed fixtures; a merchant sandbox checkout and live GraphQL contract verification are required before production activation.",
         "Deployment-declared prices and mapped features are available; actual charged amounts come only from verified provider payments. Tax estimation, usage metering and cross-provider migration are not supplied."

@@ -468,6 +468,12 @@ assert.ok(!unarchived.archivedSessionIds.includes(forkId));
 // serves list/stat/read/readBytes through the bridge (no synthetic file).
 const fileList = await officialRpc("workspaceFiles/list", { workspaceFileScope: sourceId, path: "" });
 assert.ok(fileList.entries.some((entry) => entry.name === "Conversation.md"), "seeded Conversation.md missing from workspace files");
+const fileSearch = await officialRpc("workspaceFiles/search", {
+  workspaceFileScope: sourceId,
+  request: { query: "cOnVerSaTion.md", includeHidden: false, respectGitignore: false, excludedPaths: [] },
+});
+assert.ok(fileSearch.matches.some((entry) => entry.path === "Conversation.md" && entry.type === "file"),
+  "the official sidebar file search must find the same transcript as the tree");
 const fileStat = await officialRpc("workspaceFiles/stat", { workspaceFileScope: sourceId, path: "Conversation.md" });
 assert.equal(fileStat.absolutePath, "/Conversation.md");
 assert.ok(fileStat.bytes > 0, "Conversation.md has no bytes");

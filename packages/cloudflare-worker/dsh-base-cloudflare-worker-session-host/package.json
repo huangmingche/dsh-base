@@ -11,7 +11,7 @@
     "forkOf": {
       "package": "@deepseek-ai/dsh-api-session-controller",
       "path": "packages/api/session-controller",
-      "commit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "commit": "9c2670d3bce5275e0d1610272958121af87787bb",
       "license": "MIT"
     },
     "status": "session-host + worker-http + official session rpc bridge",
@@ -28,6 +28,7 @@
         "@deepseek-ai/dsh-host-directory-picker",
         "@deepseek-ai/dsh-host-directory-picker-browse",
         "@deepseek-ai/dsh-api-workspace-controller",
+        "@deepseek-ai/dsh-api-workspace-files",
         "@deepseek-ai/dsh-client-file-upload",
         "@deepseek-ai/dsh-session",
         "@deepseek-ai/dsh-api-remote-access",
@@ -36,6 +37,8 @@
       "forkOf": "@deepseek-ai/dsh-api-session-controller",
       "reason": "Official session-controller Host is Node-only; this is the Workers-native fork of its Session Remote contract. RRULE syntax, timezone/DST, COUNT bounds and occurrence resolution directly reuse the platform-neutral RRule export from the pinned dsh-util-time public entrypoint. DirectoryPicker preserves the official Remote/types and unchanged official browse UI; Node filesystem backends cannot mount in Workers, so the Host seam exposes durable owner-scoped logical directories instead. Exact event-prefix forks directly reuse the stable dsh-session/fork buildForkSeed export. Cron and DST gaps/overlaps directly use the pinned stable dsh-util-time exports. Committed SQL notifications and atomic per-session projection revisions adapt the Host data plane without browser wall-clock sequence fabrication. The remoteAccess/follow seam preserves the official owner baseline contract only after resolving the authenticated user's actual Host; it never accepts client-supplied owners or grants. Official ApprovalService/SystemPrompt notices and current policy context are persisted atomically with policy facts and exposed through a non-waking next-step Host port. Completed tool-history repair uses only existing Agent SDK evidence, without executing a model or tool. Session export reuses the original pinned command handler through an explicit rawInput-only port; Agent access throws and is verified as unused. Real command receipts and lifecycle records commit atomically without waking Think.",
       "gaps": [
+        "Workspace file search prunes excluded directories in the owner-scoped SQLite index and matches up to 2,000 eligible files and their parent directories, returning at most 512 results. When native ignore rules are requested, an applicable rule file in the search tree yields workspace-file/search-failed.",
+        "Manual continuation of failed model generation requires a typed assistant attempt and eligible failure code. Think persists a terminal error string, so the official conversationContinuation projection is null and a new empty prompt returns session/agent-busy.",
         "Session create cwd can address only registered logical Workspaces. Ungrouped Sessions at arbitrary unregistered directories are unavailable and rejected explicitly; the official Workspace-based composer remains supported.",
         "Session events and history are projected from Think admitted history and the Host queue; this is a compatibility contract, not official engine equivalence.",
         "toolResults/watch replays retained durable tool results after reload; the official service is live-only.",
@@ -60,10 +63,11 @@
       "sourceEntries": [
         "@deepseek-ai/dsh-client-file-upload/src/http-route.ts"
       ],
-      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db"
+      "sourceReviewCommit": "9c2670d3bce5275e0d1610272958121af87787bb"
     }
   },
   "peerDependencies": {
+    "@deepseek-ai/dsh-api-workspace-files": "*",
     "@dsh-base/cloudflare-worker-entitlements": "workspace:*",
     "agents": "*",
     "@deepseek-ai/dsh-util-time": "*",

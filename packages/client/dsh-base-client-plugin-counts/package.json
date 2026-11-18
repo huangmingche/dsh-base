@@ -39,7 +39,7 @@
         "@deepseek-ai/dsh-client-ui-plugin-manager"
       ],
       "reason": "The pinned official manager has component totals inside bundle details, but no category-heading counts or heading contribution slot. Mounting it unchanged cannot show category totals; its private detail summary counts a different scope, and no standalone category-count implementation exists to fork. The existing complete marked manager fork exposes only its already selected group data through an optional inline slot. This independent plugin counts those entries and renders localized summaries with the supplied original sectionCount class. The contribution owns a scoped layout class matching the official detail summary: a 10px logical gap, baseline alignment and normal text weight, with whole-summary wrapping when space is limited. Official auxiliary font size and color still come from sectionCount. It adds no RPC, DOM inspection, filtering rule, management permission or replacement page. The original detail component summary stays unchanged.",
-      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "sourceReviewCommit": "9c2670d3bce5275e0d1610272958121af87787bb",
       "gaps": [
         "User-requested category totals appear beside the original category headings and More title. Installed totals distinguish bundles from their included components; other totals describe the entries currently displayed. More overlaps the main experimental list, so category totals are never summed into a purported unique plugin total."
       ],

@@ -27,7 +27,6 @@
       "mode": "custom",
       "official": [
         "@deepseek-ai/dsh-client-ui-settings-account",
-        "@deepseek-ai/dsh-api-account-controller",
         "@deepseek-ai/dsh-deepseek-account"
       ],
       "reason": "The official account stack is DeepSeek OAuth and Platform billing, not local product user authentication. The official Account UI is reused unchanged over the local Host seam; Better Auth over D1 supplies the product credential/session capability because no official local-auth package exists. Better Auth 1.7.18's built-in database rate limiter atomically shares per-IP/per-path counters across isolates using the existing AUTH_DB rateLimit table; no in-memory or custom-storage fallback is allowed. Worker-scoped extension composition admits only Better Auth plugins/socialProviders, with duplicate protection and cache invalidation. Optional transactional mail uses the independently authored email service and Workers waitUntil; public native admin/API-key namespaces stay closed behind product wrappers.",

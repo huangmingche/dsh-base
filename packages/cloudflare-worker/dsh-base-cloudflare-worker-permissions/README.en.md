@@ -2,7 +2,7 @@
 
 This package is a complete, marked fork of pinned `@deepseek-ai/dsh-permission-presets`. The official preset derivation, defaults, command, projection and three policy event algorithms remain unchanged. The required native shell executor is replaced with an enforcing logical R2 file boundary. This is not a native shell, PTY or operating-system sandbox.
 
-The source is `.submodules/deepseek-harness/packages/interaction/permission-presets`, commit `66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`, MIT. `src/presets.ts` corresponds to upstream `src/index.ts`; `src/types.ts`, `src/client.ts`, all eight locale JSON files and the MIT license are retained directly. Metadata records `forkOf` and the Worker composition entry `cloudflare:worker:permissions`.
+The source is `.submodules/deepseek-harness/packages/interaction/permission-presets`, commit `9c2670d3bce5275e0d1610272958121af87787bb`, MIT. `src/presets.ts` corresponds to upstream `src/index.ts`; `src/types.ts`, `src/client.ts`, all eight locale JSON files and the MIT license are retained directly. Metadata records `forkOf` and the Worker composition entry `cloudflare:worker:permissions`.
 
 Adaptations replace `shell` with `permissionExecutor`, retain the Agent-created listener without fabricating an Agent service, expose the same initialization algorithm to Host admission, and add synchronous Host and R2 enforcement interfaces. Official Session, SessionProjectionRegistry and ApprovalService mount unchanged through stable exports. Read-only is added through the official preset configuration table. Auto review is not configured or selectable.
 

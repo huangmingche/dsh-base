@@ -1,8 +1,12 @@
 # @dsh-base/client-plugin-manager
 
-Complete marked fork of pinned `@deepseek-ai/dsh-client-ui-plugin-manager`, sourced from `.submodules/deepseek-harness/packages/client/ui-plugin-manager` at commit `66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`, MIT. The full `src/`, `locale/` and license are retained. Root and `/client` exports lead only to the browser entry; the original Host registry-probe source is neither exported, loaded nor started.
+Complete marked fork of pinned `@deepseek-ai/dsh-client-ui-plugin-manager`, sourced from `.submodules/deepseek-harness/packages/client/ui-plugin-manager` at commit `9c2670d3bce5275e0d1610272958121af87787bb`, MIT. The full `src/`, `locale/` and license are retained. Root and `/client` exports lead only to the browser entry; the original Host registry-probe source is neither exported, loaded nor started.
 
 Direct mounting of the official plugin was already verified. List `PackageCard` and `packageStatus` are private, and existing exported components/slots cannot separately replace list status capsules and reason rows. The official reuse protocol therefore calls for a marked fork rather than copied fragments or CSS error suppression. Original page structure, artwork, configuration, navigation, installation flows, controllers, failure handling, all CSS and official dictionaries are preserved.
+
+## Plugin page zoom
+
+The upstream plugin page header measures its resting and compact layouts. At certain browser zoom levels, rounding the toolbar width on writeback can wrap and clip Add plugin. The fork sizes the official toolbar to its content within the measured space and converts viewport measurements to local units under CSS zoom. The upstream buttons and container breakpoints apply.
 
 ## Host availability adaptation
 
@@ -46,3 +50,7 @@ The user requested correcting this confirmed upstream gap. An element ref and la
 The dedicated `run-plugin-navigation.mjs` browser test compares the unmodified official component, opening long details with real clicks from nonzero list offsets. It never normalizes scrolling after a click and verifies that same-page updates preserve reading position.
 
 ## Owned plugin brand artwork
+
+The user approved the website whale for Dsh-base bundles and components. Metadata supplies a real SVG data URL generated during inventory generation from the pinned stable `FISH_LOGO_PATH` and `FISH_LOGO_VIEWBOX` exports; the generated file is not committed. Only that exact value maps to the official `FishLogo` with official primary text ink, following manual app theme changes independently of the OS theme. External SVG is never parsed or inlined. Cloudflare and other artwork, icon frames, layout and permissions retain their existing behavior. `/brand-artwork` exports only the artwork metadata contract.
+
+The whale viewBox closely bounds its silhouette, unlike the padded official plugin artwork. The user-approved optical correction keeps the 36/30px artwork slots and 48/40px frames, centering a 24px-wide whale in cards and details and a 20px-wide whale in component rows. Aspect ratio, theme ink and official CSS are preserved.

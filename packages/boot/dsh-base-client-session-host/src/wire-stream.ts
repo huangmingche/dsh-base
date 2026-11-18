@@ -8,6 +8,22 @@
  * so a stream is never silently replayed.
  */
 
+import type { OfficialSessionPageRequest } from "./gateway.ts";
+
+/** Ordinary and addressed subagent streams use the same message/turn opening window. */
+export type WireFollowInput = Pick<OfficialSessionPageRequest, "maxMessages" | "turnWindow"> & {
+  readonly address?: { readonly kind?: string; readonly sessionId?: string; readonly childSessionId?: string };
+};
+
+/** Build the official follow args for the current Session address. */
+export function wireFollowPayload(input: WireFollowInput) {
+  return { args: { request: {
+    address: input.address, activate: true, assistantStream: true,
+    ...(input.maxMessages === undefined ? {} : { maxMessages: input.maxMessages }),
+    ...(input.turnWindow === undefined ? {} : { turnWindow: input.turnWindow }),
+  } } };
+}
+
 /** Structural socket face used by the carrier (the browser WebSocket fits). */
 export interface WireStreamSocketLike {
   send(data: string): void;
@@ -93,10 +109,12 @@ function messageText(event: unknown): string | undefined {
  * @returns Host items in wire order.
  */
 export async function* openWireStream<T>(options: WireStreamOptions): AsyncIterable<T> {
+  if (options.signal.aborted) return;
   const streamId = options.streamId ?? newStreamId();
   const socketFactory = options.socketFactory ?? ((url: string) => new WebSocket(url) as unknown as WireStreamSocketLike);
   const socket = socketFactory(muxUrl(options.baseUrl));
   const values: T[] = [];
+  let opened = false;
   let failure: WireStreamFailure | undefined;
   let ended = false;
   let notify: (() => void) | undefined;
@@ -126,9 +144,12 @@ export async function* openWireStream<T>(options: WireStreamOptions): AsyncItera
   };
 
   socket.addEventListener("open", () => {
+    if (ended) return;
+    opened = true;
     send({ type: "open", streamId, endpoint: options.endpoint, payload: options.payload });
   });
   socket.addEventListener("message", (event) => {
+    if (ended) return;
     const text = messageText(event);
     if (text === undefined) return;
     let frame: unknown;
@@ -187,11 +208,12 @@ export async function* openWireStream<T>(options: WireStreamOptions): AsyncItera
     ));
   });
   const onAbort = (): void => {
-    send({ type: "cancel", streamId });
+    const cancelStream = opened && !ended;
+    stop();
+    if (cancelStream) send({ type: "cancel", streamId });
     try {
       socket.close(1000, "cancelled");
     } catch {}
-    stop();
   };
   options.signal.addEventListener("abort", onAbort, { once: true });
   if (options.signal.aborted) onAbort();
@@ -212,7 +234,7 @@ export async function* openWireStream<T>(options: WireStreamOptions): AsyncItera
   } finally {
     options.signal.removeEventListener("abort", onAbort);
     if (typeof window !== "undefined") window.removeEventListener("pagehide", onPageHide);
-    if (!ended) {
+    if (opened && !ended) {
       send({ type: "cancel", streamId });
       ended = true;
     }

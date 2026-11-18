@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Context } from "@deepseek-ai/cordis";
 import { apply as fileUploadApply } from "@deepseek-ai/dsh-client-file-upload/client";
 import { createWebConnectionRpc } from "@deepseek-ai/dsh-client-connection/src/client/rpc.ts";
+import { createComposerFileIntake } from "@deepseek-ai/dsh-client-ui-conversation/src/client/input/file-intake.ts";
 import { InputBar } from "@deepseek-ai/dsh-client-ui-conversation/src/client/skeleton/InputBar.tsx";
 import { ComposerAttachments } from "@deepseek-ai/dsh-client-ui-attachment/src/client/ComposerAttachments.tsx";
 import * as conversationCopy from "@deepseek-ai/dsh-client-ui-conversation/src/client/locales.ts";
@@ -37,7 +38,7 @@ export function UploadFixture({ locale }: { locale: "en" | "zh" }) {
       expectedImageMessage: conversationCopy[locale]["image.tooMany"].replace("{count}", "0"),
     };
     (window as any).__UPLOAD_PARITY__ = fixtures;
-    return { ctx, fiber, fixtures, keyboard };
+    return { ctx, fiber, fixtures, keyboard, fileIntake: createComposerFileIntake() };
   }, [locale]);
   useEffect(() => { void setup.fiber.await().then(() => setReady(true)); return () => { void setup.fiber.dispose(); }; }, [setup]);
   if (!ready) return null;
@@ -46,9 +47,9 @@ export function UploadFixture({ locale }: { locale: "en" | "zh" }) {
   const t = (key: string, values: Record<string, unknown> = {}) => String((dictionary as any)[key] ?? key).replace(/\{([^}]+)\}/g, (_, name) => String(values[name] ?? ""));
   const limits = { maxImageBytes: 0, maxMessageImageBytes: 0, maxImagesPerMessage: 0, maxImagePixels: 0, maxImageDimension: 0, mediaTypes: ["image/png", "image/jpeg", "image/webp", "image/gif"] };
   const props: any = {
-    sessionId: "session-one", variant: "hero", t, keyboard: setup.keyboard,
+    sessionId: "session-one", variant: "hero", occurrence: "main", registerFileIntake: setup.fileIntake, t, keyboard: setup.keyboard,
     useInput: (select: any) => select(input), inputActions: { pruneAttachments: () => {} },
-    useSession: (select: any) => select({ promptError: null, running: false, subagent: null, removed: false }),
+    useSession: (select: any) => select({ promptError: null, running: false, subagent: null, removed: false, pendingSubmissions: [] }),
     useAccess: () => true, useBusyEnter: (select: any) => select("queue"),
     useFileUploads: (select: any) => select({}), useNotices: (select: any) => select(null),
     useLexicon: () => undefined, useMenuLauncher: (select: any) => select(null), useStopShortcut: (select: any) => select([]),

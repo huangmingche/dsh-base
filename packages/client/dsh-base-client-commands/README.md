@@ -1,6 +1,6 @@
 # 官方命令弹窗兼容适配
 
-完整浏览器实现复制自本仓库固定子模块的 `@deepseek-ai/dsh-client-ui-commands`，提交 `66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`，保留 MIT 许可证。插件替换官方原始执行行；原始行仍在 composition 中可查且禁用。
+完整浏览器实现复制自本仓库固定子模块的 `@deepseek-ai/dsh-client-ui-commands`，提交 `9c2670d3bce5275e0d1610272958121af87787bb`，保留 MIT 许可证。插件替换官方原始执行行；原始行仍在 composition 中可查且禁用。
 
 官方 `SelectOption` 缺少逐项不可用能力，单独挂载官方插件或导出组件都不能把 `/model` 中部署不支持的模型显示成禁用状态。因此只增加 Host 能力字段 `disabled` / `disabledReason`：原行保持可见，以原布局显示本地化原因与灰色状态；鼠标、Enter/Tab、箭头导航和确认入口都不能提交禁用项。普通选项的布局、搜索、确认、token 消费和焦点行为不变。
 

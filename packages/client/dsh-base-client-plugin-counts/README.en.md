@@ -4,7 +4,7 @@ Shows counts beside the Plugins page's category headings. Built-in settings coun
 
 ## Official reuse
 
-The pinned `@deepseek-ai/dsh-client-ui-plugin-manager` at `dsh-v0.2.2-rc.1` (`66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`) was reviewed first. Its detail page already summarizes component counts and states, but category headings have no counts or matching contribution slot. That private detail summary does not describe category totals.
+The pinned `@deepseek-ai/dsh-client-ui-plugin-manager` at `dsh-v0.2.2-rc.5` (`9c2670d3bce5275e0d1610272958121af87787bb`) was reviewed first. Its detail page already summarizes component counts and states, but category headings have no counts or matching contribution slot. That private detail summary does not describe category totals.
 
 The existing complete marked `@dsh-base/client-plugin-manager` fork only adds the optional inline `dsh-base.plugins.group.summary` slot, passing the same render's category data and the original `sectionCount` class. This plugin contributes counts through the exported `./group-summary` type contract. It copies no page or official filtering rule. The user explicitly requested this visual addition; package metadata records that approval. The official detail component summary remains unchanged.
 

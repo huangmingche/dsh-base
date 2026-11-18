@@ -11,6 +11,8 @@ import { readOfficialPluginCatalog, assertOfficialPluginCatalog, LOCAL_MANAGEABL
 import { readOwnedPluginInventory, READONLY_OWNED_BUNDLES, assertOwnedBundleCards, assertReadonlyOwnedDetail, assertOwnedComponentNames, readOwnedDetailNames, ownershipLabel } from './owned-plugin-inventory-oracle.mjs';
 import { GATEWAY_BUNDLE, GATEWAY_COMPONENTS, assertGatewayBundleCard, assertGatewayBundleDetail } from './gateway-bundle-assertions.mjs';
 import { assertOfficialCards, openMorePlugins, openPluginDetail, assertUnavailablePluginDetail, backFromPluginDetail, managerCopy } from './plugin-manager-assertions.mjs';
+import { normalizeOwnedArtwork, restoreOwnedArtwork } from './owned-plugin-artwork-reference.mjs';
+import { DSH_BASE_PLUGIN_ICON } from '../../../../packages/client/dsh-base-client-plugin-manager/src/client/brand-artwork.ts';
 const app = resolve(import.meta.dirname, '../..');
 const requireFromApp = createRequire(resolve(app, 'package.json'));
 const puppeteer = requireFromApp('puppeteer-core').default;
@@ -53,6 +55,15 @@ try {
   }
   async function compare(reference, adapted, label, { approvedAvailability = false, approvedDisabledSwitch = false, approvedManagementPolicy = false, locale } = {}) {
     const normalizationStyles = [];
+    const ownedArtwork = await reference.page.$$eval('img', (images, canonical) => images.filter(image => image.getAttribute('src') === canonical).length, DSH_BASE_PLUGIN_ICON);
+    if (ownedArtwork > 0) {
+      for (const [side, { page }] of [['reference', reference], ['adapted', adapted]]) {
+        await writeFile(resolve(output, `${label}-${side}-brand-actual.png`), await stableScreenshot(page, { captureBeyondViewport: false }));
+      }
+      assert.equal(await normalizeOwnedArtwork(reference.page, DSH_BASE_PLUGIN_ICON), ownedArtwork);
+      assert.equal(await adapted.page.$$eval('[data-dsh-brand-artwork]', elements => elements.length), ownedArtwork);
+      normalizationStyles.push({ restore: () => restoreOwnedArtwork(reference.page) });
+    }
     if (approvedManagementPolicy) {
       // Host ownership text and its neutral tone are explicit user-approved
       // adaptations. Preserve the raw captures, then compare all official
@@ -140,7 +151,7 @@ try {
       await writeFile(resolve(output, `${label}-${index}-adapted.png`), pair.b);
       hashes.push(createHash('sha256').update(pair.a).digest('hex'));
     }
-    cases.push({ label, viewports: positions.length, approvedAvailability, approvedDisabledSwitch, approvedManagementPolicy, screenshotSha256: hashes });
+    cases.push({ label, viewports: positions.length, approvedAvailability, approvedDisabledSwitch, approvedManagementPolicy, approvedOwnedArtwork: ownedArtwork, screenshotSha256: hashes });
     if (approvedDisabledSwitch) await reference.page.$eval('[data-plugin-package] [role="switch"]', element => { element.disabled = false; });
     for (const { page, handle, restore } of normalizationStyles) {
       if (restore) { await restore(); continue; }
@@ -231,11 +242,16 @@ try {
     assert.deepEqual(reference.errors, []); assert.deepEqual(adapted.errors, []);
     await reference.page.close(); await adapted.page.close();
 
-    for (const state of ['native', 'failure:unmarked-platform', 'failure:invalid-marker', 'failure:operation', 'failure:metadata', 'failure:runtime', 'failure:marked-runtime', 'failure:request']) {
+    for (const state of ['native', 'skipped', 'failure:unmarked-platform', 'failure:invalid-marker', 'failure:operation', 'failure:metadata', 'failure:runtime', 'failure:marked-runtime', 'failure:request']) {
       const original = await open(locale, state, 'reference');
       const actual = await open(locale, state, 'adapted');
       assert.equal(await actual.page.$$eval('[data-deployment-unavailable]', elements => elements.length), 0, `${state}: a real failure or unmarked package never becomes deployment-unavailable`);
       if (state === 'native') assert.deepEqual(await actual.page.$$eval('[data-plugin-package]', elements => elements.map(element => element.getAttribute('data-plugin-status')).sort()), ['disabled', 'running'], 'native active and intentionally off packages both remain represented');
+      if (state === 'skipped') {
+        const card = '[data-plugin-package][data-plugin-status="not-running"]';
+        assert.equal(await actual.page.$eval(card + ' [data-tone="danger"]', element => element.textContent), managerCopy(locale).statusNotRunning);
+        assert.equal(await actual.page.$eval(card + ' [role="switch"]', element => element.getAttribute('aria-checked')), 'true');
+      }
       if (state.startsWith('failure:') && state !== 'failure:request') {
         assert.equal(await actual.page.$eval('[data-plugin-package]', element => element.getAttribute('data-plugin-status')), 'problem');
         assert.ok(await actual.page.$('[data-plugin-package] [data-tone="danger"]'), `${state}: real problem remains visibly red`);
@@ -304,6 +320,28 @@ try {
     cases.push({ locale, state: 'readonly' });
     await readonly.page.close();
 
+    const servedSearch = await open(locale, 'builtin:web-search:served', 'reference');
+    const { page: searchPage } = servedSearch;
+    const searchSection = 'section[aria-labelledby="plugin-config-web-search-section"]';
+    const hint = locale === 'zh' ? /DeepSeek 服务端搜索.*不按次收费.*DeepSeek Search API/ : /DeepSeek server-side search.*no per-search charge.*DeepSeek Search API/;
+    const guide = locale === 'zh' ? 'https://api-docs.deepseek.com/zh-cn/guides/search' : 'https://api-docs.deepseek.com/guides/search';
+    assert.match(await searchPage.$eval(searchSection, section => section.innerText), hint);
+    assert.equal(await searchPage.$eval(`${searchSection} a`, link => link.href), guide);
+    assert.equal(await searchPage.$('section[aria-labelledby="plugin-config-web-fetch-section"] a'), null);
+    assert.equal(await searchPage.$('#plugin-config-web-search-key'), null);
+    await searchPage.click('#plugin-config-web-search-provider');
+    const providerLabel = locale === 'zh' ? 'DeepSeek 服务端搜索' : 'DeepSeek server-side search';
+    await searchPage.locator(`::-p-aria([name="${providerLabel}"][role="menuitem"])`).click();
+    await searchPage.waitForSelector('#plugin-config-web-search-key');
+    assert.equal(await searchPage.$eval('#plugin-config-web-search-provider', button => button.innerText), providerLabel);
+    assert.doesNotMatch(await searchPage.$eval(searchSection, section => section.innerText), hint);
+    assert.equal(await searchPage.$(`${searchSection} a`), null);
+    await searchPage.evaluate(() => window.dispatchEvent(new Event('parity:unmount')));
+    await searchPage.waitForFunction(() => !window.__BUILTIN_PARITY__.registered() && !document.querySelector('[data-builtin-contract]'));
+    assert.deepEqual(servedSearch.errors, []); assert.deepEqual(servedSearch.apiRequests, []);
+    cases.push({ locale, state: 'official-web-search-auto-to-explicit' });
+    await searchPage.close();
+
     for (const id of ['subagent', 'web-search', 'agent-loop', 'shell']) {
       const original = await open(locale, `builtin:${id}`, 'reference');
       const unavailable = await open(locale, `builtin:${id}`, 'adapted');
@@ -314,6 +352,10 @@ try {
         const states = await page.evaluate(() => window.__BUILTIN_PARITY__.snapshots());
         assert.ok(Object.values(states).every(value => value.available === false), `${id}: real official controllers report unavailable forms`);
         assert.ok(await page.$$eval('[data-builtin-contract] input,[data-builtin-contract] select,[data-builtin-contract] textarea', elements => elements.every(element => element.matches(':disabled'))));
+        if (id === 'web-search') {
+          assert.equal(await page.$('#plugin-config-web-search-provider, #plugin-config-web-fetch-provider'), null);
+          assert.equal(await page.$('[data-builtin-contract] a'), null, 'an unavailable Host does not advertise automatic search');
+        }
       }
       // The extra explanation is an explicit Host availability seam. Check it
       // above, then compare every pixel of the original form without that text.

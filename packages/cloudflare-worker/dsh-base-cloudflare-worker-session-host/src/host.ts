@@ -1,3 +1,4 @@
+import type { WorkspaceFileSearchRequest } from "@deepseek-ai/dsh-api-workspace-files/types";
 import { exportCommandDescriptor } from './export-command.ts';
 import { firstCronOccurrence, officialCron } from './schedule-cron.ts';
 import { FIXED_AGENT_PRESET_ID } from "../../../boot/dsh-base-agent-presets/src/index.ts";
@@ -377,6 +378,19 @@ export class SessionHost implements SessionHostReadContract {
     return { ...raw, ...deriveSessionProjections(raw, state), ...(snapshot === undefined ? {} : { _dshBaseProjectionRevision: snapshot.revision }) };
   }
 
+  /** Read one page inside this owner Host, using the same values and revision as a single-session read. */
+  async controlProjectionPage(after?: string) {
+    const limit = DEFAULT_PAGE_SIZE + 1;
+    const ids = this.storage.listSessionIdsAfter !== undefined
+      ? await this.storage.listSessionIdsAfter(after, limit)
+      : (await this.storage.listSessions()).map(row => row.sessionId).filter(id => after === undefined || id > after).sort().slice(0, limit);
+    const page = ids.slice(0, DEFAULT_PAGE_SIZE);
+    const items = await Promise.all(page.map(async sessionId => ({
+      sessionId, projections: await this.projections({ sessionId }),
+    })));
+    return { items, ...(ids.length > page.length ? { cursor: page[page.length - 1]! } : {}) };
+  }
+
   private async permissions(): Promise<PermissionStore> {
     if (this.permissionStore === undefined) throw new SessionRpcFault('gateway/endpoint-unavailable', 'Session permission runtime unavailable');
     return this.permissionStore();
@@ -707,6 +721,7 @@ export class SessionHost implements SessionHostReadContract {
   async prompt(input: {
     sessionId: string;
     text: string;
+    continuation?: boolean;
     requestId?: string;
     attachments?: readonly SessionHostAttachmentRef[];
     receiptIds?: readonly string[];
@@ -716,6 +731,13 @@ export class SessionHost implements SessionHostReadContract {
     const previous = (await this.storage.listSubmissions(input.sessionId)).find((submission) => submission.requestId === requestId);
     if (previous !== undefined) return { requestId, submissionId: previous.submissionId };
     if (record.archived) throw new SessionRpcFault("session/archived", "Session is archived", { sessionId: input.sessionId });
+    if (input.continuation) {
+      // Think stores a terminal error string, without the typed assistant
+      // attempt and failure code required by the official retry projection.
+      throw new SessionRpcFault("session/agent-busy", "generation continuation is unavailable", {
+        reason: "NO_CONTINUABLE_FAILURE_OR_PENDING_INPUT",
+      });
+    }
     const text = input.text.trim();
     if (text === "" && (input.attachments?.length ?? 0) === 0 && (input.receiptIds?.length ?? 0) === 0) {
       throw new Error("prompt must contain text or an attachment");
@@ -1179,6 +1201,11 @@ export class SessionHost implements SessionHostReadContract {
   async workspaceFileList(input: { sessionId: string; path: string }): Promise<WorkspaceFileListing> {
     const { store, scope } = await this.workspaceFileContext(input.sessionId);
     return store.list(scope, input.path);
+  }
+
+  async workspaceFileSearch(sessionId: string, request: WorkspaceFileSearchRequest) {
+    const { store, scope } = await this.workspaceFileContext(sessionId);
+    return store.search(scope, request);
   }
 
   /** Report one workspace file's identity, version, and byte size. */

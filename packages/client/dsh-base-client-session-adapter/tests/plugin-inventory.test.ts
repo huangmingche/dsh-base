@@ -3,6 +3,7 @@ import { createPluginInventoryRemotes } from "../src/client/plugin-inventory.ts"
 import { GATEWAY_BUNDLE_MEMBERS, GATEWAY_CLIENT_MODULE, GATEWAY_THINK_MODULE, isGatewayModule } from "../../../boot/dsh-base-plugin-management/src/index.ts";
 import { OWNED_PLUGIN_ROWS, OWNED_PLUGIN_BUNDLES } from "../src/client/owned-plugin-inventory.generated.ts";
 import { OWNED_PLUGIN_META, MANAGED_BUNDLE_META } from "../src/client/managed-bundle-meta.ts";
+import { DSH_BASE_PLUGIN_ICON } from '../../dsh-base-client-plugin-manager/src/client/brand-artwork.ts';
 import { CLOUDFLARE_PLUGIN_ICON } from '../src/client/cloudflare-plugin-icon.ts';
 import { localPackages, repoRoot } from "../../../../scripts/conformance/lib.mjs";
 import { OFFICIAL_BUNDLE_CATALOG } from "../src/client/official-bundle-catalog.generated.ts";
@@ -33,7 +34,7 @@ for (const meta of Object.values(OWNED_PLUGIN_META)) {
 }
 assert.deepEqual(Object.keys(MANAGED_BUNDLE_META).sort(), OWNED_PLUGIN_BUNDLES.map(bundle => bundle.name).sort());
 for (const meta of [...Object.values(OWNED_PLUGIN_META), ...Object.values(MANAGED_BUNDLE_META)]) {
-  assert.equal(meta.icon, meta.title.en.startsWith('Dsh-base ') ? undefined : CLOUDFLARE_PLUGIN_ICON, 'display branding determines artwork in both lists and component details');
+  assert.equal(meta.icon, meta.title.en.startsWith('Dsh-base ') ? DSH_BASE_PLUGIN_ICON : CLOUDFLARE_PLUGIN_ICON, 'display branding determines artwork in both lists and component details');
 }
 let state = { revision: 4, overrides: {} as Record<string, { disabled?: boolean }> };
 const calls: Array<{ method: string; path: string; body?: unknown }> = [];
@@ -89,7 +90,7 @@ for (const expected of OFFICIAL_BUNDLE_CATALOG) {
   assert.equal(bundle.error, undefined, 'a known deployment limitation is not a runtime failure');
   assert.equal(bundle.installTarget, undefined);
   assert.equal(bundle.removable, false);
-  assert.equal(bundle.updatable, false);
+  assert.equal(bundle.update, undefined, "a deployment-managed bundle has no registry or Git update mode");
   assert.deepEqual(bundle.rows, [], 'discovery data does not fabricate running fibers or patch rows');
   assert.deepEqual(bundle.meta, expected.meta, 'official localized text and artwork are unchanged');
 }

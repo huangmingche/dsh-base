@@ -8,7 +8,7 @@
 
 检查：`node --experimental-strip-types --test packages/client/dsh-base-client-waffo/tests/*.test.ts`，`node --test packages/client/dsh-base-client-waffo/tests/*.test.mjs`。覆盖真实槽位注册、官方控件渲染对比、匿名/停用请求隔离、类型边界、跳转域名、幂等重试与请求生命周期。
 
-本插件通过 `publicPluginConfigurations` 兼容服务按生命周期登记自己的公开 bundle 配置入口；默认工作台要求登录；面板和服务端根据账号权限提供对应操作。卸载插件会注销入口，不开放组件级私有配置。
+本插件通过 `publicPluginConfigurations` 兼容服务按生命周期登记自己的公开 bundle 配置入口；匿名用户可查看状态，账号和管理员动作仍由面板与服务端鉴权。卸载插件会注销入口，不开放组件级私有配置。
 
 浏览器检查：`node packages/client/dsh-base-client-waffo/tests/payment-panel-browser.mjs`。在实际支付面板上，用中英文、明暗主题、桌面和窄屏的八种组合对比官方按钮几何和样式，并完整执行游客选购、登录与同一意图恢复；供应商目的页由本地 fixture 截获，不产生真实付款。证据写入 `.artifacts/waffo-payment-panel-browser/`。
 

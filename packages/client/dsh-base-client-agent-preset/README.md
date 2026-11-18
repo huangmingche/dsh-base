@@ -1,6 +1,6 @@
 # @dsh-base/client-agent-preset
 
-完整、标记的官方 `@deepseek-ai/dsh-client-ui-agent-preset` fork（pinned `dsh-v0.2.2-rc.1`，commit `66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`，MIT）。
+完整、标记的官方 `@deepseek-ai/dsh-client-ui-agent-preset` fork（pinned `dsh-v0.2.2-rc.5`，commit `9c2670d3bce5275e0d1610272958121af87787bb`，MIT）。
 
 - 保留官方全部 controllers/components：真实 `load()`、introduce 动画、refusal Toast/dismissRefusal、main=false 处理、Coding Tools 菜单 effect、官方 guides、官方 CSS 与 locale；
 - 仅适配 Host availability：

@@ -22,8 +22,7 @@
     "reuse": {
       "mode": "custom",
       "official": [
-        "@deepseek-ai/dsh-deepseek-account",
-        "@deepseek-ai/dsh-api-account-controller"
+        "@deepseek-ai/dsh-deepseek-account"
       ],
       "reason": "The pinned official account packages manage DeepSeek Platform identity and wallet balances, not product merchant purchases or feature grants. Neither direct mounting nor a Host-only fork provides SaaS feature authorization. This plugin composes the local auth and Waffo Pancake payment services with a server-configured feature-to-plan declaration and adds no UI or runtime infrastructure.",
       "gaps": [

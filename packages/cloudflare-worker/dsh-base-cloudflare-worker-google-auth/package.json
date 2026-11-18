@@ -20,10 +20,9 @@
     "reuse": {
       "mode": "custom",
       "official": [
-        "@deepseek-ai/dsh-deepseek-account",
-        "@deepseek-ai/dsh-api-account-controller"
+        "@deepseek-ai/dsh-deepseek-account"
       ],
-      "reason": "The pinned official account packages implement DeepSeek Platform OAuth and cannot mount or fork into a Google-backed local product account without replacing their account protocol. No official DSH Google authentication implementation exists. This Worker plugin independently configures the existing pinned Better Auth Google provider through the auth extension seam; Better Auth owns OAuth state, PKCE, callback, token exchange and D1 persistence. No upstream or commercial template source is copied and no UI is introduced.",
+      "reason": "The pinned DeepSeek account plugin implements DeepSeek Platform OAuth and cannot mount or fork into a Google-backed local product account without replacing their account protocol. No official DSH Google authentication implementation exists. This Worker plugin independently configures the existing pinned Better Auth Google provider through the auth extension seam; Better Auth owns OAuth state, PKCE, callback, token exchange and D1 persistence. No upstream or commercial template source is copied and no UI is introduced.",
       "gaps": [
         "Requires deployment credentials and matching Google Console redirect registration. Live Google authorization remains unverified; local workerd tests use the real provider state/PKCE, reject forged state and token endpoint redirects, and complete a simulated token exchange/callback/session through global fetch with no external traffic. Apple and phone providers remain unavailable."
       ]

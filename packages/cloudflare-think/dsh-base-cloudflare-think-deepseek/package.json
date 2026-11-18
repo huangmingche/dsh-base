@@ -16,7 +16,8 @@
     "reuse": {
       "mode": "custom",
       "official": [
-        "@deepseek-ai/dsh-client-deepseek-provider"
+        "@deepseek-ai/dsh-llm-deepseek",
+        "@deepseek-ai/dsh-llm-deepseek-api-key"
       ],
       "reason": "The official DeepSeek provider is a Host-side Cordis package that speaks the DSH Messages protocol and cannot feed a Cloudflare Think AI SDK model. This is the Workers Think seam: an OpenAI-compatible DeepSeek model fed by the owner's BYOK credential the Host decrypts per turn."
     }

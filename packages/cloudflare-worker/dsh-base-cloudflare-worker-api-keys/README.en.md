@@ -14,6 +14,6 @@ Permission is fixed to `profile:read`. Keys never become browser sessions or aut
 
 Bodies are stream-limited to 2048 bytes. Clients cannot choose permissions, metadata, user ID, prefix, unlimited expiration or rate-limit settings. All public `/api/auth/api-key/*` paths are denied. Internal endpoints include only create, list, delete and server-side verification, without update. Responses use `no-store`; complete keys cannot be recovered from the server.
 
-The reuse audit read pinned DSH `deepseek-account` and `api-account-controller`, which manage DeepSeek Platform accounts/inference credentials and contain no product API-key issuer to mount or fork. This independently authored adapter uses the [Better Auth API key plugin](https://better-auth.com/docs/plugins/api-key), copying no commercial template or DSH source.
+The reuse audit read the pinned DSH `deepseek-account` plugin and its `account` Remote, which manage DeepSeek Platform accounts/inference credentials and contain no product API-key issuer to mount or fork. This independently authored adapter uses the [Better Auth API key plugin](https://better-auth.com/docs/plugins/api-key), copying no commercial template or DSH source.
 
 `node --test packages/cloudflare-worker/dsh-base-cloudflare-worker-api-keys/tests/runtime.test.mjs` uses actual workerd, Better Auth and temporary D1 for generation/hashing/one-time reveal, pagination, cross-user denial, scope, concurrent rate limits, expiry/revocation, bans and native endpoint bypass. Tests have no external network.

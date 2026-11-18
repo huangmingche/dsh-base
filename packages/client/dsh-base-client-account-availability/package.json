@@ -30,7 +30,7 @@
       ],
       "reason": "Wrap the stable AccountSection export of our complete marked ui-settings-account fork. Its default rendering and live account hooks preserve the pinned official identity and account menu. This compatibility seam supplies unavailable billing status and native disabled semantics with anchor navigation guards. Only unavailable Platform account and billing operations are dimmed and locally explained; no profile, balance or working billing link is fabricated. The fork is necessary for the separately approved anonymous full-layout Host presentation contract; this seam copies no official source.",
       "sourceEntries": [],
-      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "sourceReviewCommit": "9c2670d3bce5275e0d1610272958121af87787bb",
       "gaps": [
         "The local BetterAuth identity has no DeepSeek Platform balance, bonus wallets, account-profile page, usage page or top-up service. Official account details remain visible; all Platform links are disabled with localized explanations.",
         "The official AccountView requires absolute link strings even when unavailable; the Host carries inert local-origin compatibility values, and the seam blocks pointer, keyboard, auxiliary-click and context-menu navigation."

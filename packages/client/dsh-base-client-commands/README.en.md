@@ -1,6 +1,6 @@
 # Official command popup compatibility
 
-The complete browser implementation comes from this repository's pinned `@deepseek-ai/dsh-client-ui-commands` submodule package at commit `66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`, preserving its MIT license. This plugin replaces the executable official row; the original remains visible in composition inventory, disabled.
+The complete browser implementation comes from this repository's pinned `@deepseek-ai/dsh-client-ui-commands` submodule package at commit `9c2670d3bce5275e0d1610272958121af87787bb`, preserving its MIT license. This plugin replaces the executable official row; the original remains visible in composition inventory, disabled.
 
 The official `SelectOption` contract has no per-option availability field. Mounting the plugin or its exported view cannot show deployment-unavailable `/model` choices as disabled. This fork adds only Host capability fields `disabled` / `disabledReason`: keep the original rows visible with localized reasons and dimmed styling; pointer, Enter/Tab, arrow navigation and confirmation cannot submit them. Ordinary options retain the official layout, search, confirmation, token consumption and focus behavior.
 

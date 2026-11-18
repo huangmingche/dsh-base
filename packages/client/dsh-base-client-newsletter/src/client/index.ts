@@ -11,15 +11,12 @@ import { descriptions } from './copy.ts';
 import { mountConfirmation } from './confirmation.tsx';
 import { NewsletterPanel } from './NewsletterPanel.tsx';
 export const name = '@dsh-base/client-newsletter';
-export const inject: string[] = [];
+export const inject = ['slots', 'locale', 'publicPluginConfigurations'];
 export const Config = z.object({}).default({});
 export function apply(ctx: Context): void {
-  mountConfirmation(ctx);
-  ctx.inject(['slots', 'locale', 'publicPluginConfigurations'], scope => mountPanel(scope));
-}
-function mountPanel(ctx: Context): void {
   registerPublicConfiguration(ctx, 'dsh-base:newsletter');
   const signIn=()=>{requestLogin();},store=new PanelStore(definition,(input,init)=>fetch(input,init),signIn);
   ctx.effect(()=>()=>store.dispose(),'newsletter: requests');
   ctx.slots.inject('plugins.bundle.config',()=>ctx.slots.register({name:'plugins.bundle.config',key:'dsh-base:newsletter',inject:()=>({hooks:{panel:store,language:ctx.locale},definition,descriptions,ensure:store.ensure,reload:()=>{void store.reload();},run:store.run,clearResult:store.clearResult,leave:store.leave,signIn})},NewsletterPanel));
+  mountConfirmation(ctx);
 }

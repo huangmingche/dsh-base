@@ -32,7 +32,7 @@ export function readOfficialPluginCatalog() {
   };
   const bundles = [...OPTIONAL_BUNDLES, ...ON_DEMAND_BUNDLES].map(name => ({
     name, official: true, availability: 'missing', installed: false, enabled: false,
-    optional: true, removable: false, updatable: false, listedByDefault: true,
+    optional: true, removable: false, listedByDefault: true,
     meta: metadata(name), overrides: [], rows: [], deploymentAvailability: 'not-adapted',
   }));
   assert.equal(new Set(bundles.map(bundle => bundle.name)).size, bundles.length, 'official catalog identities must be unique');
@@ -61,7 +61,7 @@ export function assertOfficialPluginCatalog(actual, expected = readOfficialPlugi
   assert.deepEqual(actual.filter(bundle => bundle.name.startsWith('@deepseek-ai/')).map(bundle => bundle.name).sort(), expected.bundles.map(bundle => bundle.name).sort());
   for (const reference of expected.bundles) {
     const bundle = actual.find(bundle => bundle.name === reference.name);
-    for (const field of ['official', 'availability', 'installed', 'enabled', 'optional', 'removable', 'updatable', 'listedByDefault']) {
+    for (const field of ['official', 'availability', 'installed', 'enabled', 'optional', 'removable', 'update', 'listedByDefault']) {
       assert.equal(bundle[field], reference[field], `${reference.name}: ${field}`);
     }
     assert.equal(bundle.error, undefined, `${reference.name}: expected deployment limits are not runtime errors`);

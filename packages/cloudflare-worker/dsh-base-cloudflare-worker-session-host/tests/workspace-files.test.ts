@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
 import { FakeR2, NodeSqlStorage, createFileReadFixture } from "./workspace-file-roundtrip.ts";
 import { createDurableObjectSessionHost } from "../src/durable-object.ts";
+import type { WireHandler } from "@dsh-base/cloudflare-worker-wire-rpc";
+import { SESSION_HOST_STORAGE_ID } from "../src/migration.ts";
+import { registerWorkspaceFilesRemoteEndpoints } from "../src/remote-workspace-files.ts";
 import { SessionHost } from "../src/host.ts";
 import { dispatchSessionHost } from "../src/service.ts";
 import { SqliteSessionHostStorage } from "../src/sqlite-storage.ts";
@@ -314,6 +317,55 @@ for (let index = 0; index < MAX_LIST_ENTRIES + 1; index += 1) {
 const bulk = files.list({ workspaceId: "bulk", root: "/bulk" }, "");
 assert.equal(bulk.entries.length, MAX_LIST_ENTRIES);
 assert.equal(bulk.truncated, true);
+const options = { query: "entry-", includeHidden: false, respectGitignore: true, excludedPaths: [] as string[] };
+const bulkSearch = files.search({ workspaceId: "bulk", root: "/bulk" }, options);
+assert.equal(bulkSearch.incomplete, true);
+assert.equal(bulkSearch.truncated, true);
+assert.equal(bulkSearch.matches.length, 512);
+
+// Only visible files consume the search budget, even if excluded trees sort first.
+const scanScope = { workspaceId: "scan-filters", root: "/" };
+for (const path of ["dist/.ignore", ".cache/.rgignore", ".git/.ignore", "src/needle.ts"]) {
+  await files.write(scanScope, path, new Uint8Array());
+}
+for (let index = 0; index < MAX_LIST_ENTRIES; index++) {
+  const directory = ["dist", ".cache", ".git"][index % 3]!;
+  const name = `entry-${index}`;
+  sql.exec(
+    "INSERT INTO dsh_session_host_file_nodes (workspace_id, path, parent_path, name, kind, size, created_at, updated_at) VALUES (?, ?, ?, ?, 'file', 0, 0, 0)",
+    scanScope.workspaceId, `${directory}/${name}`, directory, name,
+  );
+}
+const needle = { ...options, query: "needle", excludedPaths: ["dist"] };
+const onlyNeedle = { matches: [{ path: "src/needle.ts", type: "file" }], truncated: false, incomplete: false };
+assert.deepEqual(files.search(scanScope, { ...needle, respectGitignore: false }), onlyNeedle);
+assert.deepEqual(files.search(scanScope, needle), onlyNeedle, "ignore files outside the search tree do not affect the result");
+assert.throws(() => files.search(scanScope, { ...needle, includeHidden: true }), { code: "workspace-file/search-failed" });
+assert.throws(() => files.search(scanScope, { ...needle, excludedPaths: [] }), { code: "workspace-file/search-failed" });
+await files.write(scanScope, "src/nested/.ignore", new Uint8Array());
+assert.deepEqual(files.search(scanScope, { ...needle, excludedPaths: ["dist", "src/nested"] }), onlyNeedle);
+assert.throws(() => files.search(scanScope, { ...needle, excludedPaths: ["dist", ".ignore"] }), { code: "workspace-file/search-failed" },
+  "hiding the .ignore filename alone still leaves its directory's native rules active");
+
+// The cap uses full file-path order: "z-hit-other.txt" sorts before "z-hit/hit.txt".
+const bulkScope = { workspaceId: "bulk", root: "/bulk" };
+sql.exec("DELETE FROM dsh_session_host_file_nodes WHERE workspace_id = ? AND name IN ('entry-0.md', 'entry-1.md')", bulkScope.workspaceId);
+await files.write(bulkScope, "z-hit-other.txt", new Uint8Array());
+const lastFile = [{ path: "z-hit-other.txt", type: "file" }];
+assert.deepEqual(files.search(bulkScope, { ...options, query: "hit" }), { matches: lastFile, truncated: false, incomplete: false });
+await files.write(bulkScope, "z-hit/hit.txt", new Uint8Array());
+assert.deepEqual(files.search(bulkScope, { ...options, query: "hit" }), { matches: lastFile, truncated: false, incomplete: true });
+
+const gitScope = { workspaceId: "git-rules", root: "/" };
+for (const path of ["app/config/.gitignore", "src/needle.ts"]) await files.write(gitScope, path, new Uint8Array());
+assert.deepEqual(files.search(gitScope, needle), onlyNeedle, ".gitignore takes effect only inside a repository");
+await files.write(gitScope, "app/.git/HEAD", new Uint8Array());
+assert.throws(() => files.search(gitScope, needle), { code: "workspace-file/search-failed" });
+const skipConfig = { ...needle, excludedPaths: ["app/config"] };
+assert.deepEqual(files.search(gitScope, skipConfig), onlyNeedle);
+await files.write(gitScope, "app/.git/info/exclude", new Uint8Array());
+assert.throws(() => files.search(gitScope, skipConfig), { code: "workspace-file/search-failed" });
+assert.deepEqual(files.search(gitScope, { ...needle, excludedPaths: ["app"] }), onlyNeedle);
 
 // A non-root workspace rejects absolute paths outside it.
 const created = await host.workspaceCreate({ path: "/workspace-files", title: "Files workspace" });
@@ -337,6 +389,61 @@ assert.equal(emptyTranscript.lines, 1);
 assert.equal(emptyTranscript.eof, true);
 
 // The service transport preserves the store's failure codes and parses params defensively.
+const search = async (sessionId: string, query: string, filters: Partial<typeof options> = {}) =>
+  host.workspaceFileSearch(sessionId, { ...options, query, ...filters });
+for (const path of ["Topic.txt", "notes/Topic/Plans.md", ".private/Topic.md", ".git/Topic.md", "literal[1]/Topic.md"]) {
+  await host.workspaceFileWrite({ sessionId: "wf-sub", path, dataBase64: "b2s=" });
+}
+const scoped = await search("wf-sub", "tOpIC", { excludedPaths: ["literal[1]"] });
+assert.deepEqual(scoped, {
+  matches: [{ path: "Topic.txt", type: "file" }, { path: "notes/Topic", type: "directory" }],
+  truncated: false, incomplete: false,
+});
+assert.deepEqual((await search("wf-sub", "notes/topic/plans")).matches, [{ path: "notes/Topic/Plans.md", type: "file" }]);
+assert.deepEqual((await search("wf-sub", "plans", { excludedPaths: ["notes/Topic"] })).matches, []);
+assert.deepEqual((await search("wf-default", "tOpIC")).matches, [], "search uses the workspace of the supplied owner session");
+assert.deepEqual((await search("wf-sub", ".md", { includeHidden: true })).matches.filter(entry => entry.path.startsWith(".")),
+  [{ path: ".private/Topic.md", type: "file" }], "VCS metadata stays excluded even when ordinary dotfiles are visible");
+// Through the official RPC and Worker router, two owners can use even the same
+// Session id without sharing a file index or reading the other owner's R2 keys.
+const secondSql = new NodeSqlStorage();
+const secondOwner = createDurableObjectSessionHost(secondSql, catalog, undefined, new WorkspaceFileStore(secondSql, bucket, "owner-2"));
+await secondOwner.create({ sessionId: "wf-sub" });
+await secondOwner.workspaceFileWrite({ sessionId: "wf-sub", path: "Second-owner.md", dataBase64: "b2s=" });
+const ownerHosts = new Map([
+  [`owner:owner-1:${SESSION_HOST_STORAGE_ID}`, host],
+  [`owner:owner-2:${SESSION_HOST_STORAGE_ID}`, secondOwner],
+]);
+const env = { SESSION_HOST: {
+  idFromName: (id: string) => id,
+  get: (id: string) => ({ async fetch(request: Request) {
+    const selected = ownerHosts.get(id);
+    assert.ok(selected, "the Worker must route to a real authenticated owner");
+    if (new URL(request.url).pathname.endsWith("/migrate/status")) return Response.json({ migrated: true });
+    return Response.json(await dispatchSessionHost(selected, await request.json()));
+  } }),
+} };
+const fileMethods = new Map<string, WireHandler>();
+const dispose = registerWorkspaceFilesRemoteEndpoints({ register(method, handler) {
+  fileMethods.set(method, handler);
+  return () => { fileMethods.delete(method); };
+} });
+const method = "workspaceFiles/search";
+async function remoteSearch(owner: string, query: string, sessionId = "wf-sub") {
+  return await fileMethods.get(method)!({ args: { workspaceFileScope: sessionId, request: { ...options, query, ownerId: "owner-1" } } }, {
+    user: { id: owner }, request: new Request("https://session-host/api/wire-rpc"), rpcId: "search", env, method,
+  });
+}
+assert.deepEqual(await remoteSearch("owner-2", "Topic"), { matches: [], truncated: false, incomplete: false });
+assert.deepEqual(await remoteSearch("owner-2", "Second-owner"), { matches: [{ path: "Second-owner.md", type: "file" }], truncated: false, incomplete: false });
+assert.deepEqual(await remoteSearch("owner-1", "Second-owner"), { matches: [], truncated: false, incomplete: false });
+await assert.rejects(remoteSearch("owner-2", "Conversation", "wf-default"), { code: "session/not-found" });
+dispose();
+await host.workspaceFileWrite({ sessionId: "wf-sub", path: ".ignore", dataBase64: "VG9waWMudHh0" });
+await assert.rejects(search("wf-sub", "Topic.txt"), { code: "workspace-file/search-failed" });
+assert.deepEqual((await search("wf-sub", "topic.txt", { respectGitignore: false })).matches, [{ path: "Topic.txt", type: "file" }]);
+const invalidSearch = await dispatchSessionHost(host, { method: "workspaceFileSearch", params: { sessionId: "wf-sub", ...options, query: "  " } });
+assert.equal("error" in invalidSearch && invalidSearch.error.code, "gateway/bad-request");
 const listedResponse = await dispatchSessionHost(host, { id: "wf-list", method: "workspaceFileList", params: { sessionId: "wf-default", path: "" } });
 assert.equal((listedResponse as { id?: string }).id, "wf-list");
 assert.ok((listedResponse as { result: { entries: Array<{ name: string }> } }).result.entries.some((entry) => entry.name === "Conversation.md"));

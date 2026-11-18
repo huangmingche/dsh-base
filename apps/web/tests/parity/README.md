@@ -40,7 +40,7 @@ pnpm acceptance:parity
 
 设置导航集成回归：`node apps/web/tests/parity/run-settings-navigation.mjs`。使用真实 Cordis `SlotRegistry`、完整官方/适配 `apply` 和实际账户/预设接缝，验证原件与影子保留在原始库存，导航及 onboarding 仅投影生效项；账户注销/恢复仍只出现一行。中英文账户与预设共四组，对照官方 SettingsRoot 的文本、导航、几何和截图。这补足仅渲染单个组件无法发现的重复导航问题。
 
-侧栏通过官方默认品牌槽位显示本地构建名称、版本和鱼形图标。标记和名称都支持点击复制版本。
+侧栏品牌是已登记的用户批准偏离（2026-11-13）：只占用官方 `sidebar.brand.name` 槽位，默认名称为 `dsh-base`；全局设置中的站点名称通过公开配置服务同步到这一槽位；官方 mark fallback（`FishLogo` 与点击复制版本）、布局、排版与交互全部沿用官方。唯一无法避免的差异是官方 name fallback 内的版本行与点击复制版本随槽位占用一起消失。原 `run-sidebar-brand.mjs` 及其夹具在 Commit 1 删除后未恢复，因此 parity 链不含品牌项；真实页面验收将名称与公开站点配置核对。
 
 文件上传：`node apps/web/tests/parity/run-upload.mjs`。中英文真实官方 InputBar/ComposerAttachments 在 Host 图片上限为零时，通过 picker/drop 本地化拒绝图片且不发上传；普通文件入口保持可用。原 FileUploadRuntime 使用真实 Web Worker 和 Connection RPC 对受控 HTTP 测试回执、错误细节、取消、中文深链下的根路径上传。六个协议用例不替代真实 Host/R2 持久化和回执消费测试。
 
@@ -70,6 +70,10 @@ pnpm acceptance:parity
 
 `run-anonymous-models.mjs` 将匿名只读编辑器直接对照固定官方 `ProviderEditor`，分别检查初始、展开和重新打开状态；默认 Models 整页另按真实 owner/readonly/error 状态对照原件。公开模式不伪造配置或凭据，残留凭据也不能出现状态标记。整体匿名模型展示是明确批准的扩展，不声称原官方已有此页面。正式浏览器脚本另覆盖八语言、登录门控与零私有请求。
 
+rc.5 网页搜索的参考界面来自固定子模块中的 `WebSearchCard` 与对应语言文件。`run-plugin-manager.mjs` 在中英文下打开「网页搜索与获取」，核对官方表单和 Workers 禁用表单的控件及像素，验证本地化说明和零私有 API 请求。另一个提供搜索目录的测试 Host 通过稳定的 `/client` 入口挂载官方插件，核对「自动选择」的提示与指南，实际切换到显式提供方，最后卸载插件并核对插槽已释放。[rc.5 插件对照](../../../../docs/official-differences.md#rc5-upgrade)
 
+`pnpm acceptance:plugin-artwork` 是本地品牌图标的短回归，也在 `acceptance:parity` 末尾运行。复用真实插件管理页与 Host 元数据，覆盖中英、手动浅/深主题（系统偏好刻意相反）、桌面/手机宽度、全部自有插件包和组件。包列表、包详情、组件行及组件详情的鲸鱼均与稳定导出的官方 `FishLogo` 核对路径、比例、颜色、36/30px 图形区域、24/20px 鲸鱼宽度、48/40px 外框和同位置像素；另外验证已挂载图标随手动主题切换更新。Cloudflare 图标保留已审核资源哈希，官方插件图标逐项对照固定子模块目录；不触发写入。证据在 `apps/web/dist/parity-evidence/owned-plugin-artwork/`。
 
-`node apps/web/tests/parity/run-session-menu.mjs` 验证固定版本的会话右上角更多菜单：先断言生产组合启用原样官方 `session-log-export` 插件，再调用其真实 `apply` 注册菜单和提示组件；中英、明暗、桌面/窄屏共 8 组，对照官方组件的文本、几何、样式及 32 张界面状态。交互覆盖 Escape 焦点归还、键盘复制完整 Markdown、深链下的根路径 HEAD 预检和 ZIP 下载、反馈委托、HTTP/剪贴板错误以及 `/export` 成功和失败事件。另比较本地应用控件在可用和不可用时的官方组件几何、像素与点击行为：缺失目录或应用目录时入口保持禁用且零派发，可用时完整保留官方启动意图。固定 rc.1 的「在应用中打开」是独立头部控件，并非该更多菜单的子菜单。HTTP、剪贴板和下载载体受控，真实会话鉴权、持久化事件和 R2 附件 ZIP 字节另由 Worker 回归与完整壳验收验证。
+本地鲸鱼是用户批准的品牌差异。已有 `run-plugin-manager.mjs` 先保存原始截图，仅把参考侧 `src` 精确等于 canonical 本地鲸鱼 data URL 的图片替换为独立渲染的官方 `FishLogo` 参考，然后继续原有完整几何/像素比较并恢复 DOM。其他图标、布局和行为不参与归一化；短回归还验证该处理只影响指定图片且可完整恢复。
+
+`node apps/web/tests/parity/run-session-menu.mjs` 验证固定版本的会话右上角更多菜单：先断言生产组合启用原样官方 `session-log-export` 插件，再调用其真实 `apply` 注册菜单和提示组件；中英、明暗、桌面/窄屏共 8 组，对照官方组件的文本、几何、样式及 32 张界面状态。交互覆盖 Escape 焦点归还、键盘复制完整 Markdown、深链下的根路径 HEAD 预检和 ZIP 下载、反馈委托、HTTP/剪贴板错误以及 `/export` 成功和失败事件。另比较本地应用控件在可用和不可用时的官方组件几何、像素与点击行为：缺失目录或应用目录时入口保持禁用且零派发，可用时完整保留官方启动意图。rc.4 的「在应用中打开」复用会话上下文菜单，并通过二级菜单选择应用。HTTP、剪贴板和下载载体受控，真实会话鉴权、持久化事件和 R2 附件 ZIP 字节另由 Worker 回归与完整壳验收验证。

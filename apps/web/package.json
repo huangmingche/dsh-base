@@ -1,6 +1,6 @@
 {
   "name": "@dsh-base/web",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "private": true,
   "type": "module",
   "scripts": {
@@ -102,16 +102,20 @@
       "official": [
         "@deepseek-ai/dsh-client-web"
       ],
-      "reason": "App entry only boots generated composition; source entry imports below belong to the local rendered comparison fixture and load pinned official reference components unchanged. The build-only preset declaration extractor reuses the pinned official definitionComposition projection from that source entry instead of reimplementing enabled/conditional/group semantics; the runtime bundle does not import it. Category-count browser acceptance uses the exported source configLedgerSource because the stable client entry exports its types but not this value. This test-only reader connects real official configuration slots to the page ledger; it does not copy or replace the official implementation. Account fixtures use the pinned AccountAvatar and unchanged AccountSection stylesheet to specify the user-approved anonymous full layout independently; default fork states are compared directly with the original component. Session-menu fixtures render the pinned HeaderAction and CopyToast as an independent visual reference against the unchanged plugin registrations; these components are not exported by the stable client entry. Browser controllers stay official and use controlled HTTP, clipboard and download carriers. Native-open fixtures compare the availability wrapper with the original OpenInAppAction and exported OpenTargetButton, because stable entrypoints export their types but not the implementations; the deployment-only disabled fieldset is recorded separately from upstream available-state equivalence.",
+      "reason": "App entry only boots generated composition; source entry imports below belong to the local rendered comparison fixture and load pinned official reference components unchanged. The build-only preset declaration extractor reuses the pinned official definitionComposition projection from that source entry instead of reimplementing enabled/conditional/group semantics; the runtime bundle does not import it. Category-count browser acceptance uses the exported source configLedgerSource because the stable client entry exports its types but not this value. This test-only reader connects real official configuration slots to the page ledger; it does not copy or replace the official implementation. Account fixtures use the pinned AccountAvatar and unchanged AccountSection stylesheet to specify the user-approved anonymous full layout independently; default fork states are compared directly with the original component. Session-menu fixtures compare the official shared menu button and overlay, export dialog and toast against the production plugin registrations. Their values and the native Session submenu registration are available through source exports. Browser controllers stay official and use controlled HTTP, clipboard and download carriers. Native-open fixtures compare the availability wrapper with the official shared Session submenu, because stable entrypoints export their types but not the implementations; the deployment-only disabled fieldset is recorded separately from upstream available-state equivalence.",
       "sourceEntries": [
         "@deepseek-ai/dsh-client-ui-primitives/src/settings-form/fields.module.css",
         "@deepseek-ai/dsh-api-remote-access/src/client/mount.ts",
         "@deepseek-ai/dsh-api-session-controller/src/client/sessions/service.ts",
         "@deepseek-ai/dsh-client-connection/src/client/rpc.ts",
         "@deepseek-ai/dsh-client-locale/src/locales/index.ts",
+        "@deepseek-ai/dsh-client-ui-account-notifications/src/client/AccountNotifications.tsx",
+        "@deepseek-ai/dsh-client-ui-account-notifications/src/client/locales.ts",
         "@deepseek-ai/dsh-client-ui-agent-preset/src/client/AgentPresetSeat.tsx",
         "@deepseek-ai/dsh-client-ui-agent-preset/src/client/AgentPresetSection.tsx",
         "@deepseek-ai/dsh-client-ui-agent-preset/src/client/locales.ts",
+        "@deepseek-ai/dsh-client-ui-agent-team/src/client/TeamModeToggle.tsx",
+        "@deepseek-ai/dsh-client-ui-agent-team/src/client/locales.ts",
         "@deepseek-ai/dsh-client-ui-attachment/src/client/ComposerAttachments.tsx",
         "@deepseek-ai/dsh-client-ui-brand-official/src/client/Brand.tsx",
         "@deepseek-ai/dsh-client-ui-chat/src/client/chat/AssistantNodeView.tsx",
@@ -121,6 +125,7 @@
         "@deepseek-ai/dsh-client-ui-commands/src/client/PopupSelectView.tsx",
         "@deepseek-ai/dsh-client-ui-commands/src/client/locales.ts",
         "@deepseek-ai/dsh-client-ui-conversation/src/client/input/facade.ts",
+        "@deepseek-ai/dsh-client-ui-conversation/src/client/input/file-intake.ts",
         "@deepseek-ai/dsh-client-ui-conversation/src/client/locales.ts",
         "@deepseek-ai/dsh-client-ui-conversation/src/client/skeleton/InputBar.tsx",
         "@deepseek-ai/dsh-client-ui-directory-picker-browse/src/client/flow.ts",
@@ -174,13 +179,21 @@
         "@deepseek-ai/dsh-client-ui-settings-account/src/client/AccountSection.module.css",
         "@deepseek-ai/dsh-client-ui-settings-models/src/client/schema-operations.ts",
         "@deepseek-ai/dsh-client-ui-settings-models/src/client/ProviderEditor.tsx",
-        "@deepseek-ai/dsh-session-log-export/src/client/HeaderAction.tsx",
+        "@deepseek-ai/dsh-client-ui-context-menu/src/client/Button.tsx",
+        "@deepseek-ai/dsh-client-ui-context-menu/src/client/View.tsx",
+        "@deepseek-ai/dsh-client-ui-conversation/src/client/skeleton/ConversationRoot.module.css",
+        "@deepseek-ai/dsh-session-log-export/src/client/Dialog.tsx",
+        "@deepseek-ai/dsh-client-ui-open-in-app/src/client/session-open-with.ts",
+        "@deepseek-ai/dsh-client-ui-sidebar-files/src/client/FilesBody.tsx",
+        "@deepseek-ai/dsh-client-ui-sidebar-files/src/client/locales.ts",
+        "@deepseek-ai/dsh-client-ui-open-in-app/src/client/context-menus.tsx",
+        "@deepseek-ai/dsh-client-ui-open-in-app/src/client/controller.ts",
         "@deepseek-ai/dsh-session-log-export/src/client/CopyToast.tsx",
         "@deepseek-ai/dsh-client-ui-open-in-app/src/client/OpenInAppAction.tsx",
         "@deepseek-ai/dsh-client-ui-open-in-app/src/client/OpenTargetButton.tsx",
         "@deepseek-ai/dsh-client-ui-open-in-app/src/client/locales.ts"
       ],
-      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db"
+      "sourceReviewCommit": "9c2670d3bce5275e0d1610272958121af87787bb"
     }
   },
   "packageManager": "pnpm@12.16.1",

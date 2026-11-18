@@ -1,7 +1,5 @@
 # Workers Host seam for official clients
 
-Application scope: the default workbench loads after sign-in. Signed-out states described below are component or Host contracts exercised in isolation.
-
 This plugin supplies Workers Host services to official DSH clients. Official plugins own UI layout and interactions; the adaptation copies no official source.
 
 Access mounts the unchanged official `dsh-api-remote-access/client` and Typert registry. An isolated unchanged Gateway inside this seam is the sole generation owner of the real Connection, owning `$events`, reconnect and generated `$mount`; a Cordis facade preserves existing Host namespaces. The official generator emits declarations and `/remote` runtime modules from the pinned checkout into ignored `.artifacts/typecheck`, without editing or copying upstream source. Generated modules resolve third-party dependencies from the app installation with Vite browser/import conditions, without rewriting or externalizing generated code. The Host resolves the authenticated owner's real DO before sending its baseline; the client has no access before that baseline. Shared non-owner Peers/grants are not implemented or invented. The retired wire-bootstrap remains disabled inventory. This access snapshot is separate from agent tool permission policy.
@@ -24,7 +22,7 @@ The access test uses actual Cordis, Connection, Gateway, Typert, RemoteAccess an
 
 Re-audit `dshBase.reuse.sourceEntries` on every pin upgrade. See [REUSE.md](REUSE.md) for the complete reuse decision.
 
-Credential reads and writes preserve Host outcomes. An absent carrier or network failure never becomes an empty configuration or a successful mutation. The unused fake `sessions` implementation was removed; the official api-session-controller owns the real lifecycle. Runtime plugin inventory reads live composition inspection and retains disabled originals, provenance and observed fiber states. The official Settings inventory includes client, Worker and Think components. The Plugins page groups owned components by feature and lists the optional bundles from the pinned upstream catalog.
+The model editor receives owner-managed Host credentials as the official `file` source with a fixed mask. The Host write permission controls removal. An absent carrier or network failure never becomes an empty configuration or a successful mutation. The unused fake `sessions` implementation was removed; the official api-session-controller owns the real lifecycle. Runtime plugin inventory reads live composition inspection and retains disabled originals, provenance and observed fiber states. The official Settings inventory includes client, Worker and Think components. The Plugins page groups owned components by feature and lists the optional bundles from the pinned upstream catalog.
 
 Conversation-log feedback is unavailable. All official feedback controls remain visible and disabled, and Remotes plus `/feedback` reject explicitly. Settings-sidecar helpers retain carrier/business Result and revision/CAS regressions as unmounted protocol tests; they do not establish log-feedback support.
 

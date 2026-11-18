@@ -6,4 +6,4 @@ The public form requires explicit consent and Turnstile. An email link opens an 
 
 Failed recovery reads remain unavailable; version conflicts never report success. A normal user’s 403 exposes no administrator list, and a 401 clears private state. Focused check: `node --test packages/client/dsh-base-client-newsletter/tests/recovery.test.mjs`.
 
-The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. The default workbench requires sign-in. The panel and server authorize account and administrator actions. Unloading removes the registration and never exposes private row configuration.
+The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. Guests can inspect status; account and administrator actions retain panel and server authorization. Unloading removes the registration and never exposes private row configuration.

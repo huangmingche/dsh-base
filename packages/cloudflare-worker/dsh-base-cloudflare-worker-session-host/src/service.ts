@@ -1,7 +1,7 @@
 /** JSON transport for the Workers-native Session Host contract. */
 import type { SessionModelOption } from "./contract.ts";
 import type { SessionHost } from "./host.ts";
-import { WorkspaceFileError } from "./workspace-files.ts";
+import { WorkspaceFileError, workspaceFileSearchRequest } from "./workspace-files.ts";
 
 /** One request from the browser/Worker transport layer. */
 export interface SessionHostRequest {
@@ -102,6 +102,8 @@ export async function dispatchSessionHost(
         }
         return { result: await host.logExportFile({ sessionId: workspaceSessionId(params), file: { attachmentId: file.attachmentId, name: file.name, bytes: file.bytes } }) };
       }
+      case "controlProjectionPage":
+        return { ...(request.id === undefined ? {} : { id: request.id }), result: await host.controlProjectionPage(typeof params.cursor === "string" ? params.cursor : undefined) };
       case "projections":
         return { ...(request.id === undefined ? {} : { id: request.id }), result: await host.projections({ sessionId: String(params.sessionId) }) };
       case "rename":
@@ -176,6 +178,8 @@ export async function dispatchSessionHost(
           ...(typeof params.pinned === "boolean" ? { pinned: params.pinned } : {}),
           ...(typeof params.archived === "boolean" ? { archived: params.archived } : {}),
         }) };
+      case "workspaceFileSearch":
+        return { ...(request.id === undefined ? {} : { id: request.id }), result: await host.workspaceFileSearch(workspaceSessionId(params), workspaceFileSearchRequest(params)) };
       case "workspaceFileList":
         return { ...(request.id === undefined ? {} : { id: request.id }), result: await host.workspaceFileList({
           sessionId: workspaceSessionId(params),
@@ -235,6 +239,7 @@ export async function dispatchSessionHost(
         return { ...(request.id === undefined ? {} : { id: request.id }), result: await host.prompt({
           sessionId: String(params.sessionId),
           text: typeof params.text === "string" ? params.text : "",
+          ...(params.continuation === true ? { continuation: true } : {}),
           ...(typeof params.requestId === "string" ? { requestId: params.requestId } : {}),
           ...(Array.isArray(params.attachments) ? { attachments: params.attachments as never } : {}),
           ...(Array.isArray(params.receiptIds) && params.receiptIds.every(value => typeof value === "string") ? { receiptIds: params.receiptIds as string[] } : {}),

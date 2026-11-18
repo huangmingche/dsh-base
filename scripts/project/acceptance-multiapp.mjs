@@ -5,7 +5,7 @@ import { spawn, execFileSync } from 'node:child_process';
 import { constants, copyFileSync, createWriteStream, existsSync, lstatSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { createServer } from 'node:net';
 import { acceptanceLaunchOptions, closeAcceptanceBrowser } from '../../apps/web/scripts/acceptance-config.mjs';
@@ -49,10 +49,9 @@ async function inspectApplication(appRoot) {
   const port = reservation.address().port;
   await new Promise(resolve => reservation.close(resolve));
   const origin = `http://127.0.0.1:${port}`;
-  const registrationToken = randomBytes(32).toString('base64url');
   const log = createWriteStream(join(evidence, 'second-app-server.log'));
   const server = spawn(process.execPath, [join(root, 'apps/web/scripts/serve-local.mjs')], {
-    cwd: appRoot, env: { ...process.env, DSH_PRODUCT_ROOT: fixture, DSH_APP: 'multiapp-check', DSH_LOCAL_PORT: String(port), DSH_LOCAL_REGISTRATION_TOKEN: registrationToken, DSH_LOCAL_COMPATIBILITY_DATE: '2026-10-30', DSH_LOCAL_FORBID_OUTBOUND: '1' }, stdio: ['ignore', 'pipe', 'pipe'],
+    cwd: appRoot, env: { ...process.env, DSH_PRODUCT_ROOT: fixture, DSH_APP: 'multiapp-check', DSH_LOCAL_PORT: String(port), DSH_LOCAL_COMPATIBILITY_DATE: '2026-10-30', DSH_LOCAL_FORBID_OUTBOUND: '1' }, stdio: ['ignore', 'pipe', 'pipe'],
   });
   let ready = false, browser;
   server.stdout.on('data', data => { if (data.toString().includes('Local Worker ready:')) ready = true; });
@@ -72,20 +71,6 @@ async function inspectApplication(appRoot) {
     // Session transports may stay open; readiness is the actual plugin runtime,
     // not a network-idle condition that never holds for a connected application.
     await page.goto(`${origin}/zh-CN`, { waitUntil: 'domcontentloaded', timeout: 60_000 });
-    await page.waitForSelector('[data-auth-dialog]', { visible: true });
-    assert.equal(await page.$('[data-signed-out], [contenteditable]'), null);
-    const id = randomBytes(8).toString('hex');
-    const signup = await fetch(origin + '/api/auth/sign-up/email', {
-      method: 'POST',
-      headers: { origin, 'content-type': 'application/json', 'x-dsh-registration-token': registrationToken },
-      body: JSON.stringify({ username: 'multi' + id, email: id + '@example.test', name: 'Multi-app acceptance', password: randomBytes(24).toString('base64url') }),
-    });
-    assert.equal(signup.status, 200);
-    const cookie = signup.headers.getSetCookie().join('; ').match(/(better-auth\.session_token)=([^;]+)/u);
-    assert.ok(cookie, 'local signup returns a signed credential');
-    await page.setCookie({ name: cookie[1], value: cookie[2], url: origin, httpOnly: true, sameSite: 'Lax' });
-    await page.reload({ waitUntil: 'domcontentloaded' });
-    await page.waitForFunction(() => /\/app\/session\/[^/]+$/u.test(location.pathname) && document.querySelector('[contenteditable="true"]'), { timeout: 30_000 });
     await page.waitForFunction(() => window.__DSH_BASE_PLUGINS__?.filter(row => row.enabled).every(row => row.fiberPhase === 'active'), { timeout: 30_000 });
     await page.waitForFunction(() => [...document.querySelectorAll('button')].some(button => button.textContent.trim() === '插件'));
     await page.evaluate(() => [...document.querySelectorAll('button')].find(button => button.textContent.trim() === '插件').click());

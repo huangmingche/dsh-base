@@ -14,6 +14,6 @@
 
 请求体按流限制 2048 字节；客户端不能指定权限、元数据、用户 ID、prefix、无限到期或限流参数。公开 `/api/auth/api-key/*` 全部拒绝；内部只挂载创建、列表、删除与服务端验证，不开放更新。所有响应 `no-store`，完整 key 不能从服务端恢复。
 
-复用审计读取固定版本 DSH 的 `deepseek-account` 与 `api-account-controller`，它们管理 DeepSeek 平台账户与推理凭据，没有可挂载/分叉的产品 API key 发行功能。本包独立适配 [Better Auth API key 插件](https://better-auth.com/docs/plugins/api-key)，未复制商业模板或 DSH 源码。
+复用审计读取固定版本 DSH 的 `deepseek-account` 的 `account` Remote，该插件管理 DeepSeek 平台账户与推理凭据，没有可挂载/分叉的产品 API key 发行功能。本包独立适配 [Better Auth API key 插件](https://better-auth.com/docs/plugins/api-key)，未复制商业模板或 DSH 源码。
 
 `node --test packages/cloudflare-worker/dsh-base-cloudflare-worker-api-keys/tests/runtime.test.mjs` 使用真实 workerd、Better Auth、临时 D1，验证生成/哈希/一次展示、分页、跨用户拒绝、scope、并发限流、到期/撤销、封禁和原生端点绕过。测试没有外部网络。

@@ -1,5 +1,5 @@
 {
-  "upstreamCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+  "upstreamCommit": "9c2670d3bce5275e0d1610272958121af87787bb",
   "baseline": "Existing Gateway card, Loader Config export and locale adaptations; these predate this anonymous presentation change.",
   "additions": [],
   "files": [
@@ -122,96 +122,153 @@
         },
         {
           "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
-          "line": 58,
-          "before": "  baseUrlPlaceholder: '{url}',\n  deepSeekBaseUrl: 'https://api.deepseek.com/anthropic (Default to use DEEPSEEK_BASE_URL)',\n  deepSeekEndpointHint: 'Use an API endpoint compatible with Anthropic Messages.',\n  models: 'Models',\n",
-          "after": "  baseUrlPlaceholder: '{url}',\n  deepSeekFixedEndpoint: 'The endpoint and model catalog are fixed by this deployment’s DeepSeek provider.',\n  deepSeekFixedEndpointUrl: 'https://api.deepseek.com/v1',\n  models: 'Models',\n"
+          "line": 62,
+          "before": "  baseUrlPlaceholder: '{url}',\n  deepSeekBaseUrl: 'https://api.deepseek.com/anthropic (Default to use DEEPSEEK_BASE_URL)',\n  deepSeekEndpointHint: 'Use an API endpoint compatible with Anthropic Messages.',\n",
+          "after": "  baseUrlPlaceholder: '{url}',\n  deepSeekFixedEndpoint: 'The endpoint and model catalog are fixed by this deployment’s DeepSeek provider.',\n  deepSeekFixedEndpointUrl: 'https://api.deepseek.com/v1',\n"
         },
         {
           "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
-          "line": 151,
+          "line": 187,
           "before": "  nav: '模型',\n  deepSeekAccount: 'DeepSeek 账号',\n",
           "after": "  nav: '模型',\n  deepSeekBaseUrl: 'https://api.deepseek.com/v1',\n  deepSeekEndpointHint: '请填写兼容 OpenAI Chat Completions 的 API 地址。',\n  deepSeekAccount: 'DeepSeek 账号',\n"
         },
         {
           "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
-          "line": 204,
-          "before": "  baseUrlPlaceholder: '{url}',\n  deepSeekBaseUrl: 'https://api.deepseek.com/anthropic（默认使用环境 DEEPSEEK_BASE_URL）',\n  deepSeekEndpointHint: '请填写兼容 Anthropic Messages 协议的 API 地址。',\n  models: '模型目录',\n",
-          "after": "  baseUrlPlaceholder: '{url}',\n  deepSeekFixedEndpoint: '当前部署的 DeepSeek 提供商固定端点与模型目录，不支持编辑。',\n  deepSeekFixedEndpointUrl: 'https://api.deepseek.com/v1',\n  models: '模型目录',\n"
+          "line": 244,
+          "before": "  baseUrlPlaceholder: '{url}',\n  deepSeekBaseUrl: 'https://api.deepseek.com/anthropic（默认使用环境 DEEPSEEK_BASE_URL）',\n  deepSeekEndpointHint: '请填写兼容 Anthropic Messages 协议的 API 地址。',\n",
+          "after": "  baseUrlPlaceholder: '{url}',\n  deepSeekFixedEndpoint: '当前部署的 DeepSeek 提供商固定端点与模型目录，不支持编辑。',\n  deepSeekFixedEndpointUrl: 'https://api.deepseek.com/v1',\n"
         },
         {
           "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
-          "line": 294,
+          "line": 366,
           "before": "  'nav': 'モデル',\n  'deepSeekAccount': 'DeepSeekアカウント',\n",
           "after": "  'nav': 'モデル',\n  deepSeekBaseUrl: 'https://api.deepseek.com/v1',\n  deepSeekEndpointHint: 'OpenAI 互換 Chat Completions API エンドポイントを使用してください。',\n  'deepSeekAccount': 'DeepSeekアカウント',\n"
         },
         {
           "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
-          "line": 347,
-          "before": "  'baseUrlPlaceholder': '{url}',\n  'deepSeekBaseUrl': 'https://api.deepseek.com/anthropic (デフォルトはDEEPSEEK_BASE_URLを使用)',\n  'deepSeekEndpointHint': 'Anthropic Messagesと互換性のあるAPIエンドポイントを使用してください。',\n  'models': 'モデル',\n",
-          "after": "  'baseUrlPlaceholder': '{url}',\n  deepSeekFixedEndpoint: 'The endpoint and model catalog are fixed by this deployment\\'s DeepSeek provider.',\n  deepSeekFixedEndpointUrl: 'https://api.deepseek.com/v1',\n  'models': 'モデル',\n"
+          "line": 423,
+          "before": "  'baseUrlPlaceholder': '{url}',\n  'deepSeekBaseUrl': 'https://api.deepseek.com/anthropic (デフォルトはDEEPSEEK_BASE_URLを使用)',\n  'deepSeekEndpointHint': 'Anthropic Messagesと互換性のあるAPIエンドポイントを使用してください。',\n",
+          "after": "  'baseUrlPlaceholder': '{url}',\n  deepSeekFixedEndpoint: 'The endpoint and model catalog are fixed by this deployment\\'s DeepSeek provider.',\n  deepSeekFixedEndpointUrl: 'https://api.deepseek.com/v1',\n"
         },
         {
           "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
-          "line": 437,
+          "line": 545,
           "before": "  nav: 'Modelos',\n  deepSeekAccount: 'Cuenta DeepSeek',\n",
           "after": "  nav: 'Modelos',\n  deepSeekBaseUrl: 'https://api.deepseek.com/v1',\n  deepSeekEndpointHint: 'Use un endpoint API compatible con OpenAI Chat Completions.',\n  deepSeekAccount: 'Cuenta DeepSeek',\n"
         },
         {
           "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
-          "line": 490,
-          "before": "  baseUrlPlaceholder: '{url}',\n  deepSeekBaseUrl: 'https://api.deepseek.com/anthropic (Uso predeterminado DEEPSEEK_BASE_URL)',\n  deepSeekEndpointHint: 'Utilice un punto final API compatible con Anthropic Messages.',\n  models: 'Modelos',\n",
-          "after": "  baseUrlPlaceholder: '{url}',\n  deepSeekFixedEndpoint: 'The endpoint and model catalog are fixed by this deployment\\'s DeepSeek provider.',\n  deepSeekFixedEndpointUrl: 'https://api.deepseek.com/v1',\n  models: 'Modelos',\n"
+          "line": 602,
+          "before": "  baseUrlPlaceholder: '{url}',\n  deepSeekBaseUrl: 'https://api.deepseek.com/anthropic (Uso predeterminado DEEPSEEK_BASE_URL)',\n  deepSeekEndpointHint: 'Utilice un punto final API compatible con Anthropic Messages.',\n",
+          "after": "  baseUrlPlaceholder: '{url}',\n  deepSeekFixedEndpoint: 'The endpoint and model catalog are fixed by this deployment\\'s DeepSeek provider.',\n  deepSeekFixedEndpointUrl: 'https://api.deepseek.com/v1',\n"
         },
         {
           "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
-          "line": 580,
+          "line": 724,
           "before": "  nav: 'Modèles',\n  deepSeekAccount: 'Compte DeepSeek',\n",
           "after": "  nav: 'Modèles',\n  deepSeekBaseUrl: 'https://api.deepseek.com/v1',\n  deepSeekEndpointHint: 'Utilisez un point de terminaison API compatible OpenAI Chat Completions.',\n  deepSeekAccount: 'Compte DeepSeek',\n"
         },
         {
           "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
-          "line": 633,
-          "before": "  baseUrlPlaceholder: '{url}',\n  deepSeekBaseUrl: 'https://api.deepseek.com/anthropic (par défaut, DEEPSEEK_BASE_URL est utilisé)',\n  deepSeekEndpointHint: 'Utilisez un point de terminaison API compatible avec Anthropic Messages.',\n  models: 'Modèles',\n",
-          "after": "  baseUrlPlaceholder: '{url}',\n  deepSeekFixedEndpoint: 'The endpoint and model catalog are fixed by this deployment\\'s DeepSeek provider.',\n  deepSeekFixedEndpointUrl: 'https://api.deepseek.com/v1',\n  models: 'Modèles',\n"
+          "line": 781,
+          "before": "  baseUrlPlaceholder: '{url}',\n  deepSeekBaseUrl: 'https://api.deepseek.com/anthropic (par défaut, DEEPSEEK_BASE_URL est utilisé)',\n  deepSeekEndpointHint: 'Utilisez un point de terminaison API compatible avec Anthropic Messages.',\n",
+          "after": "  baseUrlPlaceholder: '{url}',\n  deepSeekFixedEndpoint: 'The endpoint and model catalog are fixed by this deployment\\'s DeepSeek provider.',\n  deepSeekFixedEndpointUrl: 'https://api.deepseek.com/v1',\n"
         },
         {
           "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
-          "line": 723,
+          "line": 903,
           "before": "  nav: 'Modelle',\n  deepSeekAccount: 'DeepSeek-Konto',\n",
           "after": "  nav: 'Modelle',\n  deepSeekBaseUrl: 'https://api.deepseek.com/v1',\n  deepSeekEndpointHint: 'Verwenden Sie einen OpenAI-kompatiblen Chat-Completions-API-Endpunkt.',\n  deepSeekAccount: 'DeepSeek-Konto',\n"
         },
         {
           "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
-          "line": 776,
-          "before": "  baseUrlPlaceholder: '{url}',\n  deepSeekBaseUrl: 'https://api.deepseek.com/anthropic (Standardmäßig wird DEEPSEEK_BASE_URL verwendet)',\n  deepSeekEndpointHint: 'Verwenden Sie einen API-Endpunkt, der mit Anthropic Messages kompatibel ist.',\n  models: 'Modelle',\n",
-          "after": "  baseUrlPlaceholder: '{url}',\n  deepSeekFixedEndpoint: 'The endpoint and model catalog are fixed by this deployment\\'s DeepSeek provider.',\n  deepSeekFixedEndpointUrl: 'https://api.deepseek.com/v1',\n  models: 'Modelle',\n"
+          "line": 960,
+          "before": "  baseUrlPlaceholder: '{url}',\n  deepSeekBaseUrl: 'https://api.deepseek.com/anthropic (Standardmäßig wird DEEPSEEK_BASE_URL verwendet)',\n  deepSeekEndpointHint: 'Verwenden Sie einen API-Endpunkt, der mit Anthropic Messages kompatibel ist.',\n",
+          "after": "  baseUrlPlaceholder: '{url}',\n  deepSeekFixedEndpoint: 'The endpoint and model catalog are fixed by this deployment\\'s DeepSeek provider.',\n  deepSeekFixedEndpointUrl: 'https://api.deepseek.com/v1',\n"
         },
         {
           "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
-          "line": 866,
+          "line": 1082,
           "before": "  nav: 'Модели',\n  deepSeekAccount: 'DeepSeek Аккаунт',\n",
           "after": "  nav: 'Модели',\n  deepSeekBaseUrl: 'https://api.deepseek.com/v1',\n  deepSeekEndpointHint: 'Используйте конечную точку API, совместимую с OpenAI Chat Completions.',\n  deepSeekAccount: 'DeepSeek Аккаунт',\n"
         },
         {
           "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
-          "line": 919,
-          "before": "  baseUrlPlaceholder: '{url}',\n  deepSeekBaseUrl: 'https://api.deepseek.com/anthropic (по умолчанию используется DEEPSEEK_BASE_URL)',\n  deepSeekEndpointHint: 'Используйте конечную точку API, совместимую с антропными сообщениями.',\n  models: 'Модели',\n",
-          "after": "  baseUrlPlaceholder: '{url}',\n  deepSeekFixedEndpoint: 'The endpoint and model catalog are fixed by this deployment\\'s DeepSeek provider.',\n  deepSeekFixedEndpointUrl: 'https://api.deepseek.com/v1',\n  models: 'Модели',\n"
+          "line": 1139,
+          "before": "  baseUrlPlaceholder: '{url}',\n  deepSeekBaseUrl: 'https://api.deepseek.com/anthropic (по умолчанию используется DEEPSEEK_BASE_URL)',\n  deepSeekEndpointHint: 'Используйте конечную точку API, совместимую с антропными сообщениями.',\n",
+          "after": "  baseUrlPlaceholder: '{url}',\n  deepSeekFixedEndpoint: 'The endpoint and model catalog are fixed by this deployment\\'s DeepSeek provider.',\n  deepSeekFixedEndpointUrl: 'https://api.deepseek.com/v1',\n"
         },
         {
           "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
-          "line": 1009,
+          "line": 1261,
           "before": "  nav: 'Modelos',\n  deepSeekAccount: 'DeepSeek Conta',\n",
           "after": "  nav: 'Modelos',\n  deepSeekBaseUrl: 'https://api.deepseek.com/v1',\n  deepSeekEndpointHint: 'Use um endpoint de API compatível com OpenAI Chat Completions.',\n  deepSeekAccount: 'DeepSeek Conta',\n"
         },
         {
           "reason": "Existing Gateway provider-card / loader / locale adaptation predating the anonymous Models preview.",
-          "line": 1062,
-          "before": "  baseUrlPlaceholder: '{url}',\n  deepSeekBaseUrl: 'https://api.deepseek.com/anthropic (padrão para usar DEEPSEEK_BASE_URL)',\n  deepSeekEndpointHint: 'Use um endpoint API compatível com Anthropic Messages.',\n  models: 'Modelos',\n",
-          "after": "  baseUrlPlaceholder: '{url}',\n  deepSeekFixedEndpoint: 'The endpoint and model catalog are fixed by this deployment\\'s DeepSeek provider.',\n  deepSeekFixedEndpointUrl: 'https://api.deepseek.com/v1',\n  models: 'Modelos',\n"
+          "line": 1318,
+          "before": "  baseUrlPlaceholder: '{url}',\n  deepSeekBaseUrl: 'https://api.deepseek.com/anthropic (padrão para usar DEEPSEEK_BASE_URL)',\n  deepSeekEndpointHint: 'Use um endpoint API compatível com Anthropic Messages.',\n",
+          "after": "  baseUrlPlaceholder: '{url}',\n  deepSeekFixedEndpoint: 'The endpoint and model catalog are fixed by this deployment\\'s DeepSeek provider.',\n  deepSeekFixedEndpointUrl: 'https://api.deepseek.com/v1',\n"
         }
       ],
-      "changes": []
+      "changes": [
+        {
+          "reason": "Identify the read-only Workers retry policy when the Host offers no editable mode.",
+          "before": "  retryModeDefault: 'Default ({mode})',\n",
+          "after": "  retryModeDefault: 'Default ({mode})',\n  retryManaged: 'Managed by this deployment',\n"
+        },
+        {
+          "reason": "Identify the read-only Workers retry policy when the Host offers no editable mode.",
+          "before": "  retryModeDefault: '默认（{mode}）',\n",
+          "after": "  retryModeDefault: '默认（{mode}）',\n  retryManaged: '由部署管理',\n"
+        },
+        {
+          "reason": "Identify the read-only Workers retry policy when the Host offers no editable mode.",
+          "before": "  'retryModeDefault': 'デフォルト ({mode})',\n",
+          "after": "  'retryModeDefault': 'デフォルト ({mode})',\n  retryManaged: 'このデプロイで管理されています',\n"
+        },
+        {
+          "reason": "Identify the read-only Workers retry policy when the Host offers no editable mode.",
+          "before": "  retryModeDefault: 'Predeterminado ({mode})',\n",
+          "after": "  retryModeDefault: 'Predeterminado ({mode})',\n  retryManaged: 'Gestionada por este despliegue',\n"
+        },
+        {
+          "reason": "Identify the read-only Workers retry policy when the Host offers no editable mode.",
+          "before": "  retryModeDefault: 'Par défaut ({mode})',\n",
+          "after": "  retryModeDefault: 'Par défaut ({mode})',\n  retryManaged: 'Gérée par ce déploiement',\n"
+        },
+        {
+          "reason": "Identify the read-only Workers retry policy when the Host offers no editable mode.",
+          "before": "  retryModeDefault: 'Standard ({mode})',\n",
+          "after": "  retryModeDefault: 'Standard ({mode})',\n  retryManaged: 'Durch diese Bereitstellung verwaltet',\n"
+        },
+        {
+          "reason": "Identify the read-only Workers retry policy when the Host offers no editable mode.",
+          "before": "  retryModeDefault: 'По умолчанию ({mode})',\n",
+          "after": "  retryModeDefault: 'По умолчанию ({mode})',\n  retryManaged: 'Управляется этим развёртыванием',\n"
+        },
+        {
+          "reason": "Identify the read-only Workers retry policy when the Host offers no editable mode.",
+          "before": "  retryModeDefault: 'Padrão ({mode})',\n",
+          "after": "  retryModeDefault: 'Padrão ({mode})',\n  retryManaged: 'Gerenciada por esta implantação',\n"
+        }
+      ]
+    },
+    {
+      "path": "src/client/RetryPolicyEditor.tsx",
+      "baselineChanges": [],
+      "changes": [
+        {
+          "reason": "Disable the official policy control when the Host publishes no selectable mode.",
+          "before": "        disabled={disabled}\n        onChange={(event) => {",
+          "after": "        disabled={disabled || defaults.modes.length === 0}\n        onChange={(event) => {"
+        },
+        {
+          "reason": "Show the deployment-managed reason instead of an empty inherited mode.",
+          "before": "        <option value=\"\">{t('retryModeDefault').replace('{mode}', () => label(defaults.mode))}</option>",
+          "after": "        <option value=\"\">{defaults.modes.length === 0\n          ? t('retryManaged')\n          : t('retryModeDefault').replace('{mode}', () => label(defaults.mode))}</option>"
+        }
+      ]
     }
   ]
 }

@@ -5,6 +5,39 @@ import { ModelSelect as OfficialModelSelect } from "@deepseek-ai/dsh-client-ui-m
 import { ModelSelect } from "../../../../packages/client/dsh-base-client-model-selection/src/client/ModelSelect.tsx";
 import * as copy from "../../../../packages/client/dsh-base-client-model-selection/src/client/locales.ts";
 
+import { Context } from "@deepseek-ai/cordis";
+import { apply as installRenderer } from "@deepseek-ai/dsh-client-ui-renderer/client";
+import { TeamModeToggle } from "@deepseek-ai/dsh-client-ui-agent-team/src/client/TeamModeToggle.tsx";
+import * as teamCopy from "@deepseek-ai/dsh-client-ui-agent-team/src/client/locales.ts";
+import { registerTeamModeAvailability } from "../../../../packages/client/dsh-base-client-model-selection/src/client/team-mode-availability.tsx";
+
+function teamSlot(locale: "en" | "zh", state: string, calls: unknown[]) {
+  const ctx = new Context();
+  ctx.provide("locale", { getSnapshot: () => ({ active: locale }) } as never);
+  installRenderer(ctx);
+  const name = "conversation.input.model.options";
+  ctx.slots.register({ name: "root", children: { [name]: { kind: "list", scope: "session" } } } as never, (() => null) as never);
+  registerTeamModeAvailability(ctx);
+  if (state === "team-supported") {
+    ctx.slots.register({ name, id: "agent-team", locale: "agent-team",
+      inject: () => ({ selectTeamMode: async (enabled: boolean) => { calls.push(enabled); return null; }, requestDisableConfirmation() {} }),
+    }, TeamModeToggle);
+  }
+  return (slot: string, owner: any, options: any) => {
+    if (slot !== name) return options?.fallback ?? null;
+    const entries = ctx.slots.entriesOfSlot(name);
+    if (entries.length !== 1) throw Error("Expected exactly one Agent Teams menu row");
+    const entry = entries[0];
+    const Row = entry.component as React.ComponentType<any>;
+    return <Row {...entry.inject?.("fixture" as never)} {...owner} sessionId="fixture"
+      t={(key: keyof typeof teamCopy.en) => teamCopy[locale][key]}
+      useSession={(select: any) => select({ subagent: state === "team-addressed-child" ? { id: "child" } : null })}
+      useSessions={(select: any) => select({ byId: { fixture: { origin: state === "team-listed-child" ? "subagent" : "user" } } })}
+      useProjection={(key: string) => key === "modelSelection" ? { lastUsed: null } : state === "team-supported" && key === "agentTeam" ? { enabled: false, tasks: [] } : undefined}
+    />;
+  };
+}
+
 export function ModelEffortFixture({ locale, adapted, state }: { locale: "en" | "zh"; adapted: boolean; state: string }) {
   const setup = useMemo(() => {
     const unavailable = state === "unavailable";
@@ -15,14 +48,15 @@ export function ModelEffortFixture({ locale, adapted, state }: { locale: "en" | 
       failures: [], status: "ready", pending: null, error: null });
     const calls: unknown[] = [];
     (window as any).__EFFORT_PARITY__ = { calls, directory, copy: copy[locale], withdraw: () => directory.update(snapshot => { snapshot.groups[0].models[0].reasoning.unavailable = true; }) };
-    return { directory, calls };
+    const renderSlot = state.startsWith("team-") ? teamSlot(locale, state, calls) : (_name: unknown, _owner: unknown, options: any) => options?.fallback ?? null;
+    return { directory, calls, renderSlot };
   }, [locale, state]);
   const Component = adapted ? ModelSelect : OfficialModelSelect;
   return <section style={{ paddingTop: 500, margin: "0 auto", width: 640 }}><Component available locked={false}
     directory={setup.directory} load={() => {}}
     t={((key: string, values: Record<string, unknown> = {}) => String((copy[locale] as any)[key]).replace(/\{([^}]+)\}/g, (_, name) => String(values[name] ?? ""))) as never}
     resolveText={(text: any) => typeof text === "string" ? text : text[locale] ?? text.en}
-    renderSlot={((_name: unknown, _owner: unknown, options: any) => options?.fallback ?? null) as never}
+    renderSlot={setup.renderSlot as never}
     select={async selection => { setup.calls.push(selection); setup.directory.update(snapshot => { snapshot.current = selection; }); return { ok: true, value: undefined }; }}
   /></section>;
 }

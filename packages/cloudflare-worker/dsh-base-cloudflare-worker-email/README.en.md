@@ -4,7 +4,7 @@
 
 ## Reuse and scope
 
-The source and exports of `@deepseek-ai/dsh-api-account-controller` and `@deepseek-ai/dsh-deepseek-account` were inspected directly at pinned release `dsh-v0.2.2-rc.1` (`66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db`). They provide DeepSeek OAuth and account operations, with no product transactional mail transport or email templates to mount or fork. The custom-plugin decision is recorded in `dshBase.reuse`. [TanStarter's documented email scope](https://docs.tanstarter.dev/email/) informed the provider selection; this implementation was independently written against public provider APIs without copying purchased template source, components or styling.
+The source and exports of `@deepseek-ai/dsh-deepseek-account` were inspected directly at pinned release `dsh-v0.2.2-rc.5` (`9c2670d3bce5275e0d1610272958121af87787bb`). The package provides DeepSeek OAuth and account operations, with no product transactional mail transport or email templates to mount or fork. The custom-plugin decision is recorded in `dshBase.reuse`. [TanStarter's documented email scope](https://docs.tanstarter.dev/email/) informed the provider selection; this implementation was independently written against public provider APIs without copying purchased template source, components or styling.
 
 Only internal `verify-email` and `reset-password` intents are supported. There is no raw HTML, custom subject, bulk-send, contact-form, marketing or newsletter interface. Consumers must authorize the recipient against the account action and enforce rate limits. The plugin uses Workers `fetch`, Web Crypto and the existing `AUTH_DB` D1 database, with no React, SMTP, container, additional database or always-on process.
 

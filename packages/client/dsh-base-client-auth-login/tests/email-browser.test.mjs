@@ -58,20 +58,20 @@ try {
   assert.deepEqual(await page.$$eval('[data-auth-email]', nodes => nodes.map(node => node.disabled)), [true, true]);
   const unavailable = 'Email verification and password recovery are unavailable on this site.';
   assert.deepEqual(await page.$$eval('[data-auth-email]', nodes => nodes.map(node => node.title)), [unavailable, unavailable]);
-  assert.equal(await page.$eval('[data-auth-dialog] [role="status"]', node => node.textContent), unavailable, 'unavailable mail actions have a localized explanation');
+  assert.equal(await page.$('[data-auth-dialog] [role="status"]'), null, 'sign-in has no repeated mail availability paragraph');
   await page.screenshot({ path: resolve(output, 'disabled-mobile.png') });
   await fill('username', 'person@example.test'); await submit(); await step('password');
-  assert.equal(await page.$eval('[data-auth-dialog] [role="status"]', node => node.textContent), unavailable, 'unavailable mail actions have a localized explanation');
+  assert.equal(await page.$('[data-auth-dialog] [role="status"]'), null, 'password entry has no repeated mail availability paragraph');
   await fill('password', 'fixture-password-123'); await submit(); await step('verification');
   assert.match(await page.$eval('[data-auth-dialog]', node => node.textContent), /verification and password recovery are unavailable/);
   assert.equal(await page.$eval('button[type="submit"]', node => node.disabled), true, 'required verification stays blocked while email is unavailable');
   await goto({ mode: 'register' }); await step('register');
-  assert.equal(await page.$eval('[data-auth-dialog] [role="status"]', node => node.textContent), unavailable, 'unavailable mail actions have a localized explanation');
+  assert.equal(await page.$('[data-auth-dialog] [role="status"]'), null, 'registration has no repeated mail availability paragraph');
   await goto({ locale: 'zh' }); await step('identifier');
   assert.deepEqual(await page.$$eval('[data-auth-email]', nodes => nodes.map(node => node.disabled)), [true, true]);
   const localizedHints = await page.$$eval('[data-auth-email]', nodes => nodes.map(node => node.title));
   assert.ok(localizedHints.every(title => title.length > 0 && title !== unavailable), 'disabled controls retain localized explanations');
-  assert.equal(await page.$eval('[data-auth-dialog] [role="status"]', node => node.textContent), localizedHints[0], 'unavailable mail actions have a localized explanation');
+  assert.equal(await page.$('[data-auth-dialog] [role="status"]'), null, 'localized sign-in has no repeated mail availability paragraph');
   for (const mode of ['forgot-password', 'reset-password']) {
     await goto({ mode, ...(mode === 'reset-password' ? { token: 'fixture-disabled-secret' } : {}) });
     await step(mode);
@@ -81,7 +81,7 @@ try {
     await page.$eval('[data-auth-dialog] form', form => form.dispatchEvent(new Event('submit', { bubbles: true, cancelable: true })));
     assert.equal(report.requests.length, before, 'blocked email actions send no requests');
   }
-  report.checks.push('unconfigured mail controls remain visible and disabled with localized button hints', 'sign-in, password and registration explain unavailable mail actions', 'requested unavailable email actions retain explanations and block requests');
+  report.checks.push('unconfigured mail controls remain visible and disabled with localized button hints', 'sign-in, password and registration omit repeated mail status', 'requested unavailable email actions retain explanations and block requests');
   enabled = true;
   await goto(); await page.click('[data-auth-email="reset"]'); await step('forgot-password');
   await fill('email', 'person@example.test'); await submit();

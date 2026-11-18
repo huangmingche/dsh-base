@@ -20,6 +20,8 @@ test('database auth limits are atomic, persistent, trusted-IP scoped and fail cl
   const secret = randomBytes(32).toString('hex');
   const registration = randomBytes(32).toString('base64url');
   const origin = 'https://localhost';
+  const initStarted = Promise.withResolvers();
+  const concurrentRequestEntered = Promise.withResolvers();
   // Exercise the real plugin handler and its real Better Auth options. The only
   // fixture-specific endpoint injects a D1 outage; it never exists in product code.
   const built = await build({
@@ -30,6 +32,14 @@ test('database auth limits are atomic, persistent, trusted-IP scoped and fail cl
       const ctx = { publicPages: createPublicPages(), inject(names, setup) { if (names.every(name => this[name])) setup(this); }, effect(fn) { fn(); }, provide(name, value) { this[name] = value; }, get(name) { return this[name]; } };
       applyHttp(ctx);
       apply(ctx);
+      let firstInit = true;
+      ctx.auth.registerExtension({ id: 'fixture-cold-init', cacheKey: env => String(env.testColdInit),
+        options: env => env.testColdInit ? { plugins: [{ id: 'fixture-cold-init', async init() {
+          if (!firstInit) return;
+          firstInit = false;
+          await fetch('https://auth-fixture.test/hold-first-init');
+          throw new Error('fixture initialization failure');
+        } }] } : {} });
       ctx.http.use(async (request, env) => {
         if (!['/api/session-host', '/api/test/session-reader'].includes(new URL(request.url).pathname)) return;
         const [first, second] = await Promise.all([ctx.auth.session(request, env), ctx.auth.session(request, env)]);
@@ -37,6 +47,12 @@ test('database auth limits are atomic, persistent, trusted-IP scoped and fail cl
         return Response.json({ id: first.id, sameIdentity: first.id === second?.id, sessionReads: reads.get(request) });
       });
       export default { async fetch(request, env) {
+        const cold = request.headers.get('x-test-cold-init');
+        if (cold) {
+          const pending = ctx.http.dispatch(request, { ...env, testColdInit: true });
+          if (cold === 'second') await fetch('https://auth-fixture.test/second-entered');
+          return pending;
+        }
         let sessionReads = 0;
         reads.set(request, 0);
         const db = env.AUTH_DB;
@@ -62,6 +78,15 @@ test('database auth limits are atomic, persistent, trusted-IP scoped and fail cl
       // caller-supplied IP headers before the real handler can normalize them.
       stripCfConnectingIp: false,
       d1Databases: { AUTH_DB: 'shared-auth-database' },
+      outboundService: async request => {
+        if (request.url === 'https://auth-fixture.test/hold-first-init') {
+          initStarted.resolve();
+          await concurrentRequestEntered.promise;
+        } else if (request.url === 'https://auth-fixture.test/second-entered') {
+          concurrentRequestEntered.resolve();
+        } else throw new Error('Unexpected outbound request in auth fixture');
+        return new Response(null, { status: 204 });
+      },
       bindings: { AUTH_BASE_URL: origin, AUTH_SECRET: secret, AUTH_SIGNUP_ENABLED: 'false', AUTH_REGISTRATION_TOKEN: registration },
     })),
   });
@@ -80,6 +105,20 @@ test('database auth limits are atomic, persistent, trusted-IP scoped and fail cl
       for (const statement of sql.split(';').filter(value => value.trim())) await database.prepare(statement).run();
     }
     let [a, b] = await workers();
+    await t.test('a cold HTTP initialization failure is isolated from a concurrent private authorization', async () => {
+      // Read each bridged body as soon as it arrives, before waiting for the
+      // other request can expose an unread stream to undici's response GC.
+      const readResult = async response => ({ status: response.status, headers: response.headers, body: await response.json() });
+      const first = a.fetch(request('/get-session', undefined, '192.0.2.34', { 'x-test-cold-init': 'first' })).then(readResult);
+      await initStarted.promise;
+      const second = a.fetch(new Request(origin + '/api/session-host', { headers: { 'x-test-cold-init': 'second' } })).then(readResult);
+      const [failed, guest] = await Promise.all([first, second]);
+      assert.equal(failed.status, 503);
+      assert.deepEqual(failed.body, { error: 'auth_unavailable' });
+      assert.equal(guest.status, 401, 'the independent request must reach its own authoritative auth result');
+      assert.deepEqual(guest.body, { error: 'unauthenticated' });
+      assert.equal(guest.headers.get('set-cookie'), null);
+    });
     await t.test('simultaneous requests in separate isolates admit exactly one shared budget', async () => {
       const responses = await Promise.all(Array.from({ length: 32 }, (_, i) => (i % 2 ? a : b).fetch(badLogin('192.0.2.41'))));
       assert.equal(responses.filter(response => response.status === 401).length, 20);
@@ -167,10 +206,20 @@ test('database auth limits are atomic, persistent, trusted-IP scoped and fail cl
       const outage = await a.fetch(badLogin('192.0.2.61', { 'x-test-d1-outage': 'true' }));
       assert.ok(outage.status >= 500, `outage must fail closed, received ${outage.status}`);
       assert.equal(outage.headers.get('set-cookie'), null);
+      const rateLimitSchema = await database.prepare(
+        "SELECT sql FROM sqlite_master WHERE tbl_name='rateLimit' AND sql IS NOT NULL ORDER BY type DESC"
+      ).all();
       await database.prepare('DROP TABLE "rateLimit"').run();
+      // A fresh isolate must validate against the missing table before this
+      // test restores it. The recovery request runs in that very same isolate.
+      await mf.dispose(); mf = new Miniflare(options());
+      database = await mf.getD1Database('AUTH_DB', 'auth-a'); [a, b] = await workers();
       const missing = await b.fetch(badLogin('192.0.2.62'));
       assert.ok(missing.status >= 500, `missing schema must fail closed, received ${missing.status}`);
       assert.equal(missing.headers.get('set-cookie'), null);
+      for (const { sql } of rateLimitSchema.results) await database.prepare(sql).run();
+      const recovered = await b.fetch(badLogin('192.0.2.62'));
+      assert.equal(recovered.status, 401, 'a repaired schema must restore normal credential validation without restarting the isolate');
       assert.equal((await database.prepare('SELECT COUNT(*) AS total FROM "user"').first()).total, 1);
     });
   } finally { await mf.dispose(); rmSync(directory, { recursive: true, force: true }); }

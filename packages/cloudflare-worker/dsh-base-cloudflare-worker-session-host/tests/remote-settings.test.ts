@@ -28,6 +28,14 @@ assert.deepEqual(describe.namespaces.find((view) => view.ns === "locale")?.value
 const deepseek = describe.namespaces.find((view) => view.ns === "llm-deepseek");
 assert.equal(deepseek?.schema.type, "object");
 assert.equal(deepseek?.value.baseURL, "https://api.deepseek.com/v1");
+{
+  const snapshot = { revision: 3, values: { 'llm-deepseek': { apiKeyEnv: 'OWNER_KEY', retryPolicy: { mode: 'always' } } } };
+  const view = settingsViewsFromSnapshot(snapshot).namespaces.find(row => row.ns === 'llm-deepseek');
+  assert.deepEqual(view?.schema.dict?.retryPolicy, { type: 'union', list: [], meta: {} });
+  assert.deepEqual(view?.user, { apiKeyEnv: 'OWNER_KEY' });
+  assert.equal(Object.hasOwn(view?.value ?? {}, 'retryPolicy'), false);
+  assert.deepEqual(snapshot.values['llm-deepseek'].retryPolicy, { mode: 'always' });
+}
 
 // Original DeepSeek saved values remain visible/durable; the fork only
 // disables the unsupported endpoint/catalog controls and the Host rejects writes.

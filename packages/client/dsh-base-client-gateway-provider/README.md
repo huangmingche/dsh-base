@@ -1,7 +1,5 @@
 # @dsh-base/client-gateway-provider
 
-组合范围：默认应用只在登录后加载工作台。以下未登录分支属于组件或 Host 的独立契约，仅在隔离测试中使用。
-
 独立的 Cloudflare AI Gateway custom provider slot 插件（不是纯 seam）。官方 Models 页面通过标记的 @dsh-base/client-deepseek-provider fork 挂载，原 DeepSeek provider/编辑器保持官方实现；本插件通过官方
 `settings.models.provider-card` 合同，为独立 provider id
 `cloudflare-ai-gateway`（settings namespace `llm-cloudflare-gateway`）显示真实平台

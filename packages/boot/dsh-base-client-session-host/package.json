@@ -15,7 +15,8 @@
       "mode": "seam",
       "official": [
         "@deepseek-ai/dsh-api-session-controller",
-        "@deepseek-ai/dsh-api-gateway"
+        "@deepseek-ai/dsh-api-gateway",
+        "@deepseek-ai/dsh-api-workspace-files"
       ],
       "reason": "Browser transport seam for the Workers-native Session Host. The mounted official session-controller client consumes these typed Remote gateways through the session-adapter; legacy JSON calls validate HTTP status and an explicit result acknowledgement, preserving Host failures rather than inventing success. Projection acceptance uses the actual exported source ProjectionValueStore class because the stable /client entry exports it only as a type. Projection revisions are SQLite-owned monotonic values, separate from chat journal offsets; client clocks never create acknowledgements. Logical streams reuse the unchanged stable-exported Gateway RemoteStream supervisor; only physical socket loss becomes its RemoteStreamCarrierError. Host business and malformed-protocol failures remain terminal, with original codes preserved.",
       "for": [
@@ -24,7 +25,7 @@
       "sourceEntries": [
         "@deepseek-ai/dsh-api-session-controller/src/client/sessions/projection-store.ts"
       ],
-      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db"
+      "sourceReviewCommit": "9c2670d3bce5275e0d1610272958121af87787bb"
     },
     "boot": {
       "kind": "browser-support"

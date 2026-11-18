@@ -4,6 +4,6 @@ Independent client plugin `client:entitlements`, grouped under `dsh-base:entitle
 
 Reads the server-configured feature list and checks purchase-backed access on demand. Neither the client nor a payment redirect grants an entitlement.
 
-The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. The default workbench requires sign-in. The panel and server authorize account and administrator actions. Unloading removes the registration and never exposes private row configuration.
+The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. Guests can inspect status; account and administrator actions retain panel and server authorization. Unloading removes the registration and never exposes private row configuration.
 
 Features may carry a server-declared display `label`, falling back to their ID. Deployment operation mappings are checked independently before actual Host/Think calls; panel state and buttons are never an authorization boundary.

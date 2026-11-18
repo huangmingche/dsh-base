@@ -64,6 +64,7 @@ export const CLIENT_PLUGIN_POLICY = Object.freeze({
     "@dsh-base/client-feedback-availability",
     "@dsh-base/client-open-in-app-availability",
     "@dsh-base/client-permission-availability",
+    "@dsh-base/client-brand",
     "@dsh-base/client-commands",
     "@dsh-base/client-auth-login",
     "@dsh-base/client-model-selection",

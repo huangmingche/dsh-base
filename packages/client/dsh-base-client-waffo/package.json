@@ -56,7 +56,7 @@
         "@deepseek-ai/dsh-client-ui-layout/src/client/theme-presenter.ts",
         "@deepseek-ai/dsh-client-ui-theme/src/theme-settings.ts"
       ],
-      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "sourceReviewCommit": "9c2670d3bce5275e0d1610272958121af87787bb",
       "gaps": [
         "User-requested SaaS Waffo Pancake capability adds localized catalog and billing content inside the existing plugin detail configuration seat. The official pin has no corresponding Waffo Pancake surface; the official detail layout, title, sections and controls remain in use."
       ]

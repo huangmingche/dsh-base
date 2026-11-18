@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 /** Staging acceptance for the read-only official Settings session/global plugin inventory. */
-import { assertSidebarBrand } from './assert-sidebar-brand.mjs';
 import { remoteAcceptanceConfig, chromeExecutable, closeAcceptanceBrowser, waitForHostReadiness } from "./acceptance-config.mjs";
 import { loadOfficialDeclarations } from "./generate-preset-declarations.mjs";
 import assert from "node:assert/strict";
@@ -197,7 +196,9 @@ try {
     const modelAccess = await page.$eval('[data-model-access]', element => element.getAttribute('data-model-access'));
     await clickVisible("^built-in plugins$|^内置插件$");
     await page.waitForSelector('[data-plugin-scope="preset"]', { timeout: 20_000 });
-    const brand = await assertSidebarBrand(page);
+    await page.waitForFunction(name => document.querySelector('[class*="brandIdentity"]')?.textContent.trim() === name, { timeout: 30000 }, publicSite.brand.name);
+    const brand = await page.$eval('[class*="brandIdentity"]', element => element.textContent.trim());
+    assert.equal(brand, publicSite.brand.name);
     const groupTitle = await page.$eval('[data-plugin-scope="preset"] span[class*="groupTitle"]', element => element.textContent.trim());
     assert.equal(groupTitle, locale === "zh" ? "会话插件" : "Session plugins");
     const expectedThink = locale === "zh" ? "Cloudflare Think 模式" : "Cloudflare Think";

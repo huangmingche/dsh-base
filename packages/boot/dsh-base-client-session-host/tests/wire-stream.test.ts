@@ -1,6 +1,6 @@
 /** Contract tests for the browser logical-stream carrier. */
 import assert from "node:assert/strict";
-import { openWireStream, WireStreamFailure, WireStreamCarrierFailure, type WireStreamSocketLike } from "../src/wire-stream.ts";
+import { openWireStream, wireFollowPayload, WireStreamFailure, WireStreamCarrierFailure, type WireStreamSocketLike } from "../src/wire-stream.ts";
 
 class FakeSocket implements WireStreamSocketLike {
   readonly sent: unknown[] = [];
@@ -28,7 +28,11 @@ class FakeSocket implements WireStreamSocketLike {
 }
 
 const base = "https://dsh-base.example.workers.dev";
-const payload = { args: { request: { address: { kind: "session", sessionId: "s1" } } } };
+const address = { kind: "session", sessionId: "s1" };
+const opening = { maxMessages: 500, turnWindow: { minMessages: 20, minTurns: 2 } };
+const payload = wireFollowPayload({ address, ...opening });
+assert.deepEqual(payload, { args: { request: { address, activate: true, assistantStream: true, ...opening } } });
+assert.deepEqual(wireFollowPayload({ address }), { args: { request: { address, activate: true, assistantStream: true } } });
 
 const socket = new FakeSocket();
 const events: unknown[] = [
@@ -81,6 +85,29 @@ abortController.abort();
 assert.deepEqual(abortSocket.sent.at(-1), { type: "cancel", streamId: "stream-3" });
 assert.equal(abortSocket.closed, true);
 assert.deepEqual(await abortFirst, { value: undefined, done: true });
+
+const retired = openWireStream({
+  baseUrl: base, endpoint: "session/control", payload: { args: {} },
+  signal: AbortSignal.abort(),
+  socketFactory: () => { assert.fail("an already cancelled stream must not perform a handshake"); },
+})[Symbol.asyncIterator]();
+assert.deepEqual(await retired.next(), { value: undefined, done: true });
+
+const handshake = new AbortController();
+const connecting = new FakeSocket();
+let sendAttempts = 0;
+connecting.send = () => { sendAttempts++; throw new DOMException("Socket is connecting", "InvalidStateError"); };
+const outstanding = openWireStream({
+  baseUrl: base, endpoint: "session/control", payload: { args: {} },
+  signal: handshake.signal, socketFactory: () => connecting,
+})[Symbol.asyncIterator]().next();
+handshake.abort();
+// An already queued open/close event must not revive the retired generation.
+connecting.emit("open");
+connecting.emit("close", { code: 1006 });
+assert.deepEqual(await outstanding, { value: undefined, done: true });
+assert.equal(connecting.closed, true);
+assert.equal(sendAttempts, 0, "there is no admitted logical stream to open or cancel");
 
 const ignored = new FakeSocket();
 const other = openWireStream<unknown>({

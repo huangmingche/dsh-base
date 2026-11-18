@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import puppeteer from 'puppeteer-core';
-import { remoteAcceptanceConfig, acceptanceLaunchOptions, closeAcceptanceBrowser } from './acceptance-config.mjs';
+import { remoteAcceptanceConfig, acceptanceLaunchOptions, assertHttpStatus, closeAcceptanceBrowser, recordHttpFailure } from './acceptance-config.mjs';
 import { readOwnedPluginInventory } from '../tests/parity/owned-plugin-inventory-oracle.mjs';
 import { managerCopy } from '../tests/parity/plugin-manager-assertions.mjs';
 import { localizePath } from '../../../packages/boot/dsh-base-locale-path/src/index.ts';
@@ -14,10 +14,14 @@ const expectedVersion = process.env.DSH_EXPECTED_DEPLOYMENT_VERSION;
 assert.ok(expectedVersion, 'An exact deployed version is required');
 const artifacts = resolve(process.env.DSH_ACCEPTANCE_OUT ?? new URL('../../../.artifacts/acceptance/global-settings-staging', import.meta.url).pathname);
 mkdirSync(artifacts, { recursive: true });
-const report = { ok: false, base, expectedVersion, cases: [], errors: [], mutations: [], adminWritesTested: false };
+const report = { ok: false, base, expectedVersion, cases: [], errors: [], httpFailures: [], mutations: [], adminWritesTested: false };
+const responseDiagnostics = [];
 const request = (path, init = {}) => fetch(base + path, { ...init, signal: AbortSignal.timeout(30_000) });
 let browser, page, restoreLocale;
-const checkedJson = async (response, label) => { assert.equal(response.status, 200, `${label}: HTTP ${response.status}`); return response.json(); };
+const checkedJson = async (response, label) => {
+  await assertHttpStatus(response, 200, report.httpFailures, label);
+  return response.json();
+};
 async function clickText(selector, label) {
   const handle = await page.evaluateHandle(({ selector, label }) => [...document.querySelectorAll(selector)].find(element => element.textContent.trim() === label), { selector, label });
   const element = handle.asElement(); assert.ok(element, `Missing control: ${label}`);
@@ -25,7 +29,8 @@ async function clickText(selector, label) {
 }
 try {
   const response = await request('/api/auth/sign-in/username', { method: 'POST', headers: { origin: base, 'content-type': 'application/json' }, body: JSON.stringify({ username: credentials.username, password: credentials.password }) });
-  await checkedJson(response, 'dedicated acceptance login');
+  const login = await checkedJson(response, 'dedicated acceptance login');
+  assert.ok(login.user?.id, 'login must identify the dedicated account');
   const match = response.headers.getSetCookie().join('; ').match(/((?:__Secure-)?better-auth\.session_token)=([^;]+)/u);
   assert.ok(match);
   const headers = { cookie: `${match[1]}=${match[2]}`, origin: base, 'content-type': 'application/json' };
@@ -37,15 +42,25 @@ try {
     console.log('[global-staging] waiting for deployed Host version');
     await new Promise(resolve => setTimeout(resolve, 15_000));
   }
-  const before = await checkedJson(await request('/api/site-settings', { headers }), 'site settings');
+  // The workbench opens these reads together. Keep the guest and account
+  // requests in flight at the same time to exercise Worker request isolation.
+  const [before, signedInSession, guestSession, guestSettings] = await Promise.all([
+    request('/api/site-settings', { headers }).then(reply => checkedJson(reply, 'reader site settings')),
+    request('/api/auth/get-session', { headers }).then(reply => checkedJson(reply, 'reader session')),
+    request('/api/auth/get-session').then(reply => checkedJson(reply, 'guest session')),
+    request('/api/site-settings'),
+  ]);
+  assert.ok(signedInSession?.user?.id === login.user.id, 'session must belong to the signed-in account');
+  assert.ok(guestSession === null, 'guest session must be anonymous');
+  await assertHttpStatus(guestSettings, 401, report.httpFailures, 'guest site settings');
+  report.concurrentGuestAndReaderReads = true;
   assert.equal(before.canEdit, false, 'The dedicated acceptance account must remain a reader');
   const publicBefore = await checkedJson(await request('/api/site-config'), 'public site values');
   report.analytics = { enabled: publicBefore.analytics?.google?.enabled === true, ready: publicBefore.analytics?.google?.ready === true };
   assert.equal(publicBefore.brand.name, before.values.seo.site.name);
-  assert.equal((await request('/api/site-settings')).status, 401);
   // A denied write uses unchanged values and proves the server—not disabled UI—owns permission.
   const denied = await request('/api/site-settings', { method: 'PUT', headers, body: JSON.stringify({ expectedRevision: before.revision, values: before.values }) });
-  assert.equal(denied.status, 403); assert.equal((await denied.json()).error, 'site_admin_required');
+  await assertHttpStatus(denied, 403, report.httpFailures, 'reader site settings write'); assert.equal((await denied.json()).error, 'site_admin_required');
   const original = (await host('settingsDescribe')).values?.locale ?? {};
   const hadPreference = Object.hasOwn(original, 'preference');
   restoreLocale = async () => {
@@ -56,6 +71,12 @@ try {
   browser = await puppeteer.launch(acceptanceLaunchOptions());
   page = await browser.newPage();
   page.on('pageerror', error => report.errors.push(error.message));
+  page.on('response', response => {
+    const url = new URL(response.url());
+    if (url.origin === base && url.pathname.startsWith('/api/') && response.status() >= 500) {
+      responseDiagnostics.push(recordHttpFailure(report.httpFailures, response, { path: url.pathname }));
+    }
+  });
   page.on('request', outgoing => { if (['/api/plugin-manager', '/api/site-settings'].includes(new URL(outgoing.url()).pathname) && !['GET', 'HEAD'].includes(outgoing.method())) report.mutations.push(outgoing.method()); });
   await page.setCookie({ name: match[1], value: match[2], url: base, httpOnly: true, secure: true, sameSite: 'Lax' });
   await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: 'dark' }, { name: 'prefers-reduced-motion', value: 'reduce' }]);
@@ -123,6 +144,8 @@ try {
   const analyticsRoute = await request('/api/site-analytics/google');
   assert.equal(analyticsRoute.status, 405, 'the measurement plugin is mounted but GET never sends an event');
   assert.equal(analyticsRoute.headers.get('allow'), 'POST');
+  await Promise.all(responseDiagnostics);
+  assert.deepEqual(report.httpFailures, []);
   assert.deepEqual(report.mutations, []); assert.deepEqual(report.errors, []);
   report.siteConfigurationUnchanged = true; report.readerPutDenied = true; report.ok = true;
 } catch (error) {
@@ -130,7 +153,7 @@ try {
   await page?.screenshot({ path: resolve(artifacts, 'failure.png'), captureBeyondViewport: false }).catch(() => {});
   throw error;
 } finally {
-  try { await closeAcceptanceBrowser(browser); }
+  try { await closeAcceptanceBrowser(browser); await Promise.all(responseDiagnostics); }
   finally {
     try { if (restoreLocale) { await restoreLocale(); report.localeRestored = true; } }
     catch (error) { report.ok = false; report.restoreFailure = String(error); throw error; }

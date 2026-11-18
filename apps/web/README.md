@@ -135,4 +135,4 @@ DSH_ACCEPTANCE_CONFIG=/脚本输出的绝对路径.json DSH_EXPECTED_DEPLOYMENT_
 
 插件分类数量由独立 `@dsh-base/client-plugin-counts` 插件提供；应用不实现计数功能。浏览器对照用例通过官方 `configLedgerSource` 连接真实配置插槽，稳定 client 入口未导出该值，因此使用已登记的 `./src/*` 导出，并随官方 pin 升级复查。计数之外的页面继续与固定版本官方界面对照。
 
-侧栏登录态/未登录态回归：`pnpm acceptance:sidebar-parity` 对照固定版官方界面的中英、明暗和三种宽度；`pnpm acceptance:anonymous-sidebar` 在本地隔离 Worker 验证八种语言的访客登录页及零私有请求。部署后使用显式 `DSH_BASE_URL` 重跑匿名验收，使用专用账号运行 `pnpm acceptance:authenticated-sidebar`，确认真实目录读取可用且不修改会话或设置。
+侧栏登录态/未登录态回归：`pnpm acceptance:sidebar-parity` 对照固定版官方界面的中英、明暗和三种宽度；`pnpm acceptance:anonymous-sidebar` 在本地隔离 Worker 验证所有入口、登录返回链接及零私有请求。部署后使用显式 `DSH_BASE_URL` 重跑匿名验收，使用专用账号运行 `pnpm acceptance:authenticated-sidebar`，确认真实目录读取可用且不修改会话或设置。

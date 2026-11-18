@@ -3,6 +3,9 @@ import React, { useMemo } from "react";
 import { AccountSection } from "@deepseek-ai/dsh-client-ui-settings-account/src/client/AccountSection.tsx";
 import { AccountSection as ForkAccountSection } from "@dsh-base/client-settings-account/client";
 import { AccountMenu } from "@deepseek-ai/dsh-client-ui-settings-account/src/client/AccountMenu.tsx";
+import { AccountMenu as ForkAccountMenu } from "@dsh-base/client-settings-account/src/client/AccountMenu.tsx";
+import { AccountNotifications, type AccountNotificationsProps } from "@deepseek-ai/dsh-client-ui-account-notifications/src/client/AccountNotifications.tsx";
+import * as notificationCopy from "@deepseek-ai/dsh-client-ui-account-notifications/src/client/locales.ts";
 import * as accountCopy from "@deepseek-ai/dsh-client-ui-settings-account/src/client/locales.ts";
 import { apply as availabilityApply } from "../../../../packages/client/dsh-base-client-account-availability/src/client/index.tsx";
 import { billingUnavailableReason } from "../../../../packages/client/dsh-base-client-account-availability/src/availability.ts";
@@ -18,7 +21,12 @@ export function AccountFixture({ locale, adapted, state }: { locale: "en" | "zh"
       avatarFailed: () => {}, openPlatformPage: () => { calls.push("billing/open"); return () => {}; },
       start: async () => { calls.push("account/signIn"); }, cancel: async () => {}, signOut: async () => { calls.push("account/signOut"); },
       hasRunningAccountTasks: async () => false, refreshAccount: async () => {},
-      contactUs: () => calls.push("contact"), showLogin: () => {}, setOnboarding: () => {}, bonusNoticeShown: () => {}, bonusNoticeDismissed: () => {},
+      contactUs: () => calls.push("contact"), showLogin: () => {}, setOnboarding: () => {}, renderSlot: (name: string, owner: Pick<AccountNotificationsProps, "active" | "openAccount">) => {
+        if (name !== "settings.launcher.notifications") throw new Error(`Unexpected account slot: ${name}`);
+        (window as any).__ACCOUNT_PARITY__.notificationActive = owner.active;
+        return <AccountNotifications {...owner} useNotices={select => select([])}
+          shown={() => {}} ctaClicked={() => {}} dismiss={() => {}} t={key => notificationCopy[locale][key]} />;
+      },
       wide: true, settingsOpen: false, openSettings: () => calls.push("settings/open"), openOnboarding: () => {},
     };
     const registrations: any[] = [{ component: ForkAccountSection, options: { name: "settings.section", id: "account" }, inject: () => { const { t: _rendererLocale, ...operations } = props; return operations; } }];
@@ -41,7 +49,8 @@ export function AccountFixture({ locale, adapted, state }: { locale: "en" | "zh"
     (window as any).__ACCOUNT_PARITY__ = { calls, copy: accountCopy[locale], registered: adaptedEntry !== undefined, registeredLocale: adaptedEntry?.options.locale };
     return { props, adaptedEntry, snapshot, reason: billingUnavailableReason(locale) };
   }, [locale]);
-  if (state === "menu") return <section style={{ position: "absolute", left: 32, bottom: 48, width: 250 }}><AccountMenu {...setup.props} /></section>;
+  const Menu = adapted ? ForkAccountMenu : AccountMenu;
+  if (state === "menu") return <section style={{ position: "absolute", left: 32, bottom: 48, width: 250 }}><Menu {...setup.props} /></section>;
   const Adapted = setup.adaptedEntry.component;
   const referenceProps = { ...setup.props, useAccount: (selector: any) => selector({ ...setup.snapshot, details: { ...setup.snapshot.details, balance: { status: "failed" } } }), t: (key: string) => key === "balanceUnavailable" ? setup.reason : setup.props.t(key) };
   return <section className="permission-fixture">{adapted ? <Adapted {...setup.adaptedEntry.inject()} t={setup.adaptedEntry.options.locale === "settings.account" ? setup.props.t : undefined} /> : <fieldset className="dsh-account-billing-unavailable" disabled aria-disabled="true" title={setup.reason}><AccountSection {...referenceProps as any} /></fieldset>}</section>;

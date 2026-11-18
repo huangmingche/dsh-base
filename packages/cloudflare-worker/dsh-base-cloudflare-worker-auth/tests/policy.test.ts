@@ -6,7 +6,7 @@ let authCalls = 0;
 let sessionCalls = 0;
 const authOptions: any[] = [];
 let authUser: any = { id: "existing-owner", username: "normal", email: "normal@example.test" };
-(globalThis as any).__testAuth = (options: unknown) => { authOptions.push(options); return { api: { async getSession() { sessionCalls++; return authUser === undefined ? null : { user: authUser }; } }, async handler() { authCalls += 1; return Response.json({ user: authUser }); } }; };
+(globalThis as any).__testAuth = (options: unknown) => { authOptions.push(options); return { $context: Promise.resolve({}), api: { async getSession() { sessionCalls++; return authUser === undefined ? null : { user: authUser }; } }, async handler() { authCalls += 1; return Response.json({ user: authUser }); } }; };
 registerHooks({ resolve(specifier, context, nextResolve) {
   if (specifier === "cloudflare:workers") return { url: `data:text/javascript,${encodeURIComponent('export const waitUntil = promise => { void promise.catch(() => {}); };')}`, shortCircuit: true };
   if (specifier === "better-auth") return { url: `data:text/javascript,${encodeURIComponent('export const betterAuth = options => globalThis.__testAuth(options);')}`, shortCircuit: true };
@@ -100,4 +100,24 @@ for (const path of ['/en//evil.test/path', '/EN//evil.test/path']) {
   const response = await handler(new Request('https://app.example.test' + path, {headers:{accept:'text/html'}}),env);
   assert.equal(response.status,301);
   assert.equal(new URL(response.headers.get('location')).origin,'https://app.example.test','canonical locale redirect remains on the current origin');
+}
+
+// Request-correlated observability must never serialize the provider's error.
+const warnings: unknown[][] = [];
+const originalWarn = console.warn;
+const fixtureAuth = (globalThis as any).__testAuth;
+try {
+  console.warn = (...args) => { warnings.push(args); };
+  (globalThis as any).__testAuth = () => ({
+    $context: Promise.resolve({ checkSchema() {
+      throw Object.assign(new Error("private fixture detail"), { code: "SCHEMA_MISMATCH" });
+    } }),
+  });
+  const response = await handler(new Request("https://app.example.test/api/auth/get-session"), { ...env, AUTH_DB: {} });
+  assert.equal(response.status, 503);
+  assert.deepEqual(await response.json(), { error: "auth_unavailable" });
+  assert.deepEqual(warnings, [["auth.unavailable", { stage: "initialize", reason: "schema_mismatch" }]]);
+} finally {
+  console.warn = originalWarn;
+  (globalThis as any).__testAuth = fixtureAuth;
 }

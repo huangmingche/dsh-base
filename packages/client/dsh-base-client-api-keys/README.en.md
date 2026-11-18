@@ -4,4 +4,4 @@ Independent client plugin `client:api-keys`, grouped under `dsh-base:api-keys` t
 
 Keys have only profile:read permission and cannot replace a browser login session. Creation shows the secret once; leaving the panel or clearing the result erases it. Default validity is 30 days, configurable from 1 to 365 days. Lists are paginated and revocation operates only on the owner’s keys.
 
-The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. The default workbench requires sign-in. The panel and server authorize account and administrator actions. Unloading removes the registration and never exposes private row configuration.
+The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. Guests can inspect status; account and administrator actions retain panel and server authorization. Unloading removes the registration and never exposes private row configuration.

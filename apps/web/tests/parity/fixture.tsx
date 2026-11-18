@@ -35,6 +35,7 @@ import { apply as adaptedScheduleApply } from "../../../../packages/client/dsh-b
 import { TaskManagerPage } from "@deepseek-ai/dsh-client-ui-schedule/src/client/TaskManagerPage.tsx";
 import { PermissionSelect } from "@deepseek-ai/dsh-client-ui-permission-presets/src/client/PermissionSelect.tsx";
 import { TerminalGuide } from "@deepseek-ai/dsh-client-ui-sidebar-terminal/src/client/TerminalGuide.tsx";
+import { apply as officialTerminalApply } from "@deepseek-ai/dsh-client-ui-sidebar-terminal/client";
 import { UploadRow } from "@deepseek-ai/dsh-client-ui-settings-session-log/src/client/UploadRow.tsx";
 import { apply as terminalApply } from "../../../../packages/client/dsh-base-client-rightbar-extra/src/client/index.tsx";
 import { apply as logApply } from "../../../../packages/client/dsh-base-client-settings/src/client/index.tsx";
@@ -130,7 +131,7 @@ const fake = {
   inject: () => () => {},
   provide: (name: string, value: unknown) => { (fake as any)[name] = value; },
   theme: { getTheme: () => ({ id: "light", colorScheme: "light" }) },
-  shortcuts: { catalog: snapshot([]) },
+  shortcuts: { catalog: snapshot([]), register: () => () => {} },
   remoteAccess: ctx.get("remoteAccess"),
   locale: { getSnapshot: () => ({ active: locale }), register(namespace: string, dict: any) { dictionaries.set(namespace, dict); return () => dictionaries.delete(namespace); }, bind: translate },
   slots: {
@@ -151,11 +152,20 @@ const fake = {
   sessions: { list: snapshot(emptySessions), binding: () => ({ session: { command: async (line: string) => { const result = await permissionCommands.execute("permission-session", line); return result.ok ? { ok: true, value: { matched: result.value !== undefined } } : result; }, projections: { faceOf: () => permissionProjection } } }) },
   workspaces: { list: snapshot(workspaces) },
   sidebarRightTabs: { register: () => () => {} },
-  sidebarRight: { tabsIn: () => [], openTab: () => {} },
+  sidebarRight: { tabsIn: () => [], openTab: () => {}, openTabs: snapshot([]), registerCloseHandler: () => () => {} },
 };
 (adapted ? adaptedScheduleApply : scheduleApply)(fake as never);
 permissionApply(fake as never);
 terminalApply(fake as never);
+if (surface === "terminal") {
+  const terminals = (fake as unknown as Pick<Context, "webTerminals">).webTerminals;
+  const watch = terminals.watch.bind(terminals);
+  terminals.watch = (session, listener) => watch(session, roster => {
+    calls.push({ endpoint: "terminal/observed-roster", args: { session, roster } });
+    listener(roster);
+  });
+  officialTerminalApply(fake as never);
+}
 logApply(fake as never);
 feedbackApply(fake as never);
 feedbackAvailabilityApply(fake as never);
@@ -278,7 +288,9 @@ if (surface === 'gateway-provider-ui') return <GatewayProviderUiFixture locale={
       useShortcuts: (selector: any) => selector([]), useTabInfo: () => ({ tab: { actions: { openTab: () => calls.push({ endpoint: "terminal/open", args: {} }) } } }),
     };
     const Guide = entry.component;
-    return <section className="permission-fixture">{adapted ? <Guide {...props} /> : <fieldset disabled aria-disabled="true" title={t("unavailable")} className="dsh-terminal-disabled"><TerminalGuide {...props as any} /></fieldset>}</section>;
+    const opener = registrations.find(entry => entry.spec.name === "conversation.session.header.actions" && entry.spec.id === "agent-terminals")!;
+    const Header = opener.component;
+    return <section className="permission-fixture"><Header {...opener.inject("terminal-session")} />{adapted ? <Guide {...props} /> : <fieldset disabled aria-disabled="true" title={t("unavailable")} className="dsh-terminal-disabled"><TerminalGuide {...props as any} /></fieldset>}</section>;
   }
   if (surface === "session-log") {
     const entry = registrations.find(entry => entry.spec.name === "settings.general.item" && entry.spec.id === "session-log-deepseek")!;
@@ -293,4 +305,6 @@ if (surface === 'gateway-provider-ui') return <GatewayProviderUiFixture locale={
   return <PermissionFixture />;
 }
 (window as any).__PARITY__ = { checkModelDirectoryAvailability, calls, feedbackCopy: { ...commonCopy[locale], ...dictionaries.get("feedback")[locale] }, feedbackSource: feedbackInjection.hooks.dialog, copy: dictionaries.get("schedule.manager")[locale], registrations: registrations.map(({ spec }) => ({ name: spec.name, key: spec.key, id: spec.id })), setCreateFailure: (value: boolean) => { failCreate = value; }, source };
-createRoot(document.getElementById("root")!).render(<Fixture />);
+const root = createRoot(document.getElementById("root")!);
+if (state === 'builtin:web-search:served') window.addEventListener('parity:unmount', () => root.unmount(), { once: true });
+root.render(<Fixture />);

@@ -24,6 +24,33 @@ try {
   const root=async page=>{ await page.bringToFront();if(await page.$eval('#root button',button=>button.getAttribute('aria-expanded')!=="true"))await page.click('#root button');else if(!(await page.$('[role="menuitem"]')))await page.keyboard.press('Escape');await page.waitForSelector('[role="menuitem"]'); };
   const rootRows=page=>page.evaluate(()=>[...document.querySelectorAll('[role="menuitem"]')].map(button=>({label:button.children[0].textContent,height:button.getBoundingClientRect().height,icon:button.querySelector('svg')?.getAttribute('data-icon'),disabled:button.disabled,title:button.title,opacity:getComputedStyle(button).opacity})));
   for(const locale of ["en","zh"]){
+    for (const state of ["team-unavailable", "team-addressed-child", "team-listed-child", "team-supported"]) {
+      const fixture = await open(locale, "adapted", state);
+      const toggle = await fixture.page.$('[role="switch"]');
+      if (state.endsWith("child")) {
+        assert.equal(toggle, null, state);
+      } else {
+        assert.ok(toggle, state);
+        assert.equal(await toggle.evaluate(button => button.disabled), state === "team-unavailable");
+        if (state === "team-supported") {
+          await toggle.click();
+          assert.deepEqual(await fixture.page.evaluate(() => window.__EFFORT_PARITY__.calls), [true]);
+        } else {
+          const info = await toggle.evaluateHandle(button => button.parentElement.querySelector('button:not([role="switch"])'));
+          await info.asElement().focus();
+          await fixture.page.keyboard.press("Enter");
+          await fixture.page.waitForSelector('[role="tooltip"]');
+          const tooltip = await fixture.page.$eval('[role="tooltip"]', element => element.textContent);
+          const reason = locale === "zh" ? "当前部署不支持智能体团队。" : "Agent Teams are unavailable on this deployment.";
+          assert.ok(tooltip.endsWith(reason) && tooltip.length > reason.length, "official explanation and localized Host availability");
+          await fixture.page.screenshot({ path: resolve(output, `model-${locale}-team-unavailable.png`), captureBeyondViewport: false });
+          assert.deepEqual(await fixture.page.evaluate(() => window.__EFFORT_PARITY__.calls), []);
+        }
+      }
+      assert.deepEqual(fixture.errors, []);
+      await fixture.page.close();
+      cases.push({ locale, state, officialTeamRow: true });
+    }
     const reference=await open(locale,"reference","supported"),adapted=await open(locale,"adapted","supported");
     for(const pane of ["root","effort"]){
       await root(reference.page);if(pane==="effort")await clickMenu(reference.page,"menu.effort");

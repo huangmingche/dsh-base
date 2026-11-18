@@ -79,7 +79,7 @@
         "@deepseek-ai/dsh-client-ui-settings-account/src/client/AccountSection.module.css",
         "@deepseek-ai/dsh-client-ui-settings-plugin-inventory/src/client/PluginInventorySettingsTab.tsx"
       ],
-      "sourceReviewCommit": "66491b05e3f05ad35bcdd4f6cd7ed26041d9e3db",
+      "sourceReviewCommit": "9c2670d3bce5275e0d1610272958121af87787bb",
       "reason": "The official account and settings plugins register behind private Host access gates, which remain intact. This custom plugin supplies only the anonymous sidebar entry and composes exported official rows and our marked settings shell. AccountSection has no official contract to render full account content for a genuine signed-out snapshot: it returns a placeholder first. A complete marked @dsh-base/client-settings-account fork adds an explicit full-unavailable Host presentation option while retaining official markup, CSS and dictionaries. This launcher uses its stable /client export with signed-out state, no attempt and no private details. Platform actions remain disabled; the separate Dsh-base account row below alone requests local authentication through the official Button. No private permission or synthetic identity is introduced. Anonymous Models now uses the existing marked Models fork stable export with a read-only public-declarations Host contract and local-only operations, rather than a handwritten catalog. Public schema and defaults are shared with the Worker through a platform-neutral data library. Unknown owner credentials and Gateway availability remain unknown; Add provider and a lower sign-in action request local authentication.",
       "gaps": [
         "Anonymous launcher structure mirrors the official AccountMenu signed-out branch and is hand-written, not forked; re-review on pin upgrades.",
@@ -90,8 +90,29 @@
         "Nav icons come from ui-primitives because the official settings.section.icon slot has no registrants while anonymous; re-review on pin upgrades.",
         "Long localized section labels keep the official single-line ellipsis behavior (e.g. de/ru/es/ja/pt for Built-in plugins / Agent presets); the truncation is inherited from the official nav cell and is treated as an upstream localization issue, not a local deviation.",
         "The anonymous Account page uses the marked account settings fork full-unavailable Host contract over a genuine signed-out snapshot. Official account identity, balance, bonus and navigation rows remain visible; unavailable Platform actions have no href and are disabled. The separate lower Dsh-base login region alone requests local authentication. The full anonymous layout is a user-approved extension of the official signed-in layout, documented in ADR-0005 section 21; it is not an upstream anonymous behavior.",
-        "The anonymous Models section directly composes the marked official ModelsSection and ProviderEditor over local public declarations. It sets no available/configured owner credential facts, reads no private remotes and refuses all writes. The Gateway card has an explicit signed-out state, not a false disabled-deployment status. A user-approved public-declarations presentation keeps the original cards visible and the original Add button requests sign-in. Its default owner path is unchanged. The public schema/default support library is not an independently active feature.",
-        "This revision limits the workbench to authenticated accounts. The anonymous homepage uses the isolated sign-in and consent document providers."
+        "The anonymous Models section directly composes the marked official ModelsSection and ProviderEditor over local public declarations. It sets no available/configured owner credential facts, reads no private remotes and refuses all writes. The Gateway card has an explicit signed-out state, not a false disabled-deployment status. A user-approved public-declarations presentation keeps the original cards visible and the original Add button requests sign-in. Its default owner path is unchanged. The public schema/default support library is not an independently active feature."
+      ],
+      "userApprovedDeviations": [
+        {
+          "surface": "sidebar.settings anonymous entry and panel",
+          "change": "Adds an anonymous More account menu with a five-section settings panel: all five sections are switchable; General keeps the twelve official rows (nine usable through official policies/forms/services, one read-only version row, two disabled); Account keeps the official signed-out surface and a separate local account addition as specified by the later identity-separation approval; Models/Plugins/Agent presets render read-only content in P12 C-E. Feedback stays disabled and local Sign in is enabled; the official AccountMenu still owns the signed-in state.",
+          "approval": "The user approved the anonymous More menu, complete settings form and five switchable sections on 2026-11-14 (ADR-0005 sections 16-19). The historical four account extras approval (R28) is superseded by the later account identity-separation decision in section 20."
+        },
+        {
+          "surface": "anonymous Account page identity separation",
+          "change": "Keep the official DeepSeek signed-out component, dictionaries and CSS. Its unavailable Platform action is disabled with localized explanation. Remove the four synthetic billing rows and append a separate Dsh-base account sign-in region using the official Button and account row styling. Only the added button opens local authentication; no official button impersonates the local account and no private permission changes.",
+          "approval": "On 2026-11-17 the user required the original official Account UI/UX to remain and requested a separate Dsh-base login prompt and button below it, superseding R28; recorded in ADR-0005 section 20."
+        },
+        {
+          "surface": "anonymous full account content",
+          "change": "Use the complete marked account fork to show the official identity card, account information, balance, bonus and usage/top-up rows for a genuine signed-out snapshot. Disable Platform operations and keep the distinct local sign-in footer. No invented account or monetary data.",
+          "approval": "On 2026-11-17 the user requested the content area match the original full DSH account page, with account-dependent areas greyed out while signed out; ADR-0005 section 21 supersedes the placeholder layout of section 20."
+        },
+        {
+          "surface": "anonymous Models settings",
+          "change": "Render the existing marked official Models section and read-only editor from shared public defaults, keeping owner credentials and Gateway status unknown. Add provider and the lower local sign-in button request authentication; disclosure controls remain local and usable. Private Host permissions are unchanged.",
+          "approval": "The user requested the anonymous Models content be restored as closely as possible to the official DSH UI on 2026-11-17, following the approved account-page identity and access separation."
+        }
       ]
     }
   },

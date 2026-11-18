@@ -4,4 +4,4 @@
 
 读取失败或非法配置不会呈现就绪。支持官方八种语言，不注册设置页，不读取私有账号。检查：`node --experimental-strip-types --test packages/client/dsh-base-client-email/tests/*.test.ts`；实际槽位与控件渲染验证位于 Waffo Pancake 客户端包的 `tests/panels.test.mjs`。
 
-本插件通过 `publicPluginConfigurations` 兼容服务按生命周期登记自己的公开 bundle 配置入口；默认工作台要求登录；面板和服务端根据账号权限提供对应操作。卸载插件会注销入口，不开放组件级私有配置。
+本插件通过 `publicPluginConfigurations` 兼容服务按生命周期登记自己的公开 bundle 配置入口；匿名用户可查看状态，账号和管理员动作仍由面板与服务端鉴权。卸载插件会注销入口，不开放组件级私有配置。

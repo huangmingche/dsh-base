@@ -7,6 +7,7 @@ import { isMain, localPackages, repoRoot } from '../conformance/lib.mjs';
 import { readClientMetadataRows, readWorkerMetadataRows, readAgentMetadataRows } from './metadata-roster.mjs';
 import { readPackManifests } from './packs.mjs';
 import { checkPluginOrigin } from '../conformance/plugin-origin.mjs';
+import { generatePluginArtwork } from '../assets/plugin-artwork.mjs';
 
 export const ownedInventoryTarget = 'packages/client/dsh-base-client-session-adapter/src/client/owned-plugin-inventory.generated.ts';
 const planes = ['client', 'worker', 'think'];
@@ -150,6 +151,7 @@ export function loadOwnedPluginInventory(root = repoRoot) {
 
 if (isMain(import.meta.url)) {
   const root = cliProductRoot();
+  generatePluginArtwork(process.argv.includes('--check'), root);
   const { rows, bundles, source } = loadOwnedPluginInventory(root);
   const target = outputPath(root, ownedInventoryTarget);
   if (process.argv.includes('--check')) {

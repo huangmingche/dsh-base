@@ -4,4 +4,4 @@ Independent client plugin `client:notifications`, grouped under `dsh-base:notifi
 
 Shows administrator payment-notification delivery records and configured channels. Provider acceptance is not delivery/read confirmation. Sending or uncertain records require explicit review and acceptance of duplicate risk before retry. Accepted records cannot be retried. No arbitrary message or URL relay is exposed.
 
-The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. The default workbench requires sign-in. The panel and server authorize account and administrator actions. Unloading removes the registration and never exposes private row configuration.
+The plugin registers its own public bundle configuration through the lifetime-scoped `publicPluginConfigurations` compatibility service. Guests can inspect status; account and administrator actions retain panel and server authorization. Unloading removes the registration and never exposes private row configuration.
